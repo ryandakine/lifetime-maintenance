@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 
 const Shopping = () => {
-  console.log('Shopping rendering!')
+  console.log('Rendering Shopping')
   const [shoppingLists, setShoppingLists] = useState([])
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(false)
@@ -437,7 +437,6 @@ Be specific with aisle numbers and part numbers. If exact match not found, provi
                           alignItems: 'center', 
                           gap: '0.25rem',
                           fontSize: '0.8rem', 
-                          color: checkedCount === totalCount ? 'var(--success-color)' : 'var(--warning-color)',
                           marginLeft: '0.5rem',
                           padding: '0.25rem 0.5rem',
                           backgroundColor: checkedCount === totalCount ? 'var(--success-color)' : 'var(--warning-color)',

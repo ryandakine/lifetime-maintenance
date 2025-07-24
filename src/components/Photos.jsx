@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 
 const Photos = () => {
+  console.log('Rendering Photos')
   const [photos, setPhotos] = useState([])
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(false)

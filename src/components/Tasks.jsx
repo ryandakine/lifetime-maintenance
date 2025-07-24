@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 
 const Tasks = () => {
+  console.log('Rendering Tasks')
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })

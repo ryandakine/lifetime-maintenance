@@ -63,6 +63,7 @@ function RouteDiagnostics() {
 
 // Simple WorkoutTracker Component
 function WorkoutTracker() {
+  console.log('Rendering WorkoutTracker')
   return (
     <div style={{ 
       padding: '2rem', 
@@ -320,114 +321,25 @@ function DebugStatus() {
 
 // Test Render Component for root path
 function TestRender() {
+  console.log('Rendering TestRender')
   return (
-    <div style={{ 
-      padding: '2rem', 
-      textAlign: 'center', 
-      color: 'var(--primary-color)',
-      backgroundColor: 'var(--light-color)',
+    <div style={{
+      padding: '2rem',
+      textAlign: 'center',
+      color: '#007BFF',
+      backgroundColor: '#f8f9fa',
       borderRadius: '8px',
-      margin: '1rem'
+      margin: '1rem',
+      fontWeight: 'bold',
+      fontSize: '2rem'
     }}>
-      <h2>Test Render</h2>
-      <p>This is the root path test render.</p>
-      <div style={{ marginTop: '1rem' }}>
-        <a 
-          href="/maintenance" 
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: 'var(--primary-color)',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '4px',
-            marginRight: '0.5rem'
-          }}
-        >
-          Go to Maintenance
-        </a>
-        <a 
-          href="/tasks" 
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: 'var(--primary-color)',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '4px',
-            marginRight: '0.5rem'
-          }}
-        >
-          Go to Tasks
-        </a>
-        <a 
-          href="/shopping" 
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: 'var(--primary-color)',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '4px',
-            marginRight: '0.5rem'
-          }}
-        >
-          Go to Shopping
-        </a>
-        <a 
-          href="/email" 
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: 'var(--primary-color)',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '4px',
-            marginRight: '0.5rem'
-          }}
-        >
-          Go to Email
-        </a>
-        <a 
-          href="/photos" 
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: 'var(--primary-color)',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '4px',
-            marginRight: '0.5rem'
-          }}
-        >
-          Go to Photos
-        </a>
-        <a 
-          href="/voice" 
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: 'var(--primary-color)',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '4px',
-            marginRight: '0.5rem'
-          }}
-        >
-          Voice Assistant
-        </a>
-        <a 
-          href="/knowledge" 
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: 'var(--primary-color)',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '4px'
-          }}
-        >
-          Knowledge
-        </a>
-      </div>
+      Test Render
     </div>
   )
 }
 
 function App() {
+  console.log('Rendering App')
   return (
     <ErrorBoundary>
       <Router>
@@ -435,6 +347,7 @@ function App() {
         <div className="App">
           <Routes>
             <Route path="/" element={<TestRender />} />
+            <Route path="/test" element={<TestRender />} />
             <Route path="/maintenance" element={
               <ErrorBoundary>
                 <Maintenance />

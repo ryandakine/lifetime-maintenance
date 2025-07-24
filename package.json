@@ -10,12 +10,12 @@
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.38.4",
+    "date-fns": "^2.30.0",
+    "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.8.1",
-    "@supabase/supabase-js": "^2.38.4",
-    "lucide-react": "^0.294.0",
-    "date-fns": "^2.30.0"
+    "react-router-dom": "^6.8.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
@@ -28,7 +28,12 @@
     "vite": "^5.0.8",
     "vite-plugin-pwa": "^0.17.4"
   },
-  "keywords": ["pwa", "maintenance", "lifetime-fitness", "react"],
+  "keywords": [
+    "pwa",
+    "maintenance",
+    "lifetime-fitness",
+    "react"
+  ],
   "author": "Lifetime Maintenance Team",
   "license": "MIT"
-} 
+}
