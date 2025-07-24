@@ -501,8 +501,10 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
                         deleteKnowledgeEntry(entry.id)
                       }}
                       style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                      title="Delete entry"
+                      aria-label="Delete entry"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={14} aria-hidden="true" />
                     </button>
                   </div>
 
@@ -558,8 +560,10 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
                           copyToClipboard(entry.response)
                         }}
                         style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                        title="Copy response"
+                        aria-label="Copy response"
                       >
-                        <Copy size={12} style={{ marginRight: '0.25rem' }} />
+                        <Copy size={12} style={{ marginRight: '0.25rem' }} aria-hidden="true" />
                         Copy
                       </button>
                       <button
@@ -569,8 +573,10 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
                           copyToClipboard(entry.question)
                         }}
                         style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                        title="Copy question"
+                        aria-label="Copy question"
                       >
-                        <Copy size={12} style={{ marginRight: '0.25rem' }} />
+                        <Copy size={12} style={{ marginRight: '0.25rem' }} aria-hidden="true" />
                         Copy Question
                       </button>
                     </div>

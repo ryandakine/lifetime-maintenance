@@ -486,7 +486,7 @@ Examples:
         {/* Command Examples */}
         <div className="card">
           <h4 style={{ marginBottom: '1rem', color: 'var(--primary-color)' }}>
-            <Command size={16} style={{ marginRight: '0.5rem' }} />
+            <Command size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
             Voice Commands
           </h4>
           <div style={{ display: 'grid', gap: '1rem' }}>
@@ -523,8 +523,10 @@ Examples:
                 onClick={clearHistory}
                 className="btn btn-secondary"
                 style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                title="Clear history"
+                aria-label="Clear history"
               >
-                <RotateCcw size={14} />
+                <RotateCcw size={14} aria-hidden="true" />
                 Clear
               </button>
             </div>

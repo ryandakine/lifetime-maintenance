@@ -1,3 +1,33 @@
+/* Accessibility & compatibility fixes */
+:root {
+  --primary-color: #007BFF;
+  --secondary-color: #6c757d;
+  --success-color: #28a745;
+  --warning-color: #ffc107;
+  --danger-color: #dc3545;
+  --light-color: #f8f9fa;
+  --text-color: #212529;
+  --border-color: #dee2e6;
+}
+
+body {
+  min-height: min-content;
+  /* fallback for old browsers */
+  min-height: 100vh;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) var(--light-color);
+}
+
+/* Fallback for Safari */
+body::-webkit-scrollbar {
+  width: 8px;
+  background: var(--light-color);
+}
+body::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+
 .App {
   min-height: 100vh;
   background-color: var(--light-color);

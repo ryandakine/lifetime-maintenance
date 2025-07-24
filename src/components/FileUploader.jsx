@@ -415,6 +415,9 @@ const FileUploader = () => {
             onChange={handleFileSelect}
             style={{ display: 'none' }}
             disabled={uploading || !isOnline}
+            id="file-upload"
+            name="file-upload"
+            aria-label="Choose file to upload"
           />
           
           {uploading ? (
@@ -580,6 +583,9 @@ const FileUploader = () => {
               }}
               onFocus={(e) => e.target.style.borderColor = '#007BFF'}
               onBlur={(e) => e.target.style.borderColor = '#dee2e6'}
+              id="search-input"
+              name="search-input"
+              aria-label="Search files"
             />
             <Search size={16} style={{
               position: 'absolute',
@@ -703,6 +709,7 @@ const FileUploader = () => {
                         fontSize: '0.8rem'
                       }}
                       title="Download file"
+                      aria-label="Download file"
                     >
                       <Download size={14} />
                     </button>
@@ -721,6 +728,7 @@ const FileUploader = () => {
                         fontSize: '0.8rem'
                       }}
                       title="Copy file link"
+                      aria-label="Copy file link"
                     >
                       <Copy size={14} />
                     </button>
@@ -739,6 +747,7 @@ const FileUploader = () => {
                         fontSize: '0.8rem'
                       }}
                       title="Delete file"
+                      aria-label="Delete file"
                     >
                       <Trash2 size={14} />
                     </button>
