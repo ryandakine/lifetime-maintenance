@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { supabase, TABLES, API_KEYS } from '../lib/supabase'
 import { 
   Camera, 
@@ -12,7 +12,9 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  RefreshCw
+  RefreshCw,
+  Video,
+  Image
 } from 'lucide-react'
 
 const Photos = () => {
@@ -21,6 +23,8 @@ const Photos = () => {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
   const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const videoRef = useRef(null)
+  const canvasRef = useRef(null)
   
   const [photoUpload, setPhotoUpload] = useState({
     photo: null,
@@ -28,8 +32,16 @@ const Photos = () => {
     selectedTaskId: '',
     analysis: '',
     loading: false,
-    showForm: false
+    showForm: false,
+    cameraMode: false,
+    cameraAvailable: false,
+    stream: null
   })
+
+  // Check camera availability on mount
+  useEffect(() => {
+    checkCameraAvailability()
+  }, [])
 
   // Check online status
   useEffect(() => {
@@ -50,6 +62,136 @@ const Photos = () => {
     loadPhotos()
     loadTasks()
   }, [])
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (photoUpload.stream) {
+        photoUpload.stream.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [photoUpload.stream])
+
+  const checkCameraAvailability = () => {
+    const hasMediaDevices = navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+    const cameraAvailable = hasMediaDevices && navigator.mediaDevices.enumerateDevices
+    
+    console.log('Camera access: ' + (hasMediaDevices ? 'available' : 'not available'))
+    
+    setPhotoUpload(prev => ({ ...prev, cameraAvailable }))
+    
+    if (!hasMediaDevices) {
+      showMessage('warning', 'Camera not available, upload from files')
+    }
+  }
+
+  const startCamera = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera API not supported')
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment', // Use back camera on mobile
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } 
+      })
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+      }
+      
+      setPhotoUpload(prev => ({ 
+        ...prev, 
+        cameraMode: true, 
+        stream,
+        showForm: true 
+      }))
+      
+      console.log('Camera started successfully')
+      
+    } catch (error) {
+      console.error('Camera access error:', error)
+      showMessage('error', 'Camera access failed, using file upload instead')
+      setPhotoUpload(prev => ({ ...prev, cameraMode: false, showForm: true }))
+    }
+  }
+
+  const stopCamera = () => {
+    if (photoUpload.stream) {
+      photoUpload.stream.getTracks().forEach(track => track.stop())
+    }
+    
+    setPhotoUpload(prev => ({ 
+      ...prev, 
+      cameraMode: false, 
+      stream: null,
+      showForm: false,
+      photo: null,
+      photoUrl: '',
+      analysis: '',
+      selectedTaskId: ''
+    }))
+  }
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return
+    
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    const context = canvas.getContext('2d')
+    
+    // Set canvas size to match video
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    
+    // Draw video frame to canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    
+    // Convert canvas to blob
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], `camera-photo-${Date.now()}.jpg`, { type: 'image/jpeg' })
+        setPhotoUpload(prev => ({ ...prev, photo: file }))
+        
+        // Stop camera after capture
+        stopCamera()
+        
+        // Process the captured photo
+        processPhotoFile(file)
+      }
+    }, 'image/jpeg', 0.8)
+  }
+
+  const processPhotoFile = async (file) => {
+    try {
+      setPhotoUpload(prev => ({ ...prev, loading: true }))
+      
+      // Upload to Supabase Storage
+      const fileName = `project-photos/${Date.now()}_${file.name}`
+      const { data, error } = await supabase.storage
+        .from('photos')
+        .upload(fileName, file)
+
+      if (error) throw error
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('photos')
+        .getPublicUrl(fileName)
+
+      setPhotoUpload(prev => ({ ...prev, photoUrl: publicUrl }))
+      
+      // Analyze photo with Grok Pro API
+      await analyzePhotoWithGrok(publicUrl)
+      
+    } catch (error) {
+      console.error('Error processing photo:', error)
+      showMessage('error', 'Failed to process photo')
+      setPhotoUpload(prev => ({ ...prev, loading: false }))
+    }
+  }
 
   const loadPhotos = async () => {
     try {
@@ -90,31 +232,7 @@ const Photos = () => {
     const file = e.target.files[0]
     if (!file) return
 
-    try {
-      setPhotoUpload({ ...photoUpload, loading: true, photo: file })
-      
-      // Upload to Supabase Storage
-      const fileName = `project-photos/${Date.now()}_${file.name}`
-      const { data, error } = await supabase.storage
-        .from('photos')
-        .upload(fileName, file)
-
-      if (error) throw error
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('photos')
-        .getPublicUrl(fileName)
-
-      setPhotoUpload({ ...photoUpload, photoUrl: publicUrl, photo: file })
-      
-      // Analyze photo with Grok Pro API
-      await analyzePhotoWithGrok(publicUrl)
-      
-    } catch (error) {
-      console.error('Error uploading photo:', error)
-      showMessage('error', 'Failed to upload photo')
-      setPhotoUpload({ ...photoUpload, loading: false, photo: null })
-    }
+    await processPhotoFile(file)
   }
 
   const analyzePhotoWithGrok = async (photoUrl) => {
@@ -310,31 +428,73 @@ Format your response as:
         </p>
         
         {!photoUpload.showForm ? (
-          <button
-            className="btn"
-            onClick={() => setPhotoUpload({ ...photoUpload, showForm: true })}
-          >
-            <Camera size={16} style={{ marginRight: '0.5rem' }} />
-            Upload Photo
-          </button>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            {photoUpload.cameraAvailable && (
+              <button
+                className="btn"
+                onClick={startCamera}
+              >
+                <Camera size={16} style={{ marginRight: '0.5rem' }} />
+                Take Photo
+              </button>
+            )}
+            <button
+              className="btn"
+              onClick={() => setPhotoUpload({ ...photoUpload, showForm: true, cameraMode: false })}
+            >
+              <Upload size={16} style={{ marginRight: '0.5rem' }} />
+              Upload File
+            </button>
+          </div>
         ) : (
           <div>
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
               <button
                 className="btn btn-secondary"
-                onClick={() => setPhotoUpload({ 
-                  ...photoUpload, 
-                  showForm: false, 
-                  photo: null, 
-                  photoUrl: '', 
-                  analysis: '',
-                  selectedTaskId: ''
-                })}
+                onClick={() => {
+                  stopCamera()
+                  setPhotoUpload({ 
+                    ...photoUpload, 
+                    showForm: false, 
+                    photo: null, 
+                    photoUrl: '', 
+                    analysis: '',
+                    selectedTaskId: ''
+                  })
+                }}
               >
                 <X size={16} style={{ marginRight: '0.5rem' }} />
                 Cancel
               </button>
             </div>
+            
+            {/* Camera Mode */}
+            {photoUpload.cameraMode && (
+              <div style={{ marginBottom: '1rem' }}>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  style={{ 
+                    width: '100%', 
+                    maxWidth: '400px', 
+                    borderRadius: '8px',
+                    border: '2px solid var(--border-color)'
+                  }}
+                />
+                <canvas ref={canvasRef} style={{ display: 'none' }} />
+                <div style={{ marginTop: '1rem' }}>
+                  <button
+                    className="btn"
+                    onClick={capturePhoto}
+                    style={{ marginRight: '1rem' }}
+                  >
+                    <Camera size={16} style={{ marginRight: '0.5rem' }} />
+                    Capture Photo
+                  </button>
+                </div>
+              </div>
+            )}
             
             <div className="form-group">
               <label className="form-label">Link to Task (optional)</label>
@@ -352,16 +512,19 @@ Format your response as:
               </select>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Upload Photo</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                className="form-input"
-                disabled={photoUpload.loading}
-              />
-            </div>
+            {/* File Upload Mode */}
+            {!photoUpload.cameraMode && (
+              <div className="form-group">
+                <label className="form-label">Upload Photo</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="form-input"
+                  disabled={photoUpload.loading}
+                />
+              </div>
+            )}
 
             {photoUpload.photo && (
               <div style={{ marginTop: '1rem' }}>
