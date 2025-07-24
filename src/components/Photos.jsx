@@ -838,7 +838,6 @@ Format your response as:
                             alignItems: 'center', 
                             gap: '0.25rem',
                             fontSize: '0.8rem', 
-                            color: 'var(--primary-color)',
                             marginLeft: '0.5rem',
                             padding: '0.25rem 0.5rem',
                             backgroundColor: 'var(--primary-color)',

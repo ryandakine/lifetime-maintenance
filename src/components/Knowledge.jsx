@@ -35,9 +35,9 @@ import {
   Wrench,
   Hammer,
   Screwdriver,
-  Ladder,
-  Safety,
-  Warning
+  Construction,
+  Shield,
+  AlertTriangle
 } from 'lucide-react'
 
 const Knowledge = () => {
