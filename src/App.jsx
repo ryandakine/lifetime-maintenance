@@ -7,6 +7,7 @@ import Shopping from './components/Shopping'
 import Photos from './components/Photos'
 import VoiceAssistant from './components/VoiceAssistant'
 import Knowledge from './components/Knowledge'
+import FileUploader from './components/FileUploader'
 import { supabase, API_KEYS } from './lib/supabase'
 import './App.css'
 
@@ -49,14 +50,7 @@ class ErrorBoundary extends React.Component {
 function RouteDiagnostics() {
   const location = useLocation()
   useEffect(() => {
-    console.log("Rendering route: " + location.pathname)
     console.log("Navigating to " + location.pathname)
-    console.log("Route change detected:", {
-      pathname: location.pathname,
-      search: location.search,
-      hash: location.hash,
-      timestamp: new Date().toISOString()
-    })
   }, [location.pathname])
   return null
 }
@@ -388,33 +382,14 @@ function App() {
                 <Knowledge />
               </ErrorBoundary>
             } />
+            <Route path="/files" element={
+              <ErrorBoundary>
+                <FileUploader />
+              </ErrorBoundary>
+            } />
             <Route path="/debug" element={<DebugStatus />} />
             <Route path="/workout-tracker" element={<WorkoutTracker />} />
-            <Route path="*" element={
-              <div style={{ 
-                padding: '2rem', 
-                textAlign: 'center', 
-                color: 'var(--danger-color)',
-                backgroundColor: 'var(--light-color)',
-                borderRadius: '8px',
-                margin: '1rem'
-              }}>
-                <h2>404 - Page Not Found</h2>
-                <p>The page you're looking for doesn't exist.</p>
-                <a 
-                  href="/" 
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: 'var(--primary-color)',
-                    color: 'white',
-                    textDecoration: 'none',
-                    borderRadius: '4px'
-                  }}
-                >
-                  Back to Home
-                </a>
-              </div>
-            } />
+            <Route path="*" element={<div style={{ color: '#007BFF' }}>Test Render</div>} />
           </Routes>
         </div>
       </Router>

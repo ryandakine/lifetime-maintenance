@@ -619,13 +619,13 @@ const Maintenance = () => {
             </a>
           </li>
           <li>
-            <button
-              className={`nav-link ${activeTab === 'files' ? 'active' : ''}`}
-              onClick={() => setActiveTab('files')}
+            <a
+              href="/files"
+              className="nav-link"
             >
               <Upload size={16} style={{ marginRight: '0.5rem' }} />
               Files
-            </button>
+            </a>
           </li>
         </ul>
       </nav>
