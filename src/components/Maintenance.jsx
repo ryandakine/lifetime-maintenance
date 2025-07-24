@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 
 const Maintenance = () => {
+  console.log('Maintenance rendering!')
   const [activeTab, setActiveTab] = useState('tasks')
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [loading, setLoading] = useState(false)

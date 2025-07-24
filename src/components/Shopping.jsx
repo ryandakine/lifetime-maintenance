@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 
 const Shopping = () => {
+  console.log('Shopping rendering!')
   const [shoppingLists, setShoppingLists] = useState([])
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(false)

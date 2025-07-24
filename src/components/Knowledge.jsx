@@ -41,6 +41,7 @@ import {
 } from 'lucide-react'
 
 const Knowledge = () => {
+  console.log('Knowledge rendering!')
   const [knowledgeEntries, setKnowledgeEntries] = useState([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })

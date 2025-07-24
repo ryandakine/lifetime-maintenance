@@ -3,6 +3,7 @@ import { supabase, TABLES, API_KEYS } from '../lib/supabase'
 import { Send, MessageSquare, RotateCcw, Brain, Copy, FileText } from 'lucide-react'
 
 const Email = () => {
+  console.log('Email rendering!')
   const [emails, setEmails] = useState([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })

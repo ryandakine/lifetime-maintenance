@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 
 const VoiceAssistant = () => {
+  console.log('VoiceAssistant rendering!')
   const navigate = useNavigate()
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')

@@ -33,7 +33,7 @@ export default defineConfig({
     })
   ],
   server: {
-    port: 3000,
+    port: 5174,
     open: true,
     hmr: {
       overlay: false // Disable HMR overlay to prevent blocking
