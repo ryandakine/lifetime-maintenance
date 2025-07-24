@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS photos (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id TEXT NOT NULL,
   photo_url TEXT NOT NULL,
+  task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
   response TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -90,6 +91,7 @@ CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
 
 CREATE INDEX IF NOT EXISTS idx_photos_user_id ON photos(user_id);
+CREATE INDEX IF NOT EXISTS idx_photos_task_id ON photos(task_id);
 CREATE INDEX IF NOT EXISTS idx_photos_created_at ON photos(created_at);
 
 -- Create updated_at trigger function

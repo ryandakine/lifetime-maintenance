@@ -4,6 +4,7 @@ import Maintenance from './components/Maintenance'
 import Email from './components/Email'
 import Tasks from './components/Tasks'
 import Shopping from './components/Shopping'
+import Photos from './components/Photos'
 import './App.css'
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
           <Route path="/email" element={<Email />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/shopping" element={<Shopping />} />
+          <Route path="/photos" element={<Photos />} />
         </Routes>
       </div>
     </Router>

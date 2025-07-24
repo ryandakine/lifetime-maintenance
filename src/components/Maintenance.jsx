@@ -608,6 +608,15 @@ const Maintenance = () => {
             </button>
           </li>
           <li>
+            <a
+              href="/photos"
+              className="nav-link"
+            >
+              <Camera size={16} style={{ marginRight: '0.5rem' }} />
+              Photos
+            </a>
+          </li>
+          <li>
             <button
               className={`nav-link ${activeTab === 'files' ? 'active' : ''}`}
               onClick={() => setActiveTab('files')}
