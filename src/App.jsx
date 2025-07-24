@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Maintenance from './components/Maintenance'
 import Email from './components/Email'
 import Tasks from './components/Tasks'
+import Shopping from './components/Shopping'
 import './App.css'
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/email" element={<Email />} />
           <Route path="/tasks" element={<Tasks />} />
+          <Route path="/shopping" element={<Shopping />} />
         </Routes>
       </div>
     </Router>

@@ -22,8 +22,13 @@ CREATE TABLE IF NOT EXISTS shopping_lists (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id TEXT NOT NULL,
   task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
-  items_json JSONB NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  items_json JSONB NOT NULL DEFAULT '[]',
+  supplier_priority_json JSONB DEFAULT '{"primary": "Grainger", "quickPickup": "Home Depot", "alternatives": ["Lowe\'s", "Ace Hardware"]}',
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed')),
+  notes TEXT,
+  store_address TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Emails table
@@ -86,6 +91,9 @@ $$ language 'plpgsql';
 
 -- Create triggers for updated_at
 CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_shopping_lists_updated_at BEFORE UPDATE ON shopping_lists
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects

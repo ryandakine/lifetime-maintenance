@@ -581,13 +581,13 @@ const Maintenance = () => {
             </a>
           </li>
           <li>
-            <button
-              className={`nav-link ${activeTab === 'shopping' ? 'active' : ''}`}
-              onClick={() => setActiveTab('shopping')}
+            <a
+              href="/shopping"
+              className="nav-link"
             >
               <ShoppingCart size={16} style={{ marginRight: '0.5rem' }} />
               Shopping
-            </button>
+            </a>
           </li>
           <li>
             <a
@@ -623,7 +623,7 @@ const Maintenance = () => {
         {loading && <div className="loading">Loading...</div>}
         
 
-        {activeTab === 'shopping' && renderShopping()}
+
 
         {activeTab === 'knowledge' && renderKnowledge()}
         {activeTab === 'files' && renderFiles()}
