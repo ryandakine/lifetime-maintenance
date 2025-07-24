@@ -11,7 +11,8 @@ import {
   MessageSquare,
   BookOpen,
   ShoppingCart,
-  FileText
+  FileText,
+  Camera
 } from 'lucide-react'
 
 const Maintenance = () => {

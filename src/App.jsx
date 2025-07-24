@@ -11,16 +11,15 @@ import './App.css'
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
-    this.state = { hasError: false, error: null }
+    this.state = { hasError: false }
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error }
+    return { hasError: true }
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("ErrorBoundary caught: ", error)
-    console.error("Error info: ", errorInfo)
+    console.error('ErrorBoundary caught: ', error, errorInfo)
   }
 
   render() {
@@ -29,14 +28,26 @@ class ErrorBoundary extends React.Component {
         <div style={{ 
           padding: '2rem', 
           textAlign: 'center', 
-          color: '#007BFF',
-          fontFamily: 'Arial, sans-serif'
+          color: 'var(--danger-color)',
+          backgroundColor: 'var(--light-color)',
+          borderRadius: '8px',
+          margin: '1rem'
         }}>
-          <h1>Something went wrong</h1>
-          <p>Error: {this.state.error?.message || 'Unknown error'}</p>
-          <a href="/" style={{ color: '#007BFF', textDecoration: 'underline' }}>
+          <h2>Something went wrong</h2>
+          <p>Please refresh the page or go back to the main page.</p>
+          <button 
+            onClick={() => window.location.href = '/'}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: 'var(--primary-color)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
             Back to Home
-          </a>
+          </button>
         </div>
       )
     }
@@ -48,11 +59,9 @@ class ErrorBoundary extends React.Component {
 // Route Diagnostics Component
 function RouteDiagnostics() {
   const location = useLocation()
-  
   useEffect(() => {
     console.log("Rendering route: " + location.pathname)
   }, [location.pathname])
-
   return null
 }
 
@@ -62,14 +71,13 @@ function WorkoutTracker() {
     <div style={{ 
       padding: '2rem', 
       textAlign: 'center', 
-      color: '#007BFF',
-      fontFamily: 'Arial, sans-serif'
+      color: 'var(--primary-color)',
+      backgroundColor: 'var(--light-color)',
+      borderRadius: '8px',
+      margin: '1rem'
     }}>
-      <h1>Workout Tracker Loaded</h1>
+      <h2>Workout Tracker Loaded</h2>
       <p>This is a placeholder for the workout tracker feature.</p>
-      <a href="/" style={{ color: '#007BFF', textDecoration: 'underline' }}>
-        Back to Home
-      </a>
     </div>
   )
 }
@@ -80,14 +88,79 @@ function TestRender() {
     <div style={{ 
       padding: '2rem', 
       textAlign: 'center', 
-      color: '#007BFF',
-      fontFamily: 'Arial, sans-serif'
+      color: 'var(--primary-color)',
+      backgroundColor: 'var(--light-color)',
+      borderRadius: '8px',
+      margin: '1rem'
     }}>
-      <h1>Test Render</h1>
-      <p>This confirms the app is rendering correctly.</p>
-      <a href="/maintenance" style={{ color: '#007BFF', textDecoration: 'underline' }}>
-        Go to Maintenance
-      </a>
+      <h2>Test Render</h2>
+      <p>This is the root path test render.</p>
+      <div style={{ marginTop: '1rem' }}>
+        <a 
+          href="/maintenance" 
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: 'var(--primary-color)',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '4px',
+            marginRight: '0.5rem'
+          }}
+        >
+          Go to Maintenance
+        </a>
+        <a 
+          href="/tasks" 
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: 'var(--primary-color)',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '4px',
+            marginRight: '0.5rem'
+          }}
+        >
+          Go to Tasks
+        </a>
+        <a 
+          href="/shopping" 
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: 'var(--primary-color)',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '4px',
+            marginRight: '0.5rem'
+          }}
+        >
+          Go to Shopping
+        </a>
+        <a 
+          href="/email" 
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: 'var(--primary-color)',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '4px',
+            marginRight: '0.5rem'
+          }}
+        >
+          Go to Email
+        </a>
+        <a 
+          href="/photos" 
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: 'var(--primary-color)',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '4px'
+          }}
+        >
+          Go to Photos
+        </a>
+      </div>
     </div>
   )
 }
@@ -110,12 +183,23 @@ function App() {
               <div style={{ 
                 padding: '2rem', 
                 textAlign: 'center', 
-                color: '#007BFF',
-                fontFamily: 'Arial, sans-serif'
+                color: 'var(--danger-color)',
+                backgroundColor: 'var(--light-color)',
+                borderRadius: '8px',
+                margin: '1rem'
               }}>
-                <h1>Page Not Found</h1>
-                <p>Route: {window.location.pathname}</p>
-                <a href="/" style={{ color: '#007BFF', textDecoration: 'underline' }}>
+                <h2>404 - Page Not Found</h2>
+                <p>The page you're looking for doesn't exist.</p>
+                <a 
+                  href="/" 
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: 'var(--primary-color)',
+                    color: 'white',
+                    textDecoration: 'none',
+                    borderRadius: '4px'
+                  }}
+                >
                   Back to Home
                 </a>
               </div>

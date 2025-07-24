@@ -2,22 +2,24 @@ import React, { useState, useEffect } from 'react'
 import { supabase, TABLES, API_KEYS } from '../lib/supabase'
 import { 
   ShoppingCart, 
-  CheckCircle, 
-  Circle, 
-  Plus, 
+  Search, 
+  CheckSquare, 
+  Square, 
   Trash2, 
-  RotateCcw, 
+  Plus, 
   Brain,
   Store,
   Package,
   MapPin,
-  RefreshCw,
-  Truck,
-  Clock,
-  Camera,
-  Upload,
-  Check,
-  X
+  RotateCcw,
+  Loader,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  ExternalLink,
+  Filter,
+  List,
+  Grid
 } from 'lucide-react'
 
 const Shopping = () => {
@@ -26,25 +28,9 @@ const Shopping = () => {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
   const [isOnline, setIsOnline] = useState(navigator.onLine)
-  
-  const [shoppingInput, setShoppingInput] = useState({
-    userInput: '',
-    linkedTaskId: '',
-    storeAddress: '123 Main St, Denver, CO 80202' // Default store address
-  })
-
-  const [photoAnalysis, setPhotoAnalysis] = useState({
-    photo: null,
-    photoUrl: '',
-    analysis: '',
-    loading: false,
-    showForm: false
-  })
-
-  const [gotItemInput, setGotItemInput] = useState({
-    text: '',
-    loading: false
-  })
+  const [userInput, setUserInput] = useState('')
+  const [processing, setProcessing] = useState(false)
+  const [selectedTaskId, setSelectedTaskId] = useState('')
 
   // Check online status
   useEffect(() => {
@@ -72,7 +58,7 @@ const Shopping = () => {
       const { data, error } = await supabase
         .from(TABLES.SHOPPING_LISTS)
         .select('*')
-        .eq('user_id', 'current-user') // Replace with actual user ID
+        .eq('user_id', 'current-user')
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -92,7 +78,6 @@ const Shopping = () => {
         .from(TABLES.TASKS)
         .select('id, task_list, status')
         .eq('user_id', 'current-user')
-        .eq('status', 'pending')
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -102,218 +87,161 @@ const Shopping = () => {
     }
   }
 
-  const processShoppingInput = async (e) => {
-    e.preventDefault()
-    if (!shoppingInput.userInput.trim()) {
-      showMessage('error', 'Please enter your shopping needs')
-      return
-    }
+  const processShoppingInput = async () => {
+    if (!userInput.trim()) return
 
     try {
-      setLoading(true)
-      
-      // Use Claude 4.0 Max API to parse shopping input with supplier prioritization
-      const parsedItems = await parseShoppingWithClaude(shoppingInput.userInput)
-      
-      if (parsedItems.length === 0) {
-        showMessage('error', 'No valid items found in input')
+      setProcessing(true)
+      const perplexityApiKey = API_KEYS.PERPLEXITY_PRO
+
+      if (!perplexityApiKey || perplexityApiKey === 'your-perplexity-key') {
+        console.warn('Perplexity Pro API key not configured, using fallback parsing')
+        // Fallback: simple parsing without API
+        const items = userInput.split('\n').filter(line => line.trim()).map(item => ({
+          name: item,
+          grainger_part: 'N/A',
+          grainger_url: '',
+          home_depot_aisle: 'N/A',
+          home_depot_url: '',
+          alternatives: [],
+          checked: false
+        }))
+        
+        await saveShoppingList(items)
         return
       }
 
-      // Create supplier priority structure
-      const supplierPriority = {
-        primary: 'Grainger',
-        quickPickup: 'Home Depot',
-        alternatives: ['Lowe\'s', 'Ace Hardware'],
-        storeAddress: shoppingInput.storeAddress
-      }
+      console.log('Processing shopping input with Perplexity Pro...')
 
-      // Save parsed shopping list to Supabase
-      const { data, error } = await supabase
-        .from(TABLES.SHOPPING_LISTS)
-        .insert({
-          user_id: 'current-user', // Replace with actual user ID
-          task_id: shoppingInput.linkedTaskId || null,
-          items_json: parsedItems,
-          supplier_priority_json: supplierPriority,
-          status: 'pending',
-          notes: shoppingInput.userInput,
-          store_address: shoppingInput.storeAddress
-        })
-        .select()
-
-      if (error) throw error
-
-      // Update local state
-      setShoppingLists([data, ...shoppingLists])
-      setShoppingInput({ userInput: '', linkedTaskId: '', storeAddress: '123 Main St, Denver, CO 80202' })
-      
-      console.log(`Generated shopping list with Grainger priority: ${parsedItems.length} items`)
-      showMessage('success', `Shopping list created with ${parsedItems.length} items (Grainger prioritized)`)
-      
-    } catch (error) {
-      console.error('Error processing shopping list:', error)
-      showMessage('error', 'Failed to process shopping list')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const parseShoppingWithClaude = async (userInput) => {
-    try {
-      const claudeApiKey = API_KEYS.CLAUDE_API
-      
-      if (!claudeApiKey || claudeApiKey === 'sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx') {
-        console.warn('Claude API key not configured, using fallback parsing')
-        return parseShoppingFallback(userInput)
-      }
-
-      const prompt = `Parse this maintenance shopping request into prioritized supplier options.
-
-User Input: "${userInput}"
-
-Store Address: ${shoppingInput.storeAddress}
-
-Supplier Priority Rules:
-1. ALWAYS prioritize Grainger first (mail delivery, professional parts)
-2. If user mentions "Home Depot" specifically, mark as quick pickup option
-3. Include Lowe's and Ace Hardware as alternatives
-4. For Grainger: Provide estimated part numbers (G-XXXXX format)
-5. For Home Depot: Provide aisle information for quick pickup
-6. For Lowe's/Ace: Provide basic availability info
-
-Instructions:
-1. Break down the input into individual shopping items
-2. For each item, create 4 supplier options in priority order
-3. Return as JSON array with: name, quantity, suppliers array (Grainger, Home Depot, Lowe's, Ace)
-4. Each supplier should have: name, partNumber (if applicable), aisle (if applicable), delivery, notes
-
-Example output:
-[
-  {
-    "name": "HVAC Filter",
-    "quantity": "2",
-    "suppliers": [
-      {
-        "name": "Grainger",
-        "partNumber": "G-12345",
-        "delivery": "Mail delivery (2-3 days)",
-        "notes": "Professional grade, 16x20x1 inch"
-      },
-      {
-        "name": "Home Depot",
-        "aisle": "Aisle 12 - HVAC",
-        "delivery": "Quick pickup - can't wait for mail",
-        "notes": "Available today"
-      },
-      {
-        "name": "Lowe's",
-        "delivery": "Store pickup",
-        "notes": "Check local availability"
-      },
-      {
-        "name": "Ace Hardware",
-        "delivery": "Local pickup",
-        "notes": "Limited selection"
-      }
-    ]
-  }
-]
-
-Shopping Items:`
-
-      console.log('Sending prioritized shopping parsing request to Claude API...')
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': claudeApiKey,
-          'anthropic-version': '2023-06-01'
+          'Authorization': `Bearer ${perplexityApiKey}`
         },
         body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20240620',
-          max_tokens: 1000,
+          model: 'llama-3.1-70b-instruct',
           messages: [
             {
+              role: 'system',
+              content: `You are a helpful assistant that finds Grainger part numbers and Home Depot aisle information for maintenance and repair items. Always provide accurate, specific information.`
+            },
+            {
               role: 'user',
-              content: prompt
+              content: `Find Grainger part numbers and Home Depot aisle information for these maintenance items. Assume Home Depot store at 123 Main St, Denver, CO.
+
+Items: ${userInput}
+
+For each item, provide:
+1. Grainger part number and direct link
+2. Home Depot aisle location and direct link
+3. Alternative options (other brands/suppliers)
+
+Return as JSON:
+{
+  "items": [
+    {
+      "name": "item name",
+      "grainger_part": "part number",
+      "grainger_url": "direct link to product",
+      "home_depot_aisle": "aisle location",
+      "home_depot_url": "direct link to product",
+      "alternatives": ["alternative 1", "alternative 2"]
+    }
+  ]
+}
+
+Be specific with aisle numbers and part numbers. If exact match not found, provide closest alternative.`
             }
-          ]
+          ],
+          max_tokens: 2000,
+          temperature: 0.1
         })
       })
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('Claude API error:', response.status, errorText)
-        throw new Error(`Claude API error: ${response.status}`)
+        console.error('Perplexity API error:', response.status, errorText)
+        throw new Error(`Perplexity API error: ${response.status}`)
       }
 
       const result = await response.json()
-      const responseText = result.content[0].text
-
+      const content = result.choices[0].message.content
+      
       // Extract JSON from response
-      const jsonMatch = responseText.match(/\[[\s\S]*\]/)
+      const jsonMatch = content.match(/\{[\s\S]*\}/)
       if (!jsonMatch) {
-        console.warn('No JSON found in Claude response, using fallback')
-        return parseShoppingFallback(userInput)
+        throw new Error('No valid JSON found in Perplexity response')
       }
 
-      const parsedItems = JSON.parse(jsonMatch[0])
-      console.log('Prioritized shopping items parsed with Claude:', parsedItems)
-      return parsedItems
+      const parsedData = JSON.parse(jsonMatch[0])
+      console.log('Perplexity parsed shopping items:', parsedData)
+
+      if (parsedData.items && Array.isArray(parsedData.items)) {
+        // Add checked property to each item
+        const itemsWithChecked = parsedData.items.map(item => ({
+          ...item,
+          checked: false
+        }))
+        
+        await saveShoppingList(itemsWithChecked)
+      } else {
+        throw new Error('Invalid item structure from Perplexity')
+      }
 
     } catch (error) {
-      console.error('Error calling Claude API:', error)
-      console.log('Using fallback shopping parsing due to Claude API error')
-      return parseShoppingFallback(userInput)
+      console.error('Error processing shopping input:', error)
+      showMessage('error', 'Failed to process input. Using fallback parsing.')
+      
+      // Fallback: simple parsing
+      const items = userInput.split('\n').filter(line => line.trim()).map(item => ({
+        name: item,
+        grainger_part: 'N/A',
+        grainger_url: '',
+        home_depot_aisle: 'N/A',
+        home_depot_url: '',
+        alternatives: [],
+        checked: false
+      }))
+      
+      await saveShoppingList(items)
+    } finally {
+      setProcessing(false)
+      setUserInput('')
     }
   }
 
-  const parseShoppingFallback = (userInput) => {
-    // Fallback parsing when Claude API is not available
-    const itemPhrases = userInput.split(/[,;]+/).map(phrase => phrase.trim()).filter(phrase => phrase.length > 0)
-    
-    return itemPhrases.map(phrase => ({
-      name: phrase,
-      quantity: '1',
-      suppliers: [
-        {
-          name: 'Grainger',
-          partNumber: 'G-XXXXX',
-          delivery: 'Mail delivery (2-3 days)',
-          notes: 'Professional parts'
-        },
-        {
-          name: 'Home Depot',
-          aisle: 'General',
-          delivery: 'Quick pickup - can\'t wait for mail',
-          notes: 'Available today'
-        },
-        {
-          name: 'Lowe\'s',
-          delivery: 'Store pickup',
-          notes: 'Check local availability'
-        },
-        {
-          name: 'Ace Hardware',
-          delivery: 'Local pickup',
-          notes: 'Limited selection'
-        }
-      ]
-    }))
+  const saveShoppingList = async (items) => {
+    try {
+      const { error } = await supabase
+        .from(TABLES.SHOPPING_LISTS)
+        .insert({
+          user_id: 'current-user',
+          task_id: selectedTaskId || null,
+          items_json: items,
+          store_address: '123 Main St, Denver, CO',
+          created_at: new Date().toISOString()
+        })
+
+      if (error) throw error
+
+      console.log(`Shopping list generated with ${items.length} items`)
+      showMessage('success', `Shopping list created with ${items.length} items`)
+      
+      await loadShoppingLists()
+    } catch (error) {
+      console.error('Error saving shopping list:', error)
+      showMessage('error', 'Failed to save shopping list')
+    }
   }
 
-  const updateItemStatus = async (listId, itemIndex, supplierIndex, isCompleted) => {
+  const updateItemChecked = async (listId, itemIndex, checked) => {
     try {
       const list = shoppingLists.find(l => l.id === listId)
       if (!list) return
 
       const updatedItems = [...list.items_json]
-      if (!updatedItems[itemIndex].suppliers[supplierIndex]) {
-        updatedItems[itemIndex].suppliers[supplierIndex] = {}
-      }
-      updatedItems[itemIndex].suppliers[supplierIndex].completed = isCompleted
+      updatedItems[itemIndex].checked = checked
 
       const { error } = await supabase
         .from(TABLES.SHOPPING_LISTS)
@@ -326,333 +254,10 @@ Shopping Items:`
         l.id === listId ? { ...l, items_json: updatedItems } : l
       ))
       
-      console.log(`Shopping item ${itemIndex}, supplier ${supplierIndex} status updated to ${isCompleted ? 'completed' : 'pending'}`)
+      console.log(`Item ${itemIndex} ${checked ? 'checked' : 'unchecked'} in list ${listId}`)
     } catch (error) {
-      console.error('Error updating item status:', error)
+      console.error('Error updating item checked status:', error)
       showMessage('error', 'Failed to update item status')
-    }
-  }
-
-  const processGotItem = async (e) => {
-    e.preventDefault()
-    if (!gotItemInput.text.trim()) {
-      showMessage('error', 'Please enter what you got')
-      return
-    }
-
-    try {
-      setGotItemInput({ ...gotItemInput, loading: true })
-      
-      // Parse the "got item" input with Claude
-      const gotItems = await parseGotItemWithClaude(gotItemInput.text)
-      
-      if (gotItems.length === 0) {
-        showMessage('error', 'No items found in your input')
-        return
-      }
-
-      // Update all shopping lists with the got items
-      let updatedCount = 0
-      for (const list of shoppingLists) {
-        const updatedItems = [...list.items_json]
-        let listUpdated = false
-
-        for (const gotItem of gotItems) {
-          for (let i = 0; i < updatedItems.length; i++) {
-            const item = updatedItems[i]
-            if (item.name.toLowerCase().includes(gotItem.toLowerCase()) || 
-                gotItem.toLowerCase().includes(item.name.toLowerCase())) {
-              
-              // Mark all suppliers as completed for this item
-              for (let j = 0; j < item.suppliers.length; j++) {
-                if (!item.suppliers[j].completed) {
-                  item.suppliers[j].completed = true
-                  listUpdated = true
-                }
-              }
-            }
-          }
-        }
-
-        if (listUpdated) {
-          const { error } = await supabase
-            .from(TABLES.SHOPPING_LISTS)
-            .update({ items_json: updatedItems })
-            .eq('id', list.id)
-
-          if (error) throw error
-          updatedCount++
-        }
-      }
-
-      // Reload shopping lists
-      await loadShoppingLists()
-      
-      setGotItemInput({ text: '', loading: false })
-      console.log(`Updated ${updatedCount} shopping lists with got items`)
-      showMessage('success', `Marked ${gotItems.length} items as got`)
-      
-    } catch (error) {
-      console.error('Error processing got items:', error)
-      showMessage('error', 'Failed to update got items')
-      setGotItemInput({ ...gotItemInput, loading: false })
-    }
-  }
-
-  const parseGotItemWithClaude = async (userInput) => {
-    try {
-      const claudeApiKey = API_KEYS.CLAUDE_API
-      
-      if (!claudeApiKey || claudeApiKey === 'sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx') {
-        console.warn('Claude API key not configured, using fallback parsing')
-        return parseGotItemFallback(userInput)
-      }
-
-      const prompt = `Extract the items that were purchased/got from this input.
-
-User Input: "${userInput}"
-
-Instructions:
-1. Identify the specific items that were purchased or obtained
-2. Return as JSON array of item names
-3. Focus on maintenance/repair items
-
-Example outputs:
-- "I got the HVAC filter and ladder" → ["HVAC filter", "ladder"]
-- "Bought cement and light bulbs" → ["cement", "light bulbs"]
-- "Got the electrical breaker" → ["electrical breaker"]
-
-Items:`
-
-      console.log('Sending got item parsing request to Claude API...')
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': claudeApiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20240620',
-          max_tokens: 500,
-          messages: [
-            {
-              role: 'user',
-              content: prompt
-            }
-          ]
-        })
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Claude API error:', response.status, errorText)
-        throw new Error(`Claude API error: ${response.status}`)
-      }
-
-      const result = await response.json()
-      const responseText = result.content[0].text
-
-      // Extract JSON from response
-      const jsonMatch = responseText.match(/\[[\s\S]*\]/)
-      if (!jsonMatch) {
-        console.warn('No JSON found in Claude response, using fallback')
-        return parseGotItemFallback(userInput)
-      }
-
-      const parsedItems = JSON.parse(jsonMatch[0])
-      console.log('Got items parsed with Claude:', parsedItems)
-      return parsedItems
-
-    } catch (error) {
-      console.error('Error calling Claude API:', error)
-      console.log('Using fallback got item parsing due to Claude API error')
-      return parseGotItemFallback(userInput)
-    }
-  }
-
-  const parseGotItemFallback = (userInput) => {
-    // Fallback parsing when Claude API is not available
-    const itemPhrases = userInput.split(/[,;]+/).map(phrase => phrase.trim()).filter(phrase => phrase.length > 0)
-    return itemPhrases
-  }
-
-  const handlePhotoUpload = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-
-    try {
-      setPhotoAnalysis({ ...photoAnalysis, loading: true, photo: file })
-      
-      // Upload to Supabase Storage
-      const fileName = `photos/${Date.now()}_${file.name}`
-      const { data, error } = await supabase.storage
-        .from('photos')
-        .upload(fileName, file)
-
-      if (error) throw error
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('photos')
-        .getPublicUrl(fileName)
-
-      setPhotoAnalysis({ ...photoAnalysis, photoUrl: publicUrl, photo: file })
-      
-      // Analyze photo with Claude Vision
-      await analyzePhotoWithClaude(publicUrl)
-      
-    } catch (error) {
-      console.error('Error uploading photo:', error)
-      showMessage('error', 'Failed to upload photo')
-      setPhotoAnalysis({ ...photoAnalysis, loading: false, photo: null })
-    }
-  }
-
-  const analyzePhotoWithClaude = async (photoUrl) => {
-    try {
-      const claudeApiKey = API_KEYS.CLAUDE_API
-      
-      if (!claudeApiKey || claudeApiKey === 'sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx') {
-        console.warn('Claude API key not configured, using fallback analysis')
-        setPhotoAnalysis({ 
-          ...photoAnalysis, 
-          analysis: 'Photo analysis requires Claude API key configuration.',
-          loading: false 
-        })
-        return
-      }
-
-      const prompt = `Analyze this maintenance/repair photo and provide detailed fix advice.
-
-Instructions:
-1. Identify the issue or maintenance need
-2. Provide step-by-step repair instructions
-3. List required tools and supplies
-4. Recommend Grainger part numbers (G-XXXXX format) and Home Depot aisle info
-5. Include safety considerations
-6. Estimate time and difficulty level
-
-Format your response as:
-## Issue Analysis
-[Describe what you see]
-
-## Repair Steps
-1. [Step 1]
-2. [Step 2]
-...
-
-## Required Tools & Supplies
-- [Tool/Supply 1] - [Grainger Part # or Home Depot Aisle]
-- [Tool/Supply 2] - [Grainger Part # or Home Depot Aisle]
-
-## Safety Notes
-[Safety considerations]
-
-## Time Estimate
-[Estimated time and difficulty]`
-
-      console.log('Sending photo analysis request to Claude Vision API...')
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': claudeApiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20240620',
-          max_tokens: 1000,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: prompt
-                },
-                {
-                  type: 'image',
-                  source: {
-                    type: 'url',
-                    url: photoUrl
-                  }
-                }
-              ]
-            }
-          ]
-        })
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Claude Vision API error:', response.status, errorText)
-        throw new Error(`Claude Vision API error: ${response.status}`)
-      }
-
-      const result = await response.json()
-      const analysis = result.content[0].text
-
-      // Save to Supabase photos table
-      const { error: saveError } = await supabase
-        .from('photos')
-        .insert({
-          user_id: 'current-user',
-          photo_url: photoUrl,
-          response: analysis,
-          created_at: new Date().toISOString()
-        })
-
-      if (saveError) {
-        console.error('Error saving photo analysis:', saveError)
-      }
-
-      setPhotoAnalysis({ 
-        ...photoAnalysis, 
-        analysis, 
-        loading: false 
-      })
-      
-      console.log('Photo analysis completed and saved')
-      showMessage('success', 'Photo analyzed successfully')
-      
-    } catch (error) {
-      console.error('Error analyzing photo:', error)
-      showMessage('error', 'Failed to analyze photo')
-      setPhotoAnalysis({ ...photoAnalysis, loading: false })
-    }
-  }
-
-  const createTaskFromPhoto = async () => {
-    if (!photoAnalysis.analysis) return
-
-    try {
-      // Extract task name from analysis
-      const taskName = photoAnalysis.analysis.split('\n')[0].replace('## Issue Analysis', '').trim()
-      
-      const { data, error } = await supabase
-        .from(TABLES.TASKS)
-        .insert({
-          user_id: 'current-user',
-          task_list: `Fix from photo: ${taskName}`,
-          project_id: 'photo-analysis',
-          status: 'pending',
-          notes: photoAnalysis.analysis
-        })
-        .select()
-
-      if (error) throw error
-
-      // Reload tasks
-      await loadTasks()
-      
-      console.log('Task created from photo analysis')
-      showMessage('success', 'Task created from photo analysis')
-      
-    } catch (error) {
-      console.error('Error creating task from photo:', error)
-      showMessage('error', 'Failed to create task from photo')
     }
   }
 
@@ -674,87 +279,12 @@ Format your response as:
     }
   }
 
-  const generateFromTask = async (taskId) => {
-    try {
-      const task = tasks.find(t => t.id === taskId)
-      if (!task) return
-
-      setLoading(true)
-      
-      // Generate shopping list based on task with supplier prioritization
-      const taskPrompt = `Generate a prioritized shopping list for this maintenance task: "${task.task_list}". Include necessary materials, tools, and supplies with Grainger as primary supplier.`
-      
-      const parsedItems = await parseShoppingWithClaude(taskPrompt)
-      
-      if (parsedItems.length === 0) {
-        showMessage('error', 'No items found for this task')
-        return
-      }
-
-      // Create supplier priority structure
-      const supplierPriority = {
-        primary: 'Grainger',
-        quickPickup: 'Home Depot',
-        alternatives: ['Lowe\'s', 'Ace Hardware'],
-        storeAddress: shoppingInput.storeAddress
-      }
-
-      // Save to Supabase
-      const { data, error } = await supabase
-        .from(TABLES.SHOPPING_LISTS)
-        .insert({
-          user_id: 'current-user',
-          task_id: taskId,
-          items_json: parsedItems,
-          supplier_priority_json: supplierPriority,
-          status: 'pending',
-          notes: `Generated from task: ${task.task_list}`,
-          store_address: shoppingInput.storeAddress
-        })
-        .select()
-
-      if (error) throw error
-
-      setShoppingLists([data, ...shoppingLists])
-      console.log(`Shopping list generated from task with Grainger priority: ${task.task_list}`)
-      showMessage('success', `Shopping list created from task (Grainger prioritized)`)
-      
-    } catch (error) {
-      console.error('Error generating from task:', error)
-      showMessage('error', 'Failed to generate shopping list from task')
-    } finally {
-      setLoading(false)
-    }
+  const getCheckedCount = (items) => {
+    return items.filter(item => item.checked).length
   }
 
-  const getSupplierIcon = (supplierName) => {
-    switch (supplierName) {
-      case 'Grainger':
-        return <Truck size={14} style={{ color: '#007BFF' }} />
-      case 'Home Depot':
-        return <Clock size={14} style={{ color: '#FF6B35' }} />
-      case 'Lowe\'s':
-        return <Store size={14} style={{ color: '#004990' }} />
-      case 'Ace Hardware':
-        return <Package size={14} style={{ color: '#FF0000' }} />
-      default:
-        return <Store size={14} />
-    }
-  }
-
-  const getSupplierColor = (supplierName) => {
-    switch (supplierName) {
-      case 'Grainger':
-        return '#007BFF'
-      case 'Home Depot':
-        return '#FF6B35'
-      case 'Lowe\'s':
-        return '#004990'
-      case 'Ace Hardware':
-        return '#FF0000'
-      default:
-        return 'var(--secondary-color)'
-    }
+  const getTotalCount = (items) => {
+    return items.length
   }
 
   const showMessage = (type, text) => {
@@ -776,333 +306,246 @@ Format your response as:
         </div>
       )}
 
-      {/* Photo Analysis Section */}
+      {/* Shopping Input Section */}
       <div className="card">
-        <h3>Photo Fix Advice</h3>
+        <h3>Generate Shopping List</h3>
         <p style={{ color: 'var(--secondary-color)', marginBottom: '1rem' }}>
-          Upload a photo of a maintenance issue for AI-powered fix advice.
+          Describe what you need to fix or maintain, and I'll find Grainger part numbers and Home Depot aisle information.
         </p>
         
-        {!photoAnalysis.showForm ? (
-          <button
-            className="btn"
-            onClick={() => setPhotoAnalysis({ ...photoAnalysis, showForm: true })}
+        <div className="form-group">
+          <label className="form-label">Link to Task (optional)</label>
+          <select
+            className="form-input"
+            value={selectedTaskId}
+            onChange={(e) => setSelectedTaskId(e.target.value)}
           >
-            <Camera size={16} style={{ marginRight: '0.5rem' }} />
-            Upload Photo for Analysis
-          </button>
-        ) : (
-          <div>
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setPhotoAnalysis({ ...photoAnalysis, showForm: false })}
-              >
-                <X size={16} style={{ marginRight: '0.5rem' }} />
-                Cancel
-              </button>
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">Upload Photo</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                className="form-input"
-                disabled={photoAnalysis.loading}
-              />
-            </div>
-
-            {photoAnalysis.photo && (
-              <div style={{ marginTop: '1rem' }}>
-                <img 
-                  src={URL.createObjectURL(photoAnalysis.photo)} 
-                  alt="Uploaded" 
-                  style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }}
-                />
-              </div>
-            )}
-
-            {photoAnalysis.loading && (
-              <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-                <Brain size={20} style={{ animation: 'spin 1s linear infinite', marginRight: '0.5rem' }} />
-                Analyzing photo...
-              </div>
-            )}
-
-            {photoAnalysis.analysis && (
-              <div style={{ marginTop: '1rem' }}>
-                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-                  <button
-                    className="btn btn-outline"
-                    onClick={createTaskFromPhoto}
-                  >
-                    <Plus size={16} style={{ marginRight: '0.5rem' }} />
-                    Create Task from Analysis
-                  </button>
-                </div>
-                
-                <div style={{ 
-                  backgroundColor: 'var(--light-color)', 
-                  padding: '1rem', 
-                  borderRadius: '8px',
-                  whiteSpace: 'pre-wrap',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9rem'
-                }}>
-                  {photoAnalysis.analysis}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Got Item Update Section */}
-      <div className="card">
-        <h3>Update Got Items</h3>
-        <p style={{ color: 'var(--secondary-color)', marginBottom: '1rem' }}>
-          Tell me what items you got to update your shopping lists.
-        </p>
-        
-        <form onSubmit={processGotItem}>
-          <div className="form-group">
-            <label className="form-label">What did you get?</label>
-            <input
-              type="text"
-              className="form-input"
-              value={gotItemInput.text}
-              onChange={(e) => setGotItemInput({...gotItemInput, text: e.target.value})}
-              placeholder="e.g., I got the HVAC filter and ladder"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="btn"
-            disabled={gotItemInput.loading || !gotItemInput.text.trim()}
-          >
-            {gotItemInput.loading ? (
-              <>
-                <Brain size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} />
-                Processing...
-              </>
-            ) : (
-              <>
-                <Check size={16} style={{ marginRight: '0.5rem' }} />
-                Mark as Got
-              </>
-            )}
-          </button>
-        </form>
-      </div>
-
-      <div className="card">
-        <h3>Tell me your orders</h3>
-        <p style={{ color: 'var(--secondary-color)', marginBottom: '1rem' }}>
-          Describe your shopping needs and I'll create a prioritized list with Grainger as primary supplier.
-        </p>
-        
-        <form onSubmit={processShoppingInput}>
-          <div className="form-group">
-            <label className="form-label">Shopping Description</label>
-            <textarea
-              className="form-textarea"
-              value={shoppingInput.userInput}
-              onChange={(e) => setShoppingInput({...shoppingInput, userInput: e.target.value})}
-              placeholder="e.g., Need cement for concrete, ladder for light bulb, check Home Depot aisle..."
-              rows={4}
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label className="form-label">Link to Task (optional)</label>
-            <select
-              className="form-input"
-              value={shoppingInput.linkedTaskId}
-              onChange={(e) => setShoppingInput({...shoppingInput, linkedTaskId: e.target.value})}
-            >
-              <option value="">Select a task...</option>
-              {tasks.map(task => (
-                <option key={task.id} value={task.id}>
-                  {task.task_list}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Store Address</label>
-            <input
-              type="text"
-              className="form-input"
-              value={shoppingInput.storeAddress}
-              onChange={(e) => setShoppingInput({...shoppingInput, storeAddress: e.target.value})}
-              placeholder="Store address for aisle information"
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-            <button
-              type="submit"
-              className="btn"
-              disabled={loading || !shoppingInput.userInput.trim()}
-            >
-              {loading ? (
-                <>
-                  <Brain size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Plus size={16} style={{ marginRight: '0.5rem' }} />
-                  Add to List
-                </>
-              )}
-            </button>
-            
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={loadShoppingLists}
-              disabled={loading}
-            >
-              <RefreshCw size={16} style={{ marginRight: '0.5rem' }} />
-              Refresh
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* Generate from Tasks */}
-      {tasks.length > 0 && (
-        <div className="card">
-          <h3>Generate from Tasks</h3>
-          <p style={{ color: 'var(--secondary-color)', marginBottom: '1rem' }}>
-            Create prioritized shopping lists from your pending tasks (Grainger first).
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <option value="">Select a task...</option>
             {tasks.map(task => (
-              <button
-                key={task.id}
-                className="btn btn-outline"
-                onClick={() => generateFromTask(task.id)}
-                disabled={loading}
-                style={{ fontSize: '0.9rem' }}
-              >
-                <Package size={14} style={{ marginRight: '0.5rem' }} />
-                {task.task_list}
-              </button>
+              <option key={task.id} value={task.id}>
+                {task.task_list} ({task.status})
+              </option>
             ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">What do you need to fix or maintain?</label>
+          <textarea
+            className="form-input"
+            value={userInput}
+            onChange={(e) => setUserInput(e.target.value)}
+            placeholder="Example: Fix concrete cracks, replace light bulbs, repair HVAC filter"
+            rows={4}
+            disabled={processing}
+          />
+        </div>
+
+        <button
+          className="btn"
+          onClick={processShoppingInput}
+          disabled={!userInput.trim() || processing}
+        >
+          {processing ? (
+            <>
+              <Loader size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} />
+              Searching for parts...
+            </>
+          ) : (
+            <>
+              <Search size={16} style={{ marginRight: '0.5rem' }} />
+              Find Parts & Aisles
+            </>
+          )}
+        </button>
+
+        {/* Store Information */}
+        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--light-color)', borderRadius: '8px' }}>
+          <h4 style={{ marginBottom: '0.5rem', color: 'var(--primary-color)' }}>
+            <Store size={16} style={{ marginRight: '0.5rem' }} />
+            Store Information
+          </h4>
+          <div style={{ fontSize: '0.9rem', color: 'var(--secondary-color)' }}>
+            <div><strong>Home Depot:</strong> 123 Main St, Denver, CO</div>
+            <div><strong>Grainger:</strong> Online parts lookup with direct links</div>
           </div>
         </div>
-      )}
+      </div>
 
+      {/* Shopping Lists */}
       <div className="card">
-        <h3>Shopping Lists (Grainger Prioritized)</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h3>Shopping Lists</h3>
+          <button
+            className="btn btn-secondary"
+            onClick={loadShoppingLists}
+            disabled={loading}
+          >
+            <RotateCcw size={16} style={{ marginRight: '0.5rem' }} />
+            Refresh
+          </button>
+        </div>
         
         {loading && shoppingLists.length === 0 ? (
           <div className="loading">Loading shopping lists...</div>
         ) : shoppingLists.length === 0 ? (
           <p style={{ textAlign: 'center', color: 'var(--secondary-color)' }}>
-            No shopping lists yet. Add some items above to get started!
+            No shopping lists yet. Generate one above to get started!
           </p>
         ) : (
-          shoppingLists.map(list => {
-            const totalItems = list.items_json?.length || 0
-            const completedItems = list.items_json?.reduce((total, item) => {
-              return total + (item.suppliers?.filter(s => s.completed)?.length || 0)
-            }, 0)
-
-            return (
-              <div key={list.id} className="shopping-list-item" style={{ marginBottom: '2rem', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <div>
-                    <h4 style={{ margin: 0, color: 'var(--primary-color)' }}>
-                      Shopping List ({completedItems} items completed)
-                    </h4>
-                    {list.notes && (
-                      <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: 'var(--secondary-color)' }}>
-                        {list.notes}
-                      </p>
-                    )}
-                    {list.task_id && (
-                      <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', color: 'var(--primary-color)' }}>
-                        📋 Linked to task
-                      </p>
-                    )}
-                    <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', color: 'var(--success-color)' }}>
-                      🚚 Grainger prioritized for professional parts
-                    </p>
-                  </div>
-                  <button
-                    className="btn btn-danger"
-                    onClick={() => deleteShoppingList(list.id)}
-                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-
-                {list.items_json?.map((item, itemIndex) => (
-                  <div key={itemIndex} style={{ marginBottom: '1.5rem', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '1rem' }}>
-                    <h5 style={{ margin: '0 0 1rem 0', color: 'var(--primary-color)' }}>
-                      {item.name} {item.quantity && `(${item.quantity})`}
-                    </h5>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {item.suppliers?.map((supplier, supplierIndex) => (
-                        <div key={supplierIndex} style={{ 
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {shoppingLists.map(list => {
+              const linkedTask = tasks.find(t => t.id === list.task_id)
+              const checkedCount = getCheckedCount(list.items_json)
+              const totalCount = getTotalCount(list.items_json)
+              
+              return (
+                <div key={list.id} style={{ 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: '8px', 
+                  padding: '1rem',
+                  backgroundColor: 'var(--light-color)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <ShoppingCart size={16} style={{ color: 'var(--primary-color)' }} />
+                        <span style={{ fontWeight: '600', color: 'var(--primary-color)' }}>
+                          Shopping List
+                        </span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--secondary-color)' }}>
+                          {new Date(list.created_at).toLocaleDateString()}
+                        </span>
+                        <span style={{ 
                           display: 'flex', 
                           alignItems: 'center', 
-                          gap: '0.5rem',
-                          padding: '0.75rem',
-                          backgroundColor: supplier.completed ? 'var(--light-color)' : 'transparent',
-                          borderRadius: '4px',
-                          border: `2px solid ${getSupplierColor(supplier.name)}`,
-                          opacity: supplier.completed ? 0.7 : 1
+                          gap: '0.25rem',
+                          fontSize: '0.8rem', 
+                          color: checkedCount === totalCount ? 'var(--success-color)' : 'var(--warning-color)',
+                          marginLeft: '0.5rem',
+                          padding: '0.25rem 0.5rem',
+                          backgroundColor: checkedCount === totalCount ? 'var(--success-color)' : 'var(--warning-color)',
+                          color: 'white',
+                          borderRadius: '4px'
                         }}>
-                          <input
-                            type="checkbox"
-                            className="task-checkbox"
-                            checked={supplier.completed || false}
-                            onChange={(e) => updateItemStatus(list.id, itemIndex, supplierIndex, e.target.checked)}
-                          />
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '120px' }}>
-                            {getSupplierIcon(supplier.name)}
-                            <span style={{ 
-                              fontWeight: '600',
-                              color: getSupplierColor(supplier.name),
-                              fontSize: '0.9rem'
-                            }}>
-                              {supplier.name}
-                            </span>
+                          {checkedCount === totalCount ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
+                          {checkedCount}/{totalCount} items
+                        </span>
+                      </div>
+                      
+                      {linkedTask && (
+                        <div style={{ 
+                          fontSize: '0.9rem', 
+                          color: 'var(--primary-color)',
+                          marginBottom: '0.5rem'
+                        }}>
+                          📋 Linked to: {linkedTask.task_list}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <button
+                      className="btn btn-danger"
+                      onClick={() => deleteShoppingList(list.id)}
+                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {list.items_json.map((item, index) => (
+                      <div key={index} style={{ 
+                        display: 'flex', 
+                        alignItems: 'flex-start', 
+                        gap: '1rem',
+                        padding: '0.75rem',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        backgroundColor: 'white',
+                        opacity: item.checked ? 0.7 : 1,
+                        transition: 'all 0.2s ease'
+                      }}>
+                        {/* Checkbox */}
+                        <button
+                          onClick={() => updateItemChecked(list.id, index, !item.checked)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '0.25rem',
+                            borderRadius: '4px',
+                            color: item.checked ? 'var(--success-color)' : 'var(--secondary-color)',
+                            transition: 'all 0.2s ease',
+                            marginTop: '0.25rem'
+                          }}
+                        >
+                          {item.checked ? <CheckSquare size={20} /> : <Square size={20} />}
+                        </button>
+
+                        {/* Item Content */}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ 
+                            textDecoration: item.checked ? 'line-through' : 'none',
+                            color: item.checked ? 'var(--secondary-color)' : 'var(--text-color)',
+                            fontWeight: '500',
+                            marginBottom: '0.5rem'
+                          }}>
+                            {item.name}
                           </div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ 
-                              fontWeight: '500',
-                              textDecoration: supplier.completed ? 'line-through' : 'none',
-                              marginBottom: '0.25rem'
-                            }}>
-                              {supplier.partNumber && `Part #: ${supplier.partNumber} • `}
-                              {supplier.aisle && `Aisle: ${supplier.aisle} • `}
-                              {supplier.delivery}
+                          
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
+                            {/* Grainger Info */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <Package size={12} style={{ color: 'var(--primary-color)' }} />
+                              <span style={{ color: 'var(--secondary-color)' }}>Grainger:</span>
+                              <span style={{ fontWeight: '500' }}>{item.grainger_part}</span>
+                              {item.grainger_url && (
+                                <a 
+                                  href={item.grainger_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  style={{ color: 'var(--primary-color)', textDecoration: 'none' }}
+                                >
+                                  <ExternalLink size={12} />
+                                </a>
+                              )}
                             </div>
-                            <div style={{ fontSize: '0.8rem', color: 'var(--secondary-color)' }}>
-                              {supplier.notes}
+                            
+                            {/* Home Depot Info */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <MapPin size={12} style={{ color: 'var(--primary-color)' }} />
+                              <span style={{ color: 'var(--secondary-color)' }}>Home Depot:</span>
+                              <span style={{ fontWeight: '500' }}>{item.home_depot_aisle}</span>
+                              {item.home_depot_url && (
+                                <a 
+                                  href={item.home_depot_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  style={{ color: 'var(--primary-color)', textDecoration: 'none' }}
+                                >
+                                  <ExternalLink size={12} />
+                                </a>
+                              )}
                             </div>
+                            
+                            {/* Alternatives */}
+                            {item.alternatives && item.alternatives.length > 0 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Filter size={12} style={{ color: 'var(--secondary-color)' }} />
+                                <span style={{ color: 'var(--secondary-color)' }}>Alternatives:</span>
+                                <span style={{ fontSize: '0.75rem' }}>{item.alternatives.join(', ')}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )
-          })
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
 
