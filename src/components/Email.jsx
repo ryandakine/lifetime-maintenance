@@ -25,6 +25,26 @@ const Email = () => {
     loadEmails()
   }, [])
 
+  // Handle voice commands
+  useEffect(() => {
+    const voiceEmail = localStorage.getItem('voiceEmail')
+    if (voiceEmail) {
+      try {
+        const emailData = JSON.parse(voiceEmail)
+        if (emailData.recipient) {
+          setEmailForm(prev => ({ ...prev, recipient: emailData.recipient }))
+        }
+        if (emailData.subject) {
+          setEmailForm(prev => ({ ...prev, subject: emailData.subject }))
+        }
+        localStorage.removeItem('voiceEmail')
+      } catch (error) {
+        console.error('Error parsing voice email data:', error)
+        localStorage.removeItem('voiceEmail')
+      }
+    }
+  }, [])
+
   const loadEmails = async () => {
     try {
       const { data, error } = await supabase

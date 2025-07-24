@@ -52,6 +52,19 @@ const Shopping = () => {
     loadTasks()
   }, [])
 
+  // Handle voice commands
+  useEffect(() => {
+    const voiceShopping = localStorage.getItem('voiceShopping')
+    if (voiceShopping) {
+      setUserInput(voiceShopping)
+      localStorage.removeItem('voiceShopping')
+      // Auto-process the voice shopping list
+      setTimeout(() => {
+        processShoppingInput()
+      }, 500)
+    }
+  }, [])
+
   const loadShoppingLists = async () => {
     try {
       setLoading(true)

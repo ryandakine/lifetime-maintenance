@@ -47,6 +47,19 @@ const Tasks = () => {
     loadTasks()
   }, [])
 
+  // Handle voice commands
+  useEffect(() => {
+    const voiceTask = localStorage.getItem('voiceTask')
+    if (voiceTask) {
+      setUserInput(voiceTask)
+      localStorage.removeItem('voiceTask')
+      // Auto-process the voice task
+      setTimeout(() => {
+        processUserInput()
+      }, 500)
+    }
+  }, [])
+
   const loadTasks = async () => {
     try {
       setLoading(true)
