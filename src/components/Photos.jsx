@@ -14,7 +14,10 @@ import {
   Clock,
   RefreshCw,
   Video,
-  Image
+  Image,
+  HelpCircle,
+  ArrowRight,
+  Shield
 } from 'lucide-react'
 
 const Photos = () => {
@@ -30,6 +33,7 @@ const Photos = () => {
     photo: null,
     photoUrl: '',
     selectedTaskId: '',
+    purpose: 'clarification', // 'clarification', 'next_steps', 'verify_done'
     analysis: '',
     loading: false,
     showForm: false,
@@ -106,6 +110,24 @@ const Photos = () => {
     }))
   }
 
+  const getPurposeLabel = (purpose) => {
+    switch (purpose) {
+      case 'clarification': return 'Clarification'
+      case 'next_steps': return 'Next Steps'
+      case 'verify_done': return 'Verify Done'
+      default: return 'Clarification'
+    }
+  }
+
+  const getPurposeIcon = (purpose) => {
+    switch (purpose) {
+      case 'clarification': return <HelpCircle size={16} />
+      case 'next_steps': return <ArrowRight size={16} />
+      case 'verify_done': return <Shield size={16} />
+      default: return <HelpCircle size={16} />
+    }
+  }
+
   const startCamera = async () => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -159,7 +181,9 @@ const Photos = () => {
       photo: null,
       photoUrl: '',
       analysis: '',
-      selectedTaskId: ''
+      selectedTaskId: '',
+      uploadMode: 'file',
+      uploadType: 'file'
     }))
   }
 
@@ -210,8 +234,8 @@ const Photos = () => {
 
       setPhotoUpload(prev => ({ ...prev, photoUrl: publicUrl }))
       
-      // Analyze photo with Grok Pro API
-      await analyzePhotoWithGrok(publicUrl, type)
+      // Analyze photo with Grok Pro API based on purpose
+      await analyzePhotoWithGrok(publicUrl, type, photoUpload.purpose)
       
     } catch (error) {
       console.error('Error processing photo:', error)
@@ -262,7 +286,7 @@ const Photos = () => {
     await processPhotoFile(file, 'file')
   }
 
-  const analyzePhotoWithGrok = async (photoUrl, type = 'file') => {
+  const analyzePhotoWithGrok = async (photoUrl, type = 'file', purpose = 'clarification') => {
     try {
       const grokApiKey = API_KEYS.GROK_PRO
       
@@ -285,36 +309,111 @@ const Photos = () => {
         }
       }
 
-      const prompt = `Analyze this maintenance/repair photo and provide clarification on next steps or verification if the work is done correctly.
+      // Generate purpose-specific prompt
+      let prompt = ''
+      switch (purpose) {
+        case 'clarification':
+          prompt = `Analyze this maintenance/repair photo and provide clarification about the issue or situation.
 
 ${taskContext}
 
 Instructions:
-1. If the work appears incomplete, provide specific next steps
-2. If the work appears complete, confirm it's done correctly
-3. Identify any issues or safety concerns
-4. Provide specific instructions for next actions
-5. Include any tools or supplies needed
+1. Describe what you see in the photo
+2. Identify the main issue or maintenance need
+3. Explain what might be causing the problem
+4. Provide context about the situation
+5. Highlight any safety concerns
 
 Format your response as:
-## Analysis
-[Describe what you see and if it's correct/complete]
+## Issue Analysis
+[Describe what you see and identify the main issue]
 
-## Status
-✅ Complete and Correct
-⚠️ Needs Attention
-🔄 In Progress
+## Problem Description
+[Explain what might be causing the problem]
 
-## Next Steps
-[Specific instructions for next actions]
+## Context
+[Provide additional context about the situation]
 
-## Tools/Supplies Needed
-[List any additional tools or supplies]
+## Safety Notes
+[Highlight any safety concerns or considerations]
 
-## Notes
-[Additional observations or safety notes]`
+## Questions for Clarification
+[Ask specific questions to better understand the situation]`
+          break
 
-      console.log('Sending photo analysis request to Grok Pro API...')
+        case 'next_steps':
+          prompt = `Analyze this maintenance/repair photo and provide specific next steps instructions.
+
+${taskContext}
+
+Instructions:
+1. Identify what needs to be done next
+2. Provide step-by-step instructions
+3. List required tools and supplies
+4. Include safety precautions
+5. Estimate time and difficulty
+
+Format your response as:
+## Next Steps Required
+[Identify what needs to be done next]
+
+## Step-by-Step Instructions
+1. [First step]
+2. [Second step]
+3. [Continue as needed]
+
+## Required Tools & Supplies
+[List all tools and supplies needed]
+
+## Safety Precautions
+[Include safety measures and precautions]
+
+## Time & Difficulty Estimate
+[Estimate time required and difficulty level]
+
+## Additional Notes
+[Any other important information]`
+          break
+
+        case 'verify_done':
+          prompt = `Analyze this maintenance/repair photo and verify if the work has been completed correctly.
+
+${taskContext}
+
+Instructions:
+1. Assess if the work appears complete and correct
+2. Identify any issues or incomplete work
+3. Suggest fixes if needed
+4. Confirm quality of workmanship
+5. Provide final recommendations
+
+Format your response as:
+## Work Verification
+[Assess if the work appears complete and correct]
+
+## Quality Assessment
+[Evaluate the quality of workmanship]
+
+## Issues Found (if any)
+[List any issues or incomplete work]
+
+## Suggested Fixes (if needed)
+[Provide specific fixes for any issues]
+
+## Final Status
+✅ Work Complete and Correct
+⚠️ Work Needs Attention
+❌ Work Incomplete
+
+## Recommendations
+[Final recommendations and next actions]`
+          break
+
+        default:
+          prompt = `Analyze this maintenance/repair photo and provide general guidance.`
+      }
+
+      console.log(`Photo analyzed for ${purpose}`)
 
       const response = await fetch('https://api.grok.x.ai/v1/chat/completions', {
         method: 'POST',
@@ -354,7 +453,7 @@ Format your response as:
       const result = await response.json()
       const analysis = result.choices[0].message.content
 
-      // Save to Supabase photos table with upload type
+      // Save to Supabase photos table with purpose and upload type
       const { error: saveError } = await supabase
         .from('photos')
         .insert({
@@ -362,7 +461,8 @@ Format your response as:
           photo_url: photoUrl,
           task_id: photoUpload.selectedTaskId || null,
           response: analysis,
-          upload_type: type, // Add upload type to database
+          purpose: purpose,
+          upload_type: type,
           created_at: new Date().toISOString()
         })
 
@@ -376,7 +476,7 @@ Format your response as:
         loading: false 
       })
       
-      console.log(`Photo uploaded and analyzed with Grok Pro (type: ${type})`)
+      console.log(`Photo uploaded and analyzed with Grok Pro (type: ${type}, purpose: ${purpose})`)
       showMessage('success', 'Photo uploaded and analyzed successfully')
       
       // Reload photos list
@@ -408,22 +508,22 @@ Format your response as:
   }
 
   const getStatusIcon = (analysis) => {
-    if (analysis.includes('✅ Complete and Correct')) {
+    if (analysis.includes('✅ Work Complete and Correct') || analysis.includes('✅ Complete and Correct')) {
       return <CheckCircle size={16} style={{ color: 'var(--success-color)' }} />
-    } else if (analysis.includes('⚠️ Needs Attention')) {
+    } else if (analysis.includes('⚠️ Work Needs Attention') || analysis.includes('⚠️ Needs Attention')) {
       return <AlertCircle size={16} style={{ color: 'var(--warning-color)' }} />
-    } else if (analysis.includes('🔄 In Progress')) {
+    } else if (analysis.includes('❌ Work Incomplete') || analysis.includes('🔄 In Progress')) {
       return <Clock size={16} style={{ color: 'var(--primary-color)' }} />
     }
     return <FileText size={16} />
   }
 
   const getStatusColor = (analysis) => {
-    if (analysis.includes('✅ Complete and Correct')) {
+    if (analysis.includes('✅ Work Complete and Correct') || analysis.includes('✅ Complete and Correct')) {
       return 'var(--success-color)'
-    } else if (analysis.includes('⚠️ Needs Attention')) {
+    } else if (analysis.includes('⚠️ Work Needs Attention') || analysis.includes('⚠️ Needs Attention')) {
       return 'var(--warning-color)'
-    } else if (analysis.includes('🔄 In Progress')) {
+    } else if (analysis.includes('❌ Work Incomplete') || analysis.includes('🔄 In Progress')) {
       return 'var(--primary-color)'
     }
     return 'var(--secondary-color)'
@@ -454,9 +554,9 @@ Format your response as:
 
       {/* Photo Upload Section */}
       <div className="card">
-        <h3>Upload Photo for Clarification</h3>
+        <h3>Upload Photo for Project Analysis</h3>
         <p style={{ color: 'var(--secondary-color)', marginBottom: '1rem' }}>
-          Upload a photo to get clarification on next steps or verify if work is done correctly.
+          Upload a photo to get clarification, next steps, or verify if work is done correctly.
         </p>
         
         {!photoUpload.showForm ? (
@@ -499,7 +599,8 @@ Format your response as:
                     analysis: '',
                     selectedTaskId: '',
                     uploadMode: 'file',
-                    uploadType: 'file'
+                    uploadType: 'file',
+                    purpose: 'clarification'
                   })
                 }}
               >
@@ -559,6 +660,26 @@ Format your response as:
                   Upload File
                 </label>
               </div>
+            </div>
+
+            {/* Purpose Selection */}
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label className="form-label">Analysis Purpose</label>
+              <select
+                className="form-input"
+                value={photoUpload.purpose}
+                onChange={(e) => setPhotoUpload({...photoUpload, purpose: e.target.value})}
+              >
+                <option value="clarification">
+                  🔍 Clarification - Describe the issue
+                </option>
+                <option value="next_steps">
+                  ➡️ Next Steps - Give instructions
+                </option>
+                <option value="verify_done">
+                  ✅ Verify Done - Confirm if work is correct
+                </option>
+              </select>
             </div>
             
             {/* Camera Mode */}
@@ -632,7 +753,7 @@ Format your response as:
             {photoUpload.loading && (
               <div style={{ marginTop: '1rem', textAlign: 'center' }}>
                 <Brain size={20} style={{ animation: 'spin 1s linear infinite', marginRight: '0.5rem' }} />
-                Analyzing photo with Grok Pro...
+                Analyzing photo for {getPurposeLabel(photoUpload.purpose)}...
               </div>
             )}
 
@@ -644,7 +765,8 @@ Format your response as:
                   borderRadius: '8px',
                   whiteSpace: 'pre-wrap',
                   fontFamily: 'monospace',
-                  fontSize: '0.9rem'
+                  fontSize: '0.9rem',
+                  border: '2px solid var(--primary-color)'
                 }}>
                   {photoUpload.analysis}
                 </div>
@@ -699,6 +821,23 @@ Format your response as:
                         <span style={{ fontSize: '0.8rem', color: 'var(--secondary-color)' }}>
                           {new Date(photo.created_at).toLocaleDateString()}
                         </span>
+                        {photo.purpose && (
+                          <span style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '0.25rem',
+                            fontSize: '0.8rem', 
+                            color: 'var(--primary-color)',
+                            marginLeft: '0.5rem',
+                            padding: '0.25rem 0.5rem',
+                            backgroundColor: 'var(--primary-color)',
+                            color: 'white',
+                            borderRadius: '4px'
+                          }}>
+                            {getPurposeIcon(photo.purpose)}
+                            {getPurposeLabel(photo.purpose)}
+                          </span>
+                        )}
                         {photo.upload_type && (
                           <span style={{ 
                             display: 'flex', 
@@ -756,7 +895,8 @@ Format your response as:
                         fontFamily: 'monospace',
                         fontSize: '0.85rem',
                         maxHeight: '120px',
-                        overflow: 'auto'
+                        overflow: 'auto',
+                        border: '2px solid var(--primary-color)'
                       }}>
                         {photo.response}
                       </div>

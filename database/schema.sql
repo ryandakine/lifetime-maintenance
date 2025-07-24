@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS photos (
   photo_url TEXT NOT NULL,
   task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
   response TEXT NOT NULL,
+  purpose TEXT DEFAULT 'clarification' CHECK (purpose IN ('clarification', 'next_steps', 'verify_done')),
   upload_type TEXT DEFAULT 'file' CHECK (upload_type IN ('camera', 'file')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
