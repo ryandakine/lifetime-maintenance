@@ -75,7 +75,9 @@ const Tasks = () => {
       console.log('Tasks loaded:', data?.length || 0)
     } catch (error) {
       console.error('Error loading tasks:', error)
+      console.log('Tasks component: Data load failed, showing fallback')
       showMessage('error', 'Failed to load tasks')
+      setTasks([]) // Ensure empty state for fallback
     } finally {
       setLoading(false)
     }

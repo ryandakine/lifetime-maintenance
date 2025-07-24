@@ -5,6 +5,23 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   plugins: [
     react(),
+    // Custom plugin to log server start
+    {
+      name: 'server-start-logger',
+      configureServer(server) {
+        server.middlewares.use('/__dev_log', (req, res, next) => {
+          console.log('🚀 Vite dev server is running on port 5174')
+          console.log('📅 Server started at:', new Date().toISOString())
+          console.log('🌐 Local URL: http://localhost:5174')
+          next()
+        })
+      },
+      buildStart() {
+        console.log('🚀 Vite dev server starting up...')
+        console.log('⚙️ Port: 5174')
+        console.log('📍 Environment: development')
+      }
+    },
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
@@ -38,6 +55,10 @@ export default defineConfig({
     hmr: {
       overlay: false // Disable HMR overlay to prevent blocking
     }
+  },
+  define: {
+    // Add development logging hook
+    __DEV_SERVER_START__: JSON.stringify(new Date().toISOString())
   },
   build: {
     rollupOptions: {

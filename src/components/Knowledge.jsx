@@ -113,7 +113,10 @@ const Knowledge = () => {
       console.log('Knowledge entries loaded:', data?.length || 0)
     } catch (error) {
       console.error('Error loading knowledge entries:', error)
+      console.log('Knowledge component: Data load failed, showing fallback')
       showMessage('error', 'Failed to load knowledge entries')
+      setKnowledgeEntries([]) // Ensure empty state for fallback
+      setFilteredEntries([]) // Ensure empty filtered state for fallback
     } finally {
       setLoading(false)
     }

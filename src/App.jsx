@@ -50,6 +50,13 @@ function RouteDiagnostics() {
   const location = useLocation()
   useEffect(() => {
     console.log("Rendering route: " + location.pathname)
+    console.log("Navigating to " + location.pathname)
+    console.log("Route change detected:", {
+      pathname: location.pathname,
+      search: location.search,
+      hash: location.hash,
+      timestamp: new Date().toISOString()
+    })
   }, [location.pathname])
   return null
 }
@@ -81,6 +88,8 @@ function DebugStatus() {
     routeInfo: {},
     errors: []
   })
+  const [testResults, setTestResults] = React.useState([])
+  const [testing, setTesting] = React.useState(false)
 
   React.useEffect(() => {
     const checkStatus = async () => {
@@ -136,6 +145,66 @@ function DebugStatus() {
       window.removeEventListener('offline', handleOffline)
     }
   }, [])
+
+  const testSupabaseConnection = async () => {
+    setTesting(true)
+    const results = []
+    
+    try {
+      // Test basic connection
+      console.log('🧪 Testing Supabase connection...')
+      results.push({ test: 'Connection Test', status: 'Starting', time: new Date().toISOString() })
+      
+      // Test tasks table
+      const { data: tasksData, error: tasksError } = await supabase.from('tasks').select('*').limit(3)
+      if (tasksError) {
+        console.error('Tasks table error:', tasksError)
+        results.push({ test: 'Tasks Table', status: 'Error', error: tasksError.message, time: new Date().toISOString() })
+      } else {
+        console.log('Tasks table success:', tasksData)
+        results.push({ test: 'Tasks Table', status: 'Success', data: `${tasksData?.length || 0} records`, time: new Date().toISOString() })
+      }
+      
+      // Test shopping_lists table
+      const { data: shoppingData, error: shoppingError } = await supabase.from('shopping_lists').select('*').limit(3)
+      if (shoppingError) {
+        console.error('Shopping lists table error:', shoppingError)
+        results.push({ test: 'Shopping Lists Table', status: 'Error', error: shoppingError.message, time: new Date().toISOString() })
+      } else {
+        console.log('Shopping lists table success:', shoppingData)
+        results.push({ test: 'Shopping Lists Table', status: 'Success', data: `${shoppingData?.length || 0} records`, time: new Date().toISOString() })
+      }
+      
+      // Test emails table
+      const { data: emailsData, error: emailsError } = await supabase.from('emails').select('*').limit(3)
+      if (emailsError) {
+        console.error('Emails table error:', emailsError)
+        results.push({ test: 'Emails Table', status: 'Error', error: emailsError.message, time: new Date().toISOString() })
+      } else {
+        console.log('Emails table success:', emailsData)
+        results.push({ test: 'Emails Table', status: 'Success', data: `${emailsData?.length || 0} records`, time: new Date().toISOString() })
+      }
+      
+      // Test knowledge table
+      const { data: knowledgeData, error: knowledgeError } = await supabase.from('knowledge').select('*').limit(3)
+      if (knowledgeError) {
+        console.error('Knowledge table error:', knowledgeError)
+        results.push({ test: 'Knowledge Table', status: 'Error', error: knowledgeError.message, time: new Date().toISOString() })
+      } else {
+        console.log('Knowledge table success:', knowledgeData)
+        results.push({ test: 'Knowledge Table', status: 'Success', data: `${knowledgeData?.length || 0} records`, time: new Date().toISOString() })
+      }
+      
+      console.log('🧪 Supabase tests completed:', results)
+      
+    } catch (error) {
+      console.error('Supabase test failed:', error)
+      results.push({ test: 'Connection Test', status: 'Failed', error: error.message, time: new Date().toISOString() })
+    }
+    
+    setTestResults(results)
+    setTesting(false)
+  }
 
   return (
     <div style={{ 
@@ -195,14 +264,55 @@ function DebugStatus() {
 
         <div style={{ padding: '1rem', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #ddd' }}>
           <h3 style={{ margin: '0 0 0.5rem 0', color: '#007BFF' }}>🧪 Test Actions</h3>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
             <a href="/tasks" style={{ padding: '0.5rem 1rem', backgroundColor: '#007BFF', color: 'white', textDecoration: 'none', borderRadius: '4px' }}>Test Tasks</a>
             <a href="/shopping" style={{ padding: '0.5rem 1rem', backgroundColor: '#007BFF', color: 'white', textDecoration: 'none', borderRadius: '4px' }}>Test Shopping</a>
             <a href="/emails" style={{ padding: '0.5rem 1rem', backgroundColor: '#007BFF', color: 'white', textDecoration: 'none', borderRadius: '4px' }}>Test Emails</a>
             <a href="/knowledge" style={{ padding: '0.5rem 1rem', backgroundColor: '#007BFF', color: 'white', textDecoration: 'none', borderRadius: '4px' }}>Test Knowledge</a>
             <a href="/voice" style={{ padding: '0.5rem 1rem', backgroundColor: '#007BFF', color: 'white', textDecoration: 'none', borderRadius: '4px' }}>Test Voice</a>
           </div>
+          <button
+            onClick={testSupabaseConnection}
+            disabled={testing}
+            style={{ 
+              padding: '0.5rem 1rem', 
+              backgroundColor: testing ? '#6c757d' : '#28a745', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px',
+              cursor: testing ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {testing ? '🔄 Testing Supabase...' : '🧪 Test Supabase Connection'}
+          </button>
         </div>
+
+        {testResults.length > 0 && (
+          <div style={{ padding: '1rem', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #ddd' }}>
+            <h3 style={{ margin: '0 0 0.5rem 0', color: '#007BFF' }}>📊 Test Results</h3>
+            {testResults.map((result, index) => (
+              <div key={index} style={{ 
+                margin: '0.5rem 0', 
+                padding: '0.5rem',
+                backgroundColor: result.status === 'Success' ? '#d4edda' : result.status === 'Error' || result.status === 'Failed' ? '#f8d7da' : '#fff3cd',
+                borderRadius: '4px',
+                fontSize: '0.9rem'
+              }}>
+                <div style={{ fontWeight: 'bold' }}>
+                  {result.status === 'Success' ? '✅' : result.status === 'Error' || result.status === 'Failed' ? '❌' : '⏳'} {result.test}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#666' }}>
+                  Status: {result.status} 
+                  {result.data && ` | Data: ${result.data}`}
+                  {result.error && ` | Error: ${result.error}`}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#999' }}>
+                  {new Date(result.time).toLocaleTimeString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

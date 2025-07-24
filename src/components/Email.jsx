@@ -57,7 +57,9 @@ const Email = () => {
       setEmails(data || [])
     } catch (error) {
       console.error('Error loading emails:', error)
+      console.log('Email component: Data load failed, showing fallback')
       showMessage('error', 'Failed to load emails')
+      setEmails([]) // Ensure empty state for fallback
     }
   }
 

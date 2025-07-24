@@ -80,7 +80,9 @@ const Shopping = () => {
       console.log('Shopping lists loaded:', data?.length || 0)
     } catch (error) {
       console.error('Error loading shopping lists:', error)
+      console.log('Shopping component: Data load failed, showing fallback')
       showMessage('error', 'Failed to load shopping lists')
+      setShoppingLists([]) // Ensure empty state for fallback
     } finally {
       setLoading(false)
     }
