@@ -569,8 +569,10 @@ Format your response as:
                   handleUploadModeChange('camera')
                   startCamera()
                 }}
+                title="Use camera to take photo"
+                aria-label="Use camera to take photo"
               >
-                <Camera size={16} style={{ marginRight: '0.5rem' }} />
+                <Camera size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
                 Use Camera
               </button>
             )}
@@ -580,8 +582,10 @@ Format your response as:
                 handleUploadModeChange('file')
                 setPhotoUpload(prev => ({ ...prev, showForm: true }))
               }}
+              title="Upload photo from file"
+              aria-label="Upload photo from file"
             >
-              <Upload size={16} style={{ marginRight: '0.5rem' }} />
+              <Upload size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
               Upload File
             </button>
           </div>
@@ -703,8 +707,10 @@ Format your response as:
                     className="btn"
                     onClick={capturePhoto}
                     style={{ marginRight: '1rem' }}
+                    title="Capture photo with camera"
+                    aria-label="Capture photo with camera"
                   >
-                    <Camera size={16} style={{ marginRight: '0.5rem' }} />
+                    <Camera size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
                     Capture Photo
                   </button>
                 </div>
@@ -873,6 +879,8 @@ Format your response as:
                       className="btn btn-danger"
                       onClick={() => deletePhoto(photo.id)}
                       style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                      title="Delete photo"
+                      aria-label="Delete photo"
                     >
                       <Trash2 size={14} />
                     </button>

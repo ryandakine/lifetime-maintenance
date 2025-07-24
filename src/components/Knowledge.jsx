@@ -450,6 +450,8 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
               style={{ flex: 1 }}
               title="Search knowledge base"
               aria-label="Search knowledge base"
+              id="knowledge-search"
+              name="knowledge-search"
             />
             <Search size={16} style={{ color: 'var(--secondary-color)', marginTop: '0.5rem' }} aria-hidden="true" />
           </div>
@@ -482,6 +484,8 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
                   transition: 'all 0.2s ease'
                 }}
                 onClick={() => setSelectedEntry(selectedEntry?.id === entry.id ? null : entry)}
+                title={`View knowledge entry: ${entry.question}`}
+                aria-label={`View knowledge entry: ${entry.question}`}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                     <div style={{ flex: 1 }}>

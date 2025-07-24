@@ -418,6 +418,7 @@ const FileUploader = () => {
             id="file-upload"
             name="file-upload"
             aria-label="Choose file to upload"
+            title="Choose file to upload"
           />
           
           {uploading ? (
@@ -426,7 +427,7 @@ const FileUploader = () => {
                 color: '#007BFF', 
                 marginBottom: '1rem',
                 animation: 'spin 1s linear infinite'
-              }} />
+              }} aria-hidden="true" />
               <h3 style={{ color: '#007BFF', marginBottom: '0.5rem' }}>Uploading Files...</h3>
               <div style={{ fontSize: '0.9rem', color: '#6c757d' }}>
                 Please wait while your files are being uploaded
@@ -434,7 +435,7 @@ const FileUploader = () => {
             </div>
           ) : (
             <div>
-              <Upload size={48} style={{ color: '#007BFF', marginBottom: '1rem' }} />
+              <Upload size={48} style={{ color: '#007BFF', marginBottom: '1rem' }} aria-hidden="true" />
               <h3 style={{ color: '#007BFF', marginBottom: '0.5rem' }}>
                 Drop files here or click to browse
               </h3>

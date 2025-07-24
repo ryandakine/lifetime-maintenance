@@ -522,13 +522,13 @@ Examples:
                 Recent Commands
               </h4>
               <button
-                onClick={clearHistory}
                 className="btn btn-secondary"
-                style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                title="Clear history"
-                aria-label="Clear history"
+                onClick={clearHistory}
+                style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                title="Clear command history"
+                aria-label="Clear command history"
               >
-                <RotateCcw size={14} aria-hidden="true" />
+                <RotateCcw size={12} style={{ marginRight: '0.25rem' }} aria-hidden="true" />
                 Clear
               </button>
             </div>

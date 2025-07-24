@@ -471,8 +471,10 @@ Be specific with aisle numbers and part numbers. If exact match not found, provi
                       className="btn btn-danger"
                       onClick={() => deleteShoppingList(list.id)}
                       style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                      title="Delete shopping list"
+                      aria-label="Delete shopping list"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={14} aria-hidden="true" />
                     </button>
                   </div>
 
@@ -492,6 +494,8 @@ Be specific with aisle numbers and part numbers. If exact match not found, provi
                         {/* Checkbox */}
                         <button
                           onClick={() => updateItemChecked(list.id, index, !item.checked)}
+                          title={item.checked ? 'Mark as not got' : 'Mark as got'}
+                          aria-label={item.checked ? 'Mark as not got' : 'Mark as got'}
                           style={{
                             background: 'none',
                             border: 'none',
@@ -503,7 +507,7 @@ Be specific with aisle numbers and part numbers. If exact match not found, provi
                             marginTop: '0.25rem'
                           }}
                         >
-                          {item.checked ? <CheckSquare size={20} /> : <Square size={20} />}
+                          {item.checked ? <CheckSquare size={20} aria-hidden="true" /> : <Square size={20} aria-hidden="true" />}
                         </button>
 
                         {/* Item Content */}

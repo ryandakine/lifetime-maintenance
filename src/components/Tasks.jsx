@@ -104,10 +104,10 @@ const Tasks = () => {
 
   const getPriorityIcon = (priority) => {
     switch (priority) {
-      case 1: return <AlertCircle size={14} />
-      case 2: return <Clock size={14} />
-      case 3: return <Calendar size={14} />
-      default: return <Clock size={14} />
+      case 1: return <AlertCircle size={14} aria-hidden="true" />
+      case 2: return <Clock size={14} aria-hidden="true" />
+      case 3: return <Calendar size={14} aria-hidden="true" />
+      default: return <Clock size={14} aria-hidden="true" />
     }
   }
 
@@ -452,7 +452,7 @@ Output:
                 borderRadius: '4px',
                 fontSize: '0.8rem'
               }}>
-                <AlertCircle size={12} />
+                <AlertCircle size={12} aria-hidden="true" />
                 Daily
               </span>
               <span style={{ fontSize: '0.9rem' }}>High Priority - Do Today</span>
@@ -468,7 +468,7 @@ Output:
                 borderRadius: '4px',
                 fontSize: '0.8rem'
               }}>
-                <Clock size={12} />
+                <Clock size={12} aria-hidden="true" />
                 Weekly
               </span>
               <span style={{ fontSize: '0.9rem' }}>Medium Priority - This Week</span>
@@ -484,7 +484,7 @@ Output:
                 borderRadius: '4px',
                 fontSize: '0.8rem'
               }}>
-                <Calendar size={12} />
+                <Calendar size={12} aria-hidden="true" />
                 Monthly
               </span>
               <span style={{ fontSize: '0.9rem' }}>Low Priority - This Month</span>
@@ -584,6 +584,8 @@ Output:
                 {/* Status Toggle */}
                 <button
                   onClick={() => updateTaskStatus(task.id, task.status === 'completed' ? 'pending' : 'completed')}
+                  title={task.status === 'completed' ? 'Mark as pending' : 'Mark as completed'}
+                  aria-label={task.status === 'completed' ? 'Mark as pending' : 'Mark as completed'}
                   style={{
                     background: 'none',
                     border: 'none',
@@ -594,12 +596,17 @@ Output:
                     transition: 'all 0.2s ease'
                   }}
                 >
-                  {task.status === 'completed' ? <CheckCircle size={20} /> : <Square size={20} />}
+                  {task.status === 'completed' ? 
+                    <CheckSquare size={20} aria-hidden="true" /> : 
+                    <Square size={20} aria-hidden="true" />
+                  }
                 </button>
 
                 {/* Delete Button */}
                 <button
                   onClick={() => deleteTask(task.id)}
+                  title="Delete task"
+                  aria-label="Delete task"
                   style={{
                     background: 'none',
                     border: 'none',
@@ -610,7 +617,7 @@ Output:
                     transition: 'all 0.2s ease'
                   }}
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={16} aria-hidden="true" />
                 </button>
               </div>
             ))}

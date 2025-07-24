@@ -501,24 +501,27 @@ Maintenance Team`
             />
           </div>
           <div className="form-group">
-            <label className="form-label">Body</label>
+            <label className="form-label" htmlFor="email-body">Body</label>
             <textarea
+              id="email-body"
+              name="email-body"
               className="form-textarea"
               value={emailForm.body}
               onChange={(e) => setEmailForm({...emailForm, body: e.target.value})}
               placeholder="Email content..."
+              title="Email body content"
               required
             />
           </div>
-          <button type="submit" className="btn" disabled={loading}>
+          <button type="submit" className="btn" disabled={loading} title="Send email" aria-label="Send email">
             {loading ? (
               <>
-                <RotateCcw size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} />
+                <RotateCcw size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} aria-hidden="true" />
                 Sending...
               </>
             ) : (
               <>
-                <Send size={16} style={{ marginRight: '0.5rem' }} />
+                <Send size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
                 Send Email
               </>
             )}
@@ -534,13 +537,16 @@ Maintenance Team`
         </p>
         
         <div className="form-group">
-          <label className="form-label">Paste Email Content</label>
+          <label className="form-label" htmlFor="paste-email-content">Paste Email Content</label>
           <textarea
+            id="paste-email-content"
+            name="paste-email-content"
             className="form-textarea"
             value={emailContext.pastedContent}
             onChange={(e) => setEmailContext({...emailContext, pastedContent: e.target.value})}
             placeholder="Paste the email content here (e.g., from Split Rail Fencing)..."
             rows={6}
+            title="Paste email content to generate contextual reply"
           />
         </div>
 
@@ -549,15 +555,17 @@ Maintenance Team`
             className="btn"
             onClick={generateReplyWithContext}
             disabled={loading || !emailContext.pastedContent.trim()}
+            title="Generate AI reply with context"
+            aria-label="Generate AI reply with context"
           >
             {loading ? (
               <>
-                <Brain size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} />
+                <Brain size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} aria-hidden="true" />
                 Generating...
               </>
             ) : (
               <>
-                <Brain size={16} style={{ marginRight: '0.5rem' }} />
+                <Brain size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
                 Generate Reply
               </>
             )}
