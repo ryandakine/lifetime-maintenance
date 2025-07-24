@@ -13,7 +13,11 @@ import {
   MapPin,
   RefreshCw,
   Truck,
-  Clock
+  Clock,
+  Camera,
+  Upload,
+  Check,
+  X
 } from 'lucide-react'
 
 const Shopping = () => {
@@ -27,6 +31,19 @@ const Shopping = () => {
     userInput: '',
     linkedTaskId: '',
     storeAddress: '123 Main St, Denver, CO 80202' // Default store address
+  })
+
+  const [photoAnalysis, setPhotoAnalysis] = useState({
+    photo: null,
+    photoUrl: '',
+    analysis: '',
+    loading: false,
+    showForm: false
+  })
+
+  const [gotItemInput, setGotItemInput] = useState({
+    text: '',
+    loading: false
   })
 
   // Check online status
@@ -316,6 +333,329 @@ Shopping Items:`
     }
   }
 
+  const processGotItem = async (e) => {
+    e.preventDefault()
+    if (!gotItemInput.text.trim()) {
+      showMessage('error', 'Please enter what you got')
+      return
+    }
+
+    try {
+      setGotItemInput({ ...gotItemInput, loading: true })
+      
+      // Parse the "got item" input with Claude
+      const gotItems = await parseGotItemWithClaude(gotItemInput.text)
+      
+      if (gotItems.length === 0) {
+        showMessage('error', 'No items found in your input')
+        return
+      }
+
+      // Update all shopping lists with the got items
+      let updatedCount = 0
+      for (const list of shoppingLists) {
+        const updatedItems = [...list.items_json]
+        let listUpdated = false
+
+        for (const gotItem of gotItems) {
+          for (let i = 0; i < updatedItems.length; i++) {
+            const item = updatedItems[i]
+            if (item.name.toLowerCase().includes(gotItem.toLowerCase()) || 
+                gotItem.toLowerCase().includes(item.name.toLowerCase())) {
+              
+              // Mark all suppliers as completed for this item
+              for (let j = 0; j < item.suppliers.length; j++) {
+                if (!item.suppliers[j].completed) {
+                  item.suppliers[j].completed = true
+                  listUpdated = true
+                }
+              }
+            }
+          }
+        }
+
+        if (listUpdated) {
+          const { error } = await supabase
+            .from(TABLES.SHOPPING_LISTS)
+            .update({ items_json: updatedItems })
+            .eq('id', list.id)
+
+          if (error) throw error
+          updatedCount++
+        }
+      }
+
+      // Reload shopping lists
+      await loadShoppingLists()
+      
+      setGotItemInput({ text: '', loading: false })
+      console.log(`Updated ${updatedCount} shopping lists with got items`)
+      showMessage('success', `Marked ${gotItems.length} items as got`)
+      
+    } catch (error) {
+      console.error('Error processing got items:', error)
+      showMessage('error', 'Failed to update got items')
+      setGotItemInput({ ...gotItemInput, loading: false })
+    }
+  }
+
+  const parseGotItemWithClaude = async (userInput) => {
+    try {
+      const claudeApiKey = API_KEYS.CLAUDE_API
+      
+      if (!claudeApiKey || claudeApiKey === 'sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx') {
+        console.warn('Claude API key not configured, using fallback parsing')
+        return parseGotItemFallback(userInput)
+      }
+
+      const prompt = `Extract the items that were purchased/got from this input.
+
+User Input: "${userInput}"
+
+Instructions:
+1. Identify the specific items that were purchased or obtained
+2. Return as JSON array of item names
+3. Focus on maintenance/repair items
+
+Example outputs:
+- "I got the HVAC filter and ladder" → ["HVAC filter", "ladder"]
+- "Bought cement and light bulbs" → ["cement", "light bulbs"]
+- "Got the electrical breaker" → ["electrical breaker"]
+
+Items:`
+
+      console.log('Sending got item parsing request to Claude API...')
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': claudeApiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20240620',
+          max_tokens: 500,
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ]
+        })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Claude API error:', response.status, errorText)
+        throw new Error(`Claude API error: ${response.status}`)
+      }
+
+      const result = await response.json()
+      const responseText = result.content[0].text
+
+      // Extract JSON from response
+      const jsonMatch = responseText.match(/\[[\s\S]*\]/)
+      if (!jsonMatch) {
+        console.warn('No JSON found in Claude response, using fallback')
+        return parseGotItemFallback(userInput)
+      }
+
+      const parsedItems = JSON.parse(jsonMatch[0])
+      console.log('Got items parsed with Claude:', parsedItems)
+      return parsedItems
+
+    } catch (error) {
+      console.error('Error calling Claude API:', error)
+      console.log('Using fallback got item parsing due to Claude API error')
+      return parseGotItemFallback(userInput)
+    }
+  }
+
+  const parseGotItemFallback = (userInput) => {
+    // Fallback parsing when Claude API is not available
+    const itemPhrases = userInput.split(/[,;]+/).map(phrase => phrase.trim()).filter(phrase => phrase.length > 0)
+    return itemPhrases
+  }
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    try {
+      setPhotoAnalysis({ ...photoAnalysis, loading: true, photo: file })
+      
+      // Upload to Supabase Storage
+      const fileName = `photos/${Date.now()}_${file.name}`
+      const { data, error } = await supabase.storage
+        .from('photos')
+        .upload(fileName, file)
+
+      if (error) throw error
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('photos')
+        .getPublicUrl(fileName)
+
+      setPhotoAnalysis({ ...photoAnalysis, photoUrl: publicUrl, photo: file })
+      
+      // Analyze photo with Claude Vision
+      await analyzePhotoWithClaude(publicUrl)
+      
+    } catch (error) {
+      console.error('Error uploading photo:', error)
+      showMessage('error', 'Failed to upload photo')
+      setPhotoAnalysis({ ...photoAnalysis, loading: false, photo: null })
+    }
+  }
+
+  const analyzePhotoWithClaude = async (photoUrl) => {
+    try {
+      const claudeApiKey = API_KEYS.CLAUDE_API
+      
+      if (!claudeApiKey || claudeApiKey === 'sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx') {
+        console.warn('Claude API key not configured, using fallback analysis')
+        setPhotoAnalysis({ 
+          ...photoAnalysis, 
+          analysis: 'Photo analysis requires Claude API key configuration.',
+          loading: false 
+        })
+        return
+      }
+
+      const prompt = `Analyze this maintenance/repair photo and provide detailed fix advice.
+
+Instructions:
+1. Identify the issue or maintenance need
+2. Provide step-by-step repair instructions
+3. List required tools and supplies
+4. Recommend Grainger part numbers (G-XXXXX format) and Home Depot aisle info
+5. Include safety considerations
+6. Estimate time and difficulty level
+
+Format your response as:
+## Issue Analysis
+[Describe what you see]
+
+## Repair Steps
+1. [Step 1]
+2. [Step 2]
+...
+
+## Required Tools & Supplies
+- [Tool/Supply 1] - [Grainger Part # or Home Depot Aisle]
+- [Tool/Supply 2] - [Grainger Part # or Home Depot Aisle]
+
+## Safety Notes
+[Safety considerations]
+
+## Time Estimate
+[Estimated time and difficulty]`
+
+      console.log('Sending photo analysis request to Claude Vision API...')
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': claudeApiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20240620',
+          max_tokens: 1000,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: prompt
+                },
+                {
+                  type: 'image',
+                  source: {
+                    type: 'url',
+                    url: photoUrl
+                  }
+                }
+              ]
+            }
+          ]
+        })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Claude Vision API error:', response.status, errorText)
+        throw new Error(`Claude Vision API error: ${response.status}`)
+      }
+
+      const result = await response.json()
+      const analysis = result.content[0].text
+
+      // Save to Supabase photos table
+      const { error: saveError } = await supabase
+        .from('photos')
+        .insert({
+          user_id: 'current-user',
+          photo_url: photoUrl,
+          response: analysis,
+          created_at: new Date().toISOString()
+        })
+
+      if (saveError) {
+        console.error('Error saving photo analysis:', saveError)
+      }
+
+      setPhotoAnalysis({ 
+        ...photoAnalysis, 
+        analysis, 
+        loading: false 
+      })
+      
+      console.log('Photo analysis completed and saved')
+      showMessage('success', 'Photo analyzed successfully')
+      
+    } catch (error) {
+      console.error('Error analyzing photo:', error)
+      showMessage('error', 'Failed to analyze photo')
+      setPhotoAnalysis({ ...photoAnalysis, loading: false })
+    }
+  }
+
+  const createTaskFromPhoto = async () => {
+    if (!photoAnalysis.analysis) return
+
+    try {
+      // Extract task name from analysis
+      const taskName = photoAnalysis.analysis.split('\n')[0].replace('## Issue Analysis', '').trim()
+      
+      const { data, error } = await supabase
+        .from(TABLES.TASKS)
+        .insert({
+          user_id: 'current-user',
+          task_list: `Fix from photo: ${taskName}`,
+          project_id: 'photo-analysis',
+          status: 'pending',
+          notes: photoAnalysis.analysis
+        })
+        .select()
+
+      if (error) throw error
+
+      // Reload tasks
+      await loadTasks()
+      
+      console.log('Task created from photo analysis')
+      showMessage('success', 'Task created from photo analysis')
+      
+    } catch (error) {
+      console.error('Error creating task from photo:', error)
+      showMessage('error', 'Failed to create task from photo')
+    }
+  }
+
   const deleteShoppingList = async (listId) => {
     try {
       const { error } = await supabase
@@ -435,6 +775,129 @@ Shopping Items:`
           {message.text}
         </div>
       )}
+
+      {/* Photo Analysis Section */}
+      <div className="card">
+        <h3>Photo Fix Advice</h3>
+        <p style={{ color: 'var(--secondary-color)', marginBottom: '1rem' }}>
+          Upload a photo of a maintenance issue for AI-powered fix advice.
+        </p>
+        
+        {!photoAnalysis.showForm ? (
+          <button
+            className="btn"
+            onClick={() => setPhotoAnalysis({ ...photoAnalysis, showForm: true })}
+          >
+            <Camera size={16} style={{ marginRight: '0.5rem' }} />
+            Upload Photo for Analysis
+          </button>
+        ) : (
+          <div>
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setPhotoAnalysis({ ...photoAnalysis, showForm: false })}
+              >
+                <X size={16} style={{ marginRight: '0.5rem' }} />
+                Cancel
+              </button>
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Upload Photo</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="form-input"
+                disabled={photoAnalysis.loading}
+              />
+            </div>
+
+            {photoAnalysis.photo && (
+              <div style={{ marginTop: '1rem' }}>
+                <img 
+                  src={URL.createObjectURL(photoAnalysis.photo)} 
+                  alt="Uploaded" 
+                  style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }}
+                />
+              </div>
+            )}
+
+            {photoAnalysis.loading && (
+              <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+                <Brain size={20} style={{ animation: 'spin 1s linear infinite', marginRight: '0.5rem' }} />
+                Analyzing photo...
+              </div>
+            )}
+
+            {photoAnalysis.analysis && (
+              <div style={{ marginTop: '1rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                  <button
+                    className="btn btn-outline"
+                    onClick={createTaskFromPhoto}
+                  >
+                    <Plus size={16} style={{ marginRight: '0.5rem' }} />
+                    Create Task from Analysis
+                  </button>
+                </div>
+                
+                <div style={{ 
+                  backgroundColor: 'var(--light-color)', 
+                  padding: '1rem', 
+                  borderRadius: '8px',
+                  whiteSpace: 'pre-wrap',
+                  fontFamily: 'monospace',
+                  fontSize: '0.9rem'
+                }}>
+                  {photoAnalysis.analysis}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Got Item Update Section */}
+      <div className="card">
+        <h3>Update Got Items</h3>
+        <p style={{ color: 'var(--secondary-color)', marginBottom: '1rem' }}>
+          Tell me what items you got to update your shopping lists.
+        </p>
+        
+        <form onSubmit={processGotItem}>
+          <div className="form-group">
+            <label className="form-label">What did you get?</label>
+            <input
+              type="text"
+              className="form-input"
+              value={gotItemInput.text}
+              onChange={(e) => setGotItemInput({...gotItemInput, text: e.target.value})}
+              placeholder="e.g., I got the HVAC filter and ladder"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="btn"
+            disabled={gotItemInput.loading || !gotItemInput.text.trim()}
+          >
+            {gotItemInput.loading ? (
+              <>
+                <Brain size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Check size={16} style={{ marginRight: '0.5rem' }} />
+                Mark as Got
+              </>
+            )}
+          </button>
+        </form>
+      </div>
 
       <div className="card">
         <h3>Tell me your orders</h3>

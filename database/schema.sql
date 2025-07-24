@@ -62,6 +62,15 @@ CREATE TABLE IF NOT EXISTS projects (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Photos table for photo analysis
+CREATE TABLE IF NOT EXISTS photos (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  photo_url TEXT NOT NULL,
+  response TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
@@ -79,6 +88,9 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_created_at ON knowledge(created_at);
 
 CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+
+CREATE INDEX IF NOT EXISTS idx_photos_user_id ON photos(user_id);
+CREATE INDEX IF NOT EXISTS idx_photos_created_at ON photos(created_at);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -109,6 +121,16 @@ VALUES (
   ARRAY['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'image/jpeg', 'image/png', 'image/gif', 'text/plain']
 ) ON CONFLICT (id) DO NOTHING;
 
+-- Create storage bucket for photos
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'photos',
+  'photos',
+  false,
+  10485760, -- 10MB limit
+  ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+) ON CONFLICT (id) DO NOTHING;
+
 -- Row Level Security (RLS) policies
 -- Enable RLS on all tables
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
@@ -116,6 +138,7 @@ ALTER TABLE shopping_lists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE emails ENABLE ROW LEVEL SECURITY;
 ALTER TABLE knowledge ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE photos ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for tasks
 CREATE POLICY "Users can view their own tasks" ON tasks
@@ -141,6 +164,19 @@ CREATE POLICY "Users can update their own shopping lists" ON shopping_lists
   FOR UPDATE USING (auth.uid()::text = user_id);
 
 CREATE POLICY "Users can delete their own shopping lists" ON shopping_lists
+  FOR DELETE USING (auth.uid()::text = user_id);
+
+-- Create policies for photos
+CREATE POLICY "Users can view their own photos" ON photos
+  FOR SELECT USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can insert their own photos" ON photos
+  FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can update their own photos" ON photos
+  FOR UPDATE USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can delete their own photos" ON photos
   FOR DELETE USING (auth.uid()::text = user_id);
 
 -- Create policies for emails
@@ -194,6 +230,19 @@ CREATE POLICY "Users can update their own files" ON storage.objects
 
 CREATE POLICY "Users can delete their own files" ON storage.objects
   FOR DELETE USING (bucket_id = 'work-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- Create policies for photos storage bucket
+CREATE POLICY "Users can upload their own photos" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'photos' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "Users can view their own photos" ON storage.objects
+  FOR SELECT USING (bucket_id = 'photos' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "Users can update their own photos" ON storage.objects
+  FOR UPDATE USING (bucket_id = 'photos' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "Users can delete their own photos" ON storage.objects
+  FOR DELETE USING (bucket_id = 'photos' AND auth.uid()::text = (storage.foldername(name))[1]);
 
 -- Insert sample data for testing
 INSERT INTO tasks (user_id, task_list, project_id, status, due_date, notes) VALUES
