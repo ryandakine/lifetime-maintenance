@@ -24,7 +24,7 @@ export const TASK_STATUS = {
 // API Keys (placeholder - replace with actual keys)
 export const API_KEYS = {
   PERPLEXITY_PRO: import.meta.env.VITE_PERPLEXITY_API_KEY || 'your-perplexity-key',
-  CLAUDE_API: import.meta.env.VITE_CLAUDE_API_KEY || 'your-claude-key',
+  CLAUDE_API: import.meta.env.VITE_ANTHROPIC_API_KEY || 'sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
   GROK_PRO: import.meta.env.VITE_GROK_API_KEY || 'your-grok-key',
   RESEND: import.meta.env.VITE_RESEND_API_KEY || 're_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 } 
