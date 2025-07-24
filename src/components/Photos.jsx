@@ -35,7 +35,9 @@ const Photos = () => {
     showForm: false,
     cameraMode: false,
     cameraAvailable: false,
-    stream: null
+    stream: null,
+    uploadMode: 'file', // 'camera' or 'file'
+    uploadType: 'file' // 'camera' or 'file' for database
   })
 
   // Check camera availability on mount
@@ -85,6 +87,25 @@ const Photos = () => {
     }
   }
 
+  const handleUploadModeChange = (mode) => {
+    console.log('Upload mode: ' + mode)
+    
+    // Stop camera if switching from camera mode
+    if (photoUpload.cameraMode && mode === 'file') {
+      stopCamera()
+    }
+    
+    setPhotoUpload(prev => ({ 
+      ...prev, 
+      uploadMode: mode,
+      uploadType: mode,
+      cameraMode: mode === 'camera',
+      photo: null,
+      photoUrl: '',
+      analysis: ''
+    }))
+  }
+
   const startCamera = async () => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -115,7 +136,13 @@ const Photos = () => {
     } catch (error) {
       console.error('Camera access error:', error)
       showMessage('error', 'Camera access failed, using file upload instead')
-      setPhotoUpload(prev => ({ ...prev, cameraMode: false, showForm: true }))
+      setPhotoUpload(prev => ({ 
+        ...prev, 
+        cameraMode: false, 
+        uploadMode: 'file',
+        uploadType: 'file',
+        showForm: true 
+      }))
     }
   }
 
@@ -160,12 +187,12 @@ const Photos = () => {
         stopCamera()
         
         // Process the captured photo
-        processPhotoFile(file)
+        processPhotoFile(file, 'camera')
       }
     }, 'image/jpeg', 0.8)
   }
 
-  const processPhotoFile = async (file) => {
+  const processPhotoFile = async (file, type = 'file') => {
     try {
       setPhotoUpload(prev => ({ ...prev, loading: true }))
       
@@ -184,7 +211,7 @@ const Photos = () => {
       setPhotoUpload(prev => ({ ...prev, photoUrl: publicUrl }))
       
       // Analyze photo with Grok Pro API
-      await analyzePhotoWithGrok(publicUrl)
+      await analyzePhotoWithGrok(publicUrl, type)
       
     } catch (error) {
       console.error('Error processing photo:', error)
@@ -232,10 +259,10 @@ const Photos = () => {
     const file = e.target.files[0]
     if (!file) return
 
-    await processPhotoFile(file)
+    await processPhotoFile(file, 'file')
   }
 
-  const analyzePhotoWithGrok = async (photoUrl) => {
+  const analyzePhotoWithGrok = async (photoUrl, type = 'file') => {
     try {
       const grokApiKey = API_KEYS.GROK_PRO
       
@@ -327,7 +354,7 @@ Format your response as:
       const result = await response.json()
       const analysis = result.choices[0].message.content
 
-      // Save to Supabase photos table
+      // Save to Supabase photos table with upload type
       const { error: saveError } = await supabase
         .from('photos')
         .insert({
@@ -335,6 +362,7 @@ Format your response as:
           photo_url: photoUrl,
           task_id: photoUpload.selectedTaskId || null,
           response: analysis,
+          upload_type: type, // Add upload type to database
           created_at: new Date().toISOString()
         })
 
@@ -348,7 +376,7 @@ Format your response as:
         loading: false 
       })
       
-      console.log('Photo uploaded and analyzed with Grok Pro')
+      console.log(`Photo uploaded and analyzed with Grok Pro (type: ${type})`)
       showMessage('success', 'Photo uploaded and analyzed successfully')
       
       // Reload photos list
@@ -401,6 +429,10 @@ Format your response as:
     return 'var(--secondary-color)'
   }
 
+  const getUploadTypeIcon = (type) => {
+    return type === 'camera' ? <Camera size={14} /> : <Upload size={14} />
+  }
+
   const showMessage = (type, text) => {
     setMessage({ type, text })
     setTimeout(() => setMessage({ type: '', text: '' }), 5000)
@@ -432,15 +464,21 @@ Format your response as:
             {photoUpload.cameraAvailable && (
               <button
                 className="btn"
-                onClick={startCamera}
+                onClick={() => {
+                  handleUploadModeChange('camera')
+                  startCamera()
+                }}
               >
                 <Camera size={16} style={{ marginRight: '0.5rem' }} />
-                Take Photo
+                Use Camera
               </button>
             )}
             <button
               className="btn"
-              onClick={() => setPhotoUpload({ ...photoUpload, showForm: true, cameraMode: false })}
+              onClick={() => {
+                handleUploadModeChange('file')
+                setPhotoUpload(prev => ({ ...prev, showForm: true }))
+              }}
             >
               <Upload size={16} style={{ marginRight: '0.5rem' }} />
               Upload File
@@ -459,13 +497,68 @@ Format your response as:
                     photo: null, 
                     photoUrl: '', 
                     analysis: '',
-                    selectedTaskId: ''
+                    selectedTaskId: '',
+                    uploadMode: 'file',
+                    uploadType: 'file'
                   })
                 }}
               >
                 <X size={16} style={{ marginRight: '0.5rem' }} />
                 Cancel
               </button>
+            </div>
+
+            {/* Upload Mode Selection */}
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label className="form-label">Upload Method</label>
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                <label style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem',
+                  cursor: 'pointer',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '6px',
+                  border: `2px solid ${photoUpload.uploadMode === 'camera' ? 'var(--primary-color)' : 'var(--border-color)'}`,
+                  backgroundColor: photoUpload.uploadMode === 'camera' ? 'var(--primary-color)' : 'transparent',
+                  color: photoUpload.uploadMode === 'camera' ? 'white' : 'var(--text-color)',
+                  transition: 'all 0.2s ease'
+                }}>
+                  <input
+                    type="radio"
+                    name="uploadMode"
+                    value="camera"
+                    checked={photoUpload.uploadMode === 'camera'}
+                    onChange={(e) => handleUploadModeChange(e.target.value)}
+                    style={{ display: 'none' }}
+                  />
+                  <Camera size={16} />
+                  Use Camera
+                </label>
+                <label style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem',
+                  cursor: 'pointer',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '6px',
+                  border: `2px solid ${photoUpload.uploadMode === 'file' ? 'var(--primary-color)' : 'var(--border-color)'}`,
+                  backgroundColor: photoUpload.uploadMode === 'file' ? 'var(--primary-color)' : 'transparent',
+                  color: photoUpload.uploadMode === 'file' ? 'white' : 'var(--text-color)',
+                  transition: 'all 0.2s ease'
+                }}>
+                  <input
+                    type="radio"
+                    name="uploadMode"
+                    value="file"
+                    checked={photoUpload.uploadMode === 'file'}
+                    onChange={(e) => handleUploadModeChange(e.target.value)}
+                    style={{ display: 'none' }}
+                  />
+                  <Upload size={16} />
+                  Upload File
+                </label>
+              </div>
             </div>
             
             {/* Camera Mode */}
@@ -606,6 +699,19 @@ Format your response as:
                         <span style={{ fontSize: '0.8rem', color: 'var(--secondary-color)' }}>
                           {new Date(photo.created_at).toLocaleDateString()}
                         </span>
+                        {photo.upload_type && (
+                          <span style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '0.25rem',
+                            fontSize: '0.8rem', 
+                            color: 'var(--primary-color)',
+                            marginLeft: '0.5rem'
+                          }}>
+                            {getUploadTypeIcon(photo.upload_type)}
+                            {photo.upload_type}
+                          </span>
+                        )}
                       </div>
                       
                       {linkedTask && (
