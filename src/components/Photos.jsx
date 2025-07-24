@@ -882,7 +882,7 @@ Format your response as:
                       title="Delete photo"
                       aria-label="Delete photo"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={14} aria-hidden="true" />
                     </button>
                   </div>
 

@@ -750,7 +750,7 @@ const FileUploader = () => {
                       title="Delete file"
                       aria-label="Delete file"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={14} aria-hidden="true" />
                     </button>
                   </div>
                 </div>

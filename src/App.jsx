@@ -261,6 +261,8 @@ function DebugStatus() {
           <button
             onClick={testSupabaseConnection}
             disabled={testing}
+            title={testing ? 'Testing Supabase connection' : 'Test Supabase connection'}
+            aria-label={testing ? 'Testing Supabase connection' : 'Test Supabase connection'}
             style={{ 
               padding: '0.5rem 1rem', 
               backgroundColor: testing ? '#6c757d' : '#28a745', 

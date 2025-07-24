@@ -384,7 +384,7 @@ Be specific with aisle numbers and part numbers. If exact match not found, provi
         {/* Store Information */}
         <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--light-color)', borderRadius: '8px' }}>
           <h4 style={{ marginBottom: '0.5rem', color: 'var(--primary-color)' }}>
-            <Store size={16} style={{ marginRight: '0.5rem' }} />
+            <Store size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
             Store Information
           </h4>
           <div style={{ fontSize: '0.9rem', color: 'var(--secondary-color)' }}>
@@ -524,7 +524,7 @@ Be specific with aisle numbers and part numbers. If exact match not found, provi
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
                             {/* Grainger Info */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <Package size={12} style={{ color: 'var(--primary-color)' }} />
+                              <Package size={12} style={{ color: 'var(--primary-color)' }} aria-hidden="true" />
                               <span style={{ color: 'var(--secondary-color)' }}>Grainger:</span>
                               <span style={{ fontWeight: '500' }}>{item.grainger_part}</span>
                               {item.grainger_url && (
@@ -533,15 +533,17 @@ Be specific with aisle numbers and part numbers. If exact match not found, provi
                                   target="_blank" 
                                   rel="noopener noreferrer"
                                   style={{ color: 'var(--primary-color)', textDecoration: 'none' }}
+                                  title="View on Grainger website"
+                                  aria-label="View on Grainger website"
                                 >
-                                  <ExternalLink size={12} />
+                                  <ExternalLink size={12} aria-hidden="true" />
                                 </a>
                               )}
                             </div>
                             
                             {/* Home Depot Info */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <MapPin size={12} style={{ color: 'var(--primary-color)' }} />
+                              <MapPin size={12} style={{ color: 'var(--primary-color)' }} aria-hidden="true" />
                               <span style={{ color: 'var(--secondary-color)' }}>Home Depot:</span>
                               <span style={{ fontWeight: '500' }}>{item.home_depot_aisle}</span>
                               {item.home_depot_url && (
@@ -550,8 +552,10 @@ Be specific with aisle numbers and part numbers. If exact match not found, provi
                                   target="_blank" 
                                   rel="noopener noreferrer"
                                   style={{ color: 'var(--primary-color)', textDecoration: 'none' }}
+                                  title="View on Home Depot website"
+                                  aria-label="View on Home Depot website"
                                 >
-                                  <ExternalLink size={12} />
+                                  <ExternalLink size={12} aria-hidden="true" />
                                 </a>
                               )}
                             </div>
@@ -559,7 +563,7 @@ Be specific with aisle numbers and part numbers. If exact match not found, provi
                             {/* Alternatives */}
                             {item.alternatives && item.alternatives.length > 0 && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <Filter size={12} style={{ color: 'var(--secondary-color)' }} />
+                                <Filter size={12} style={{ color: 'var(--secondary-color)' }} aria-hidden="true" />
                                 <span style={{ color: 'var(--secondary-color)' }}>Alternatives:</span>
                                 <span style={{ fontSize: '0.75rem' }}>{item.alternatives.join(', ')}</span>
                               </div>

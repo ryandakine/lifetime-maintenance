@@ -385,7 +385,7 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
         {/* Knowledge Features */}
         <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--light-color)', borderRadius: '8px' }}>
           <h4 style={{ marginBottom: '0.5rem', color: 'var(--primary-color)' }}>
-            <Lightbulb size={16} style={{ marginRight: '0.5rem' }} />
+            <Lightbulb size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
             Knowledge Features
           </h4>
           <div style={{ fontSize: '0.9rem', color: 'var(--secondary-color)' }}>
