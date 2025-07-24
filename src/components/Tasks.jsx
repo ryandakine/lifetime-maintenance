@@ -1,14 +1,23 @@
 import React, { useState, useEffect } from 'react'
 import { supabase, TABLES, API_KEYS } from '../lib/supabase'
 import { 
-  CheckCircle, 
-  Circle, 
-  Plus, 
+  CheckSquare, 
+  Square, 
   Trash2, 
-  RotateCcw, 
+  Plus, 
   Brain,
-  List,
-  RefreshCw
+  AlertCircle,
+  Clock,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  Star,
+  StarOff,
+  RotateCcw,
+  MessageSquare,
+  CheckCircle,
+  XCircle,
+  Loader
 } from 'lucide-react'
 
 const Tasks = () => {
@@ -16,11 +25,8 @@ const Tasks = () => {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
   const [isOnline, setIsOnline] = useState(navigator.onLine)
-  
-  const [taskInput, setTaskInput] = useState({
-    userInput: '',
-    projectId: ''
-  })
+  const [userInput, setUserInput] = useState('')
+  const [processing, setProcessing] = useState(false)
 
   // Check online status
   useEffect(() => {
@@ -47,7 +53,8 @@ const Tasks = () => {
       const { data, error } = await supabase
         .from(TABLES.TASKS)
         .select('*')
-        .eq('user_id', 'current-user') // Replace with actual user ID
+        .eq('user_id', 'current-user')
+        .order('priority', { ascending: true }) // Sort by priority (1=daily first, 2=weekly, 3=monthly)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -61,112 +68,122 @@ const Tasks = () => {
     }
   }
 
-  const processTaskInput = async (e) => {
-    e.preventDefault()
-    if (!taskInput.userInput.trim()) {
-      showMessage('error', 'Please enter some tasks')
-      return
-    }
-
-    try {
-      setLoading(true)
-      
-      // Use Claude 4.0 Max API to parse task input
-      const parsedTasks = await parseTasksWithClaude(taskInput.userInput)
-      
-      if (parsedTasks.length === 0) {
-        showMessage('error', 'No valid tasks found in input')
-        return
-      }
-
-      // Save parsed tasks to Supabase
-      const { data, error } = await supabase
-        .from(TABLES.TASKS)
-        .insert(
-          parsedTasks.map(task => ({
-            user_id: 'current-user', // Replace with actual user ID
-            task_list: task.name,
-            project_id: taskInput.projectId || task.category || 'general',
-            status: 'pending',
-            notes: task.details || '',
-            due_date: task.dueDate || null
-          }))
-        )
-        .select()
-
-      if (error) throw error
-
-      // Update local state
-      setTasks([...data, ...tasks])
-      setTaskInput({ userInput: '', projectId: '' })
-      
-      console.log(`Added ${data.length} new tasks`)
-      showMessage('success', `Added ${data.length} new tasks`)
-      
-    } catch (error) {
-      console.error('Error processing tasks:', error)
-      showMessage('error', 'Failed to process tasks')
-    } finally {
-      setLoading(false)
+  const getPriorityLabel = (priority) => {
+    switch (priority) {
+      case 1: return 'Daily'
+      case 2: return 'Weekly'
+      case 3: return 'Monthly'
+      default: return 'Weekly'
     }
   }
 
-  const parseTasksWithClaude = async (userInput) => {
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 1: return 'var(--danger-color)' // Red for daily/high
+      case 2: return 'var(--warning-color)' // Yellow for weekly/medium
+      case 3: return 'var(--success-color)' // Green for monthly/low
+      default: return 'var(--warning-color)'
+    }
+  }
+
+  const getPriorityIcon = (priority) => {
+    switch (priority) {
+      case 1: return <AlertCircle size={14} />
+      case 2: return <Clock size={14} />
+      case 3: return <Calendar size={14} />
+      default: return <Clock size={14} />
+    }
+  }
+
+  const getPriorityDescription = (priority) => {
+    switch (priority) {
+      case 1: return 'High Priority - Do Today'
+      case 2: return 'Medium Priority - This Week'
+      case 3: return 'Low Priority - This Month'
+      default: return 'Medium Priority - This Week'
+    }
+  }
+
+  const processUserInput = async () => {
+    if (!userInput.trim()) return
+
     try {
-      const claudeApiKey = API_KEYS.CLAUDE_API
-      
-      if (!claudeApiKey || claudeApiKey === 'sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx') {
-        console.warn('Claude API key not configured, using fallback parsing')
-        return parseTasksFallback(userInput)
+      setProcessing(true)
+      const anthropicApiKey = API_KEYS.ANTHROPIC
+
+      if (!anthropicApiKey || anthropicApiKey === 'your-anthropic-key') {
+        console.warn('Anthropic API key not configured, using fallback parsing')
+        // Fallback: simple keyword detection
+        const priority = detectPriorityFromKeywords(userInput)
+        const taskList = userInput.split('\n').filter(line => line.trim())
+        
+        await saveTasks(taskList, priority)
+        return
       }
 
-      // Get existing tasks for context
-      const { data: existingTasks } = await supabase
-        .from(TABLES.TASKS)
-        .select('task_list, status')
-        .eq('user_id', 'current-user')
-        .limit(5)
-
-      const existingTasksContext = existingTasks?.map(t => `- ${t.task_list} (${t.status})`).join('\n') || 'No existing tasks'
-
-      const prompt = `Parse this maintenance task input into individual tasks. Consider existing tasks to avoid duplicates.
-
-User Input: "${userInput}"
-
-Existing Tasks:
-${existingTasksContext}
-
-Instructions:
-1. Break down the input into individual, actionable tasks
-2. Extract task names, categories, and any details
-3. Identify due dates if mentioned
-4. Avoid duplicates with existing tasks
-5. Return as JSON array with: name, category, details, dueDate (optional)
-
-Example output:
-[
-  {"name": "Fix HVAC system", "category": "hvac", "details": "Check filters and thermostat", "dueDate": "2024-01-15"},
-  {"name": "Replace light bulb", "category": "electrical", "details": "LED replacement in gym area"}
-]
-
-Tasks:`
-
-      console.log('Sending task parsing request to Claude API...')
+      console.log('Processing task input with Claude 4.0 Max...')
 
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': claudeApiKey,
+          'x-api-key': anthropicApiKey,
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20240620',
+          model: 'claude-3-5-sonnet-20241022',
           max_tokens: 1000,
           messages: [
             {
               role: 'user',
-              content: prompt
+              content: `Parse this maintenance task input and extract tasks with priority levels. 
+
+Input: "${userInput}"
+
+Instructions:
+1. Identify individual tasks from the input
+2. Determine priority level based on urgency keywords:
+   - Priority 1 (Daily/High): "today", "urgent", "asap", "immediate", "now", "critical", "emergency"
+   - Priority 2 (Weekly/Medium): "this week", "soon", "important", "need to", "should"
+   - Priority 3 (Monthly/Low): "this month", "eventually", "when possible", "low priority"
+
+3. Return JSON format:
+{
+  "tasks": [
+    {
+      "task": "task description",
+      "priority": 1,
+      "reason": "why this priority"
+    }
+  ]
+}
+
+4. If no priority keywords found, default to priority 2 (weekly/medium)
+5. Clean up task descriptions (remove priority keywords from task text)
+6. Ensure each task is actionable and specific
+
+Example:
+Input: "Need to fix the HVAC today, check the pool filter this week, and maybe clean the gutters this month"
+Output:
+{
+  "tasks": [
+    {
+      "task": "Fix the HVAC",
+      "priority": 1,
+      "reason": "today keyword indicates urgent/daily priority"
+    },
+    {
+      "task": "Check the pool filter", 
+      "priority": 2,
+      "reason": "this week keyword indicates weekly priority"
+    },
+    {
+      "task": "Clean the gutters",
+      "priority": 3, 
+      "reason": "this month keyword indicates monthly/low priority"
+    }
+  ]
+}`
             }
           ]
         })
@@ -179,55 +196,149 @@ Tasks:`
       }
 
       const result = await response.json()
-      const responseText = result.content[0].text
-
+      const content = result.content[0].text
+      
       // Extract JSON from response
-      const jsonMatch = responseText.match(/\[[\s\S]*\]/)
+      const jsonMatch = content.match(/\{[\s\S]*\}/)
       if (!jsonMatch) {
-        console.warn('No JSON found in Claude response, using fallback')
-        return parseTasksFallback(userInput)
+        throw new Error('No valid JSON found in Claude response')
       }
 
-      const parsedTasks = JSON.parse(jsonMatch[0])
-      console.log('Tasks parsed with Claude:', parsedTasks)
-      return parsedTasks
+      const parsedData = JSON.parse(jsonMatch[0])
+      console.log('Claude parsed tasks:', parsedData)
+
+      if (parsedData.tasks && Array.isArray(parsedData.tasks)) {
+        await saveTasksWithPriority(parsedData.tasks)
+      } else {
+        throw new Error('Invalid task structure from Claude')
+      }
 
     } catch (error) {
-      console.error('Error calling Claude API:', error)
-      console.log('Using fallback task parsing due to Claude API error')
-      return parseTasksFallback(userInput)
+      console.error('Error processing input:', error)
+      showMessage('error', 'Failed to process input. Using fallback parsing.')
+      
+      // Fallback: simple keyword detection
+      const priority = detectPriorityFromKeywords(userInput)
+      const taskList = userInput.split('\n').filter(line => line.trim())
+      await saveTasks(taskList, priority)
+    } finally {
+      setProcessing(false)
+      setUserInput('')
     }
   }
 
-  const parseTasksFallback = (userInput) => {
-    // Fallback parsing when Claude API is not available
-    const taskPhrases = userInput.split(/[,;]+/).map(phrase => phrase.trim()).filter(phrase => phrase.length > 0)
+  const detectPriorityFromKeywords = (input) => {
+    const lowerInput = input.toLowerCase()
     
-    return taskPhrases.map(phrase => ({
-      name: phrase,
-      category: 'general',
-      details: '',
-      dueDate: null
-    }))
+    // Priority 1 (Daily/High) keywords
+    if (lowerInput.includes('today') || lowerInput.includes('urgent') || 
+        lowerInput.includes('asap') || lowerInput.includes('immediate') ||
+        lowerInput.includes('now') || lowerInput.includes('critical') ||
+        lowerInput.includes('emergency')) {
+      return 1
+    }
+    
+    // Priority 3 (Monthly/Low) keywords
+    if (lowerInput.includes('this month') || lowerInput.includes('eventually') ||
+        lowerInput.includes('when possible') || lowerInput.includes('low priority')) {
+      return 3
+    }
+    
+    // Default to Priority 2 (Weekly/Medium)
+    return 2
   }
 
-  const updateTaskStatus = async (taskId, status) => {
+  const saveTasksWithPriority = async (tasksWithPriority) => {
+    try {
+      const tasksToSave = tasksWithPriority.map(taskData => ({
+        user_id: 'current-user',
+        task_list: taskData.task,
+        priority: taskData.priority,
+        status: 'pending'
+      }))
+
+      const { error } = await supabase
+        .from(TABLES.TASKS)
+        .insert(tasksToSave)
+
+      if (error) throw error
+
+      console.log(`Tasks saved with priorities:`, tasksWithPriority.map(t => `${t.task} (Priority ${t.priority})`))
+      showMessage('success', `${tasksToSave.length} tasks added with priority levels`)
+      
+      await loadTasks()
+    } catch (error) {
+      console.error('Error saving tasks:', error)
+      showMessage('error', 'Failed to save tasks')
+    }
+  }
+
+  const saveTasks = async (taskList, priority = 2) => {
+    try {
+      const tasksToSave = taskList.map(task => ({
+        user_id: 'current-user',
+        task_list: task,
+        priority: priority,
+        status: 'pending'
+      }))
+
+      const { error } = await supabase
+        .from(TABLES.TASKS)
+        .insert(tasksToSave)
+
+      if (error) throw error
+
+      console.log(`Tasks saved with priority ${priority}:`, taskList)
+      showMessage('success', `${tasksToSave.length} tasks added`)
+      
+      await loadTasks()
+    } catch (error) {
+      console.error('Error saving tasks:', error)
+      showMessage('error', 'Failed to save tasks')
+    }
+  }
+
+  const updateTaskStatus = async (taskId, newStatus) => {
     try {
       const { error } = await supabase
         .from(TABLES.TASKS)
-        .update({ status })
+        .update({ status: newStatus })
         .eq('id', taskId)
 
       if (error) throw error
 
       setTasks(tasks.map(task => 
-        task.id === taskId ? { ...task, status } : task
+        task.id === taskId ? { ...task, status: newStatus } : task
       ))
       
-      console.log(`Task ${taskId} status updated to ${status}`)
+      console.log(`Task ${taskId} status updated to ${newStatus}`)
     } catch (error) {
       console.error('Error updating task status:', error)
       showMessage('error', 'Failed to update task status')
+    }
+  }
+
+  const updateTaskPriority = async (taskId, newPriority) => {
+    try {
+      const { error } = await supabase
+        .from(TABLES.TASKS)
+        .update({ priority: newPriority })
+        .eq('id', taskId)
+
+      if (error) throw error
+
+      setTasks(tasks.map(task => 
+        task.id === taskId ? { ...task, priority: newPriority } : task
+      ))
+      
+      console.log(`Task priority set to ${newPriority} (${getPriorityLabel(newPriority)})`)
+      showMessage('success', `Priority updated to ${getPriorityLabel(newPriority)}`)
+      
+      // Re-sort tasks by priority
+      await loadTasks()
+    } catch (error) {
+      console.error('Error updating task priority:', error)
+      showMessage('error', 'Failed to update task priority')
     }
   }
 
@@ -249,25 +360,10 @@ Tasks:`
     }
   }
 
-  const handleTaskCompletion = async (taskId, isCompleted) => {
-    const newStatus = isCompleted ? 'completed' : 'pending'
-    await updateTaskStatus(taskId, newStatus)
-  }
-
-  const groupTasksByStatus = () => {
-    const grouped = {
-      pending: tasks.filter(task => task.status === 'pending'),
-      completed: tasks.filter(task => task.status === 'completed')
-    }
-    return grouped
-  }
-
   const showMessage = (type, text) => {
     setMessage({ type, text })
     setTimeout(() => setMessage({ type: '', text: '' }), 5000)
   }
-
-  const { pending, completed } = groupTasksByStatus()
 
   return (
     <div className="container">
@@ -283,70 +379,113 @@ Tasks:`
         </div>
       )}
 
+      {/* Task Input Section */}
       <div className="card">
         <h3>Tell me your tasks</h3>
         <p style={{ color: 'var(--secondary-color)', marginBottom: '1rem' }}>
-          Describe your maintenance tasks and I'll break them down into individual items.
+          Describe your maintenance tasks and I'll parse them with priority levels. 
+          Use keywords like "today", "this week", "this month" for automatic priority detection.
         </p>
         
-        <form onSubmit={processTaskInput}>
-          <div className="form-group">
-            <label className="form-label">Task Description</label>
-            <textarea
-              className="form-textarea"
-              value={taskInput.userInput}
-              onChange={(e) => setTaskInput({...taskInput, userInput: e.target.value})}
-              placeholder="e.g., Fix HVAC, change light bulb, check breakers, complete concrete project..."
-              rows={4}
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label className="form-label">Project Category (optional)</label>
-            <input
-              type="text"
-              className="form-input"
-              value={taskInput.projectId}
-              onChange={(e) => setTaskInput({...taskInput, projectId: e.target.value})}
-              placeholder="e.g., hvac, electrical, concrete, general"
-            />
-          </div>
+        <div className="form-group">
+          <label className="form-label">Task Description</label>
+          <textarea
+            className="form-input"
+            value={userInput}
+            onChange={(e) => setUserInput(e.target.value)}
+            placeholder="Example: Need to fix the HVAC today, check the pool filter this week, and maybe clean the gutters this month"
+            rows={4}
+            disabled={processing}
+          />
+        </div>
 
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-            <button
-              type="submit"
-              className="btn"
-              disabled={loading || !taskInput.userInput.trim()}
-            >
-              {loading ? (
-                <>
-                  <Brain size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Plus size={16} style={{ marginRight: '0.5rem' }} />
-                  Add to List
-                </>
-              )}
-            </button>
-            
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={loadTasks}
-              disabled={loading}
-            >
-              <RefreshCw size={16} style={{ marginRight: '0.5rem' }} />
-              Refresh
-            </button>
+        <button
+          className="btn"
+          onClick={processUserInput}
+          disabled={!userInput.trim() || processing}
+        >
+          {processing ? (
+            <>
+              <Loader size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} />
+              Processing...
+            </>
+          ) : (
+            <>
+              <Brain size={16} style={{ marginRight: '0.5rem' }} />
+              Parse Tasks
+            </>
+          )}
+        </button>
+
+        {/* Priority Legend */}
+        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--light-color)', borderRadius: '8px' }}>
+          <h4 style={{ marginBottom: '0.5rem', color: 'var(--primary-color)' }}>Priority Levels:</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.25rem',
+                padding: '0.25rem 0.5rem',
+                backgroundColor: 'var(--danger-color)',
+                color: 'white',
+                borderRadius: '4px',
+                fontSize: '0.8rem'
+              }}>
+                <AlertCircle size={12} />
+                Daily
+              </span>
+              <span style={{ fontSize: '0.9rem' }}>High Priority - Do Today</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.25rem',
+                padding: '0.25rem 0.5rem',
+                backgroundColor: 'var(--warning-color)',
+                color: 'white',
+                borderRadius: '4px',
+                fontSize: '0.8rem'
+              }}>
+                <Clock size={12} />
+                Weekly
+              </span>
+              <span style={{ fontSize: '0.9rem' }}>Medium Priority - This Week</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.25rem',
+                padding: '0.25rem 0.5rem',
+                backgroundColor: 'var(--success-color)',
+                color: 'white',
+                borderRadius: '4px',
+                fontSize: '0.8rem'
+              }}>
+                <Calendar size={12} />
+                Monthly
+              </span>
+              <span style={{ fontSize: '0.9rem' }}>Low Priority - This Month</span>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
 
+      {/* Tasks List */}
       <div className="card">
-        <h3>Task List</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h3>Task List</h3>
+          <button
+            className="btn btn-secondary"
+            onClick={loadTasks}
+            disabled={loading}
+          >
+            <RotateCcw size={16} style={{ marginRight: '0.5rem' }} />
+            Refresh
+          </button>
+        </div>
         
         {loading && tasks.length === 0 ? (
           <div className="loading">Loading tasks...</div>
@@ -355,85 +494,105 @@ Tasks:`
             No tasks yet. Add some tasks above to get started!
           </p>
         ) : (
-          <>
-            {/* Pending Tasks */}
-            {pending.length > 0 && (
-              <div style={{ marginBottom: '2rem' }}>
-                <h4 style={{ color: 'var(--primary-color)', marginBottom: '1rem' }}>
-                  Pending Tasks ({pending.length})
-                </h4>
-                {pending.map(task => (
-                  <div key={task.id} className="task-item">
-                    <input
-                      type="checkbox"
-                      className="task-checkbox"
-                      checked={false}
-                      onChange={(e) => handleTaskCompletion(task.id, e.target.checked)}
-                    />
-                    <div className="task-content">
-                      <div className="task-title">{task.task_list}</div>
-                      {task.notes && <div className="task-notes">{task.notes}</div>}
-                      {task.project_id && <div className="task-notes">Project: {task.project_id}</div>}
-                      {task.due_date && <div className="task-notes">Due: {new Date(task.due_date).toLocaleDateString()}</div>}
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <span className={`task-status ${task.status}`}>
-                        {task.status}
-                      </span>
-                      <button
-                        className="btn btn-danger"
-                        onClick={() => deleteTask(task.id)}
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {tasks.map(task => (
+              <div key={task.id} style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '1rem',
+                padding: '1rem',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                backgroundColor: 'var(--light-color)',
+                transition: 'all 0.2s ease'
+              }}>
+                {/* Priority Badge */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.25rem',
+                  padding: '0.25rem 0.5rem',
+                  backgroundColor: getPriorityColor(task.priority),
+                  color: 'white',
+                  borderRadius: '4px',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  minWidth: '60px',
+                  justifyContent: 'center'
+                }}>
+                  {getPriorityIcon(task.priority)}
+                  {getPriorityLabel(task.priority)}
+                </div>
 
-            {/* Completed Tasks */}
-            {completed.length > 0 && (
-              <div>
-                <h4 style={{ color: 'var(--success-color)', marginBottom: '1rem' }}>
-                  Completed Tasks ({completed.length})
-                </h4>
-                {completed.map(task => (
-                  <div key={task.id} className="task-item" style={{ opacity: 0.7 }}>
-                    <input
-                      type="checkbox"
-                      className="task-checkbox"
-                      checked={true}
-                      onChange={(e) => handleTaskCompletion(task.id, e.target.checked)}
-                    />
-                    <div className="task-content">
-                      <div className="task-title" style={{ textDecoration: 'line-through' }}>
-                        {task.task_list}
-                      </div>
-                      {task.notes && <div className="task-notes">{task.notes}</div>}
-                      {task.project_id && <div className="task-notes">Project: {task.project_id}</div>}
-                      <div className="task-notes">
-                        Completed: {new Date(task.updated_at || task.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <span className={`task-status ${task.status}`}>
-                        {task.status}
-                      </span>
-                      <button
-                        className="btn btn-danger"
-                        onClick={() => deleteTask(task.id)}
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                {/* Task Content */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ 
+                    textDecoration: task.status === 'completed' ? 'line-through' : 'none',
+                    color: task.status === 'completed' ? 'var(--secondary-color)' : 'var(--text-color)',
+                    fontWeight: '500'
+                  }}>
+                    {task.task_list}
                   </div>
-                ))}
+                  <div style={{ 
+                    fontSize: '0.8rem', 
+                    color: 'var(--secondary-color)',
+                    marginTop: '0.25rem'
+                  }}>
+                    {getPriorityDescription(task.priority)} • {new Date(task.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+
+                {/* Priority Dropdown */}
+                <select
+                  value={task.priority}
+                  onChange={(e) => updateTaskPriority(task.id, parseInt(e.target.value))}
+                  style={{
+                    padding: '0.25rem 0.5rem',
+                    borderRadius: '4px',
+                    border: '1px solid var(--border-color)',
+                    fontSize: '0.8rem',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <option value={1}>Daily (High)</option>
+                  <option value={2}>Weekly (Medium)</option>
+                  <option value={3}>Monthly (Low)</option>
+                </select>
+
+                {/* Status Toggle */}
+                <button
+                  onClick={() => updateTaskStatus(task.id, task.status === 'completed' ? 'pending' : 'completed')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '0.25rem',
+                    borderRadius: '4px',
+                    color: task.status === 'completed' ? 'var(--success-color)' : 'var(--secondary-color)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {task.status === 'completed' ? <CheckCircle size={20} /> : <Square size={20} />}
+                </button>
+
+                {/* Delete Button */}
+                <button
+                  onClick={() => deleteTask(task.id)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '0.25rem',
+                    borderRadius: '4px',
+                    color: 'var(--danger-color)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
-            )}
-          </>
+            ))}
+          </div>
         )}
       </div>
 

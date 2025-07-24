@@ -9,10 +9,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id TEXT NOT NULL,
   task_list TEXT NOT NULL,
-  project_id TEXT,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed')),
-  due_date DATE,
-  notes TEXT,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'in_progress')),
+  priority INTEGER DEFAULT 2 CHECK (priority IN (1, 2, 3)), -- 1=daily/high, 2=weekly/medium, 3=monthly/low
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
