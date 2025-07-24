@@ -572,13 +572,13 @@ const Maintenance = () => {
       <nav className="nav">
         <ul className="nav-list">
           <li>
-            <button
-              className={`nav-link ${activeTab === 'tasks' ? 'active' : ''}`}
-              onClick={() => setActiveTab('tasks')}
+            <a
+              href="/tasks"
+              className="nav-link"
             >
               <FileText size={16} style={{ marginRight: '0.5rem' }} />
               Tasks
-            </button>
+            </a>
           </li>
           <li>
             <button
@@ -622,7 +622,7 @@ const Maintenance = () => {
       <main style={{ padding: '2rem 0' }}>
         {loading && <div className="loading">Loading...</div>}
         
-        {activeTab === 'tasks' && renderTasks()}
+
         {activeTab === 'shopping' && renderShopping()}
 
         {activeTab === 'knowledge' && renderKnowledge()}
