@@ -1,0 +1,19 @@
+.App {
+  min-height: 100vh;
+  background-color: var(--light-color);
+}
+
+/* Additional app-specific styles */
+.App h1 {
+  color: var(--primary-color);
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+/* PWA specific styles */
+@media (display-mode: standalone) {
+  .App {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+} 
