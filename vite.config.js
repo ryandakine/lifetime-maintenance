@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-console.log('Vite config loaded')
+console.log('🚀 Vite config loaded')
 
 export default defineConfig({
   plugins: [
@@ -37,7 +37,9 @@ export default defineConfig({
       server.httpServer?.on('listening', () => {
         const address = server.httpServer.address()
         const port = typeof address === 'object' && address ? address.port : 'unknown'
-        console.log(`Vite dev server started on port: ${port}`)
+        console.log(`🚀 Vite dev server started on port: ${port}`)
+        console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`)
+        console.log(`⚙️ Port: ${port}`)
       })
     }
   },

@@ -330,8 +330,10 @@ Be specific with aisle numbers and part numbers. If exact match not found, provi
         </p>
         
         <div className="form-group">
-          <label className="form-label">Link to Task (optional)</label>
+          <label className="form-label" htmlFor="task-select">Link to Task (optional)</label>
           <select
+            id="task-select"
+            name="task-select"
             className="form-input"
             value={selectedTaskId}
             onChange={(e) => setSelectedTaskId(e.target.value)}
@@ -346,8 +348,10 @@ Be specific with aisle numbers and part numbers. If exact match not found, provi
         </div>
 
         <div className="form-group">
-          <label className="form-label">What do you need to fix or maintain?</label>
+          <label className="form-label" htmlFor="shopping-input">What do you need to fix or maintain?</label>
           <textarea
+            id="shopping-input"
+            name="shopping-input"
             className="form-input"
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
@@ -396,8 +400,10 @@ Be specific with aisle numbers and part numbers. If exact match not found, provi
             className="btn btn-secondary"
             onClick={loadShoppingLists}
             disabled={loading}
+            title="Refresh shopping lists"
+            aria-label="Refresh shopping lists"
           >
-            <RotateCcw size={16} style={{ marginRight: '0.5rem' }} />
+            <RotateCcw size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
             Refresh
           </button>
         </div>

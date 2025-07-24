@@ -404,12 +404,14 @@ Output:
         </p>
         
         <div className="form-group">
-          <label className="form-label">Task Description</label>
+          <label className="form-label" htmlFor="task-input">What tasks do you need to complete?</label>
           <textarea
+            id="task-input"
+            name="task-input"
             className="form-input"
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
-            placeholder="Example: Need to fix the HVAC today, check the pool filter this week, and maybe clean the gutters this month"
+            placeholder="Example: Fix HVAC system in gym 1, inspect pool equipment"
             rows={4}
             disabled={processing}
           />
@@ -497,8 +499,10 @@ Output:
             className="btn btn-secondary"
             onClick={loadTasks}
             disabled={loading}
+            title="Refresh tasks"
+            aria-label="Refresh tasks"
           >
-            <RotateCcw size={16} style={{ marginRight: '0.5rem' }} />
+            <RotateCcw size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
             Refresh
           </button>
         </div>

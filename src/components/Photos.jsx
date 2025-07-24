@@ -712,8 +712,10 @@ Format your response as:
             )}
             
             <div className="form-group">
-              <label className="form-label">Link to Task (optional)</label>
+              <label className="form-label" htmlFor="task-select-photos">Link to Task (optional)</label>
               <select
+                id="task-select-photos"
+                name="task-select-photos"
                 className="form-input"
                 value={photoUpload.selectedTaskId}
                 onChange={(e) => setPhotoUpload({...photoUpload, selectedTaskId: e.target.value})}
@@ -785,8 +787,10 @@ Format your response as:
             className="btn btn-secondary"
             onClick={loadPhotos}
             disabled={loading}
+            title="Refresh photos"
+            aria-label="Refresh photos"
           >
-            <RefreshCw size={16} style={{ marginRight: '0.5rem' }} />
+            <RotateCcw size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
             Refresh
           </button>
         </div>

@@ -8,6 +8,7 @@ import Photos from './components/Photos'
 import VoiceAssistant from './components/VoiceAssistant'
 import Knowledge from './components/Knowledge'
 import FileUploader from './components/FileUploader'
+import WorkoutTracker from './components/WorkoutTracker'
 import { supabase, API_KEYS } from './lib/supabase'
 import './App.css'
 
@@ -19,11 +20,13 @@ class ErrorBoundary extends React.Component {
   }
 
   static getDerivedStateFromError(error) {
+    console.error('ErrorBoundary getDerivedStateFromError:', error)
     return { hasError: true }
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('ErrorBoundary caught: ', error, errorInfo)
+    console.error('ErrorBoundary caught error:', error)
+    console.error('ErrorBoundary error info:', errorInfo)
   }
 
   render() {
@@ -38,6 +41,7 @@ class ErrorBoundary extends React.Component {
           margin: '1rem'
         }}>
           <h2>Error: Check console</h2>
+          <p>Component failed to render. Check browser console for details.</p>
         </div>
       )
     }
@@ -51,26 +55,14 @@ function RouteDiagnostics() {
   const location = useLocation()
   useEffect(() => {
     console.log("Navigating to " + location.pathname)
+    console.log("Route change detected:", {
+      pathname: location.pathname,
+      search: location.search,
+      hash: location.hash,
+      timestamp: new Date().toISOString()
+    })
   }, [location.pathname])
   return null
-}
-
-// Simple WorkoutTracker Component
-function WorkoutTracker() {
-  console.log('Rendering WorkoutTracker')
-  return (
-    <div style={{ 
-      padding: '2rem', 
-      textAlign: 'center', 
-      color: 'var(--primary-color)',
-      backgroundColor: 'var(--light-color)',
-      borderRadius: '8px',
-      margin: '1rem'
-    }}>
-      <h2>Workout Tracker Loaded</h2>
-      <p>This is a placeholder for the workout tracker feature.</p>
-    </div>
-  )
 }
 
 // Debug Status Component
@@ -339,58 +331,63 @@ function App() {
       <Router>
         <RouteDiagnostics />
         <div className="App">
-          <Routes>
-            <Route path="/" element={<TestRender />} />
-            <Route path="/test" element={<TestRender />} />
-            <Route path="/maintenance" element={
-              <ErrorBoundary>
-                <Maintenance />
-              </ErrorBoundary>
-            } />
-            <Route path="/email" element={
-              <ErrorBoundary>
-                <Email />
-              </ErrorBoundary>
-            } />
-            <Route path="/emails" element={
-              <ErrorBoundary>
-                <Email />
-              </ErrorBoundary>
-            } />
-            <Route path="/tasks" element={
-              <ErrorBoundary>
-                <Tasks />
-              </ErrorBoundary>
-            } />
-            <Route path="/shopping" element={
-              <ErrorBoundary>
-                <Shopping />
-              </ErrorBoundary>
-            } />
-            <Route path="/photos" element={
-              <ErrorBoundary>
-                <Photos />
-              </ErrorBoundary>
-            } />
-            <Route path="/voice" element={
-              <ErrorBoundary>
-                <VoiceAssistant />
-              </ErrorBoundary>
-            } />
-            <Route path="/knowledge" element={
-              <ErrorBoundary>
-                <Knowledge />
-              </ErrorBoundary>
-            } />
-            <Route path="/files" element={
-              <ErrorBoundary>
-                <FileUploader />
-              </ErrorBoundary>
-            } />
-            <Route path="/debug" element={<DebugStatus />} />
-            <Route path="/workout-tracker" element={<WorkoutTracker />} />
-            <Route path="*" element={<div style={{ color: '#007BFF' }}>Test Render</div>} />
-          </Routes>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/" element={<TestRender />} />
+              <Route path="/maintenance" element={
+                <ErrorBoundary>
+                  <Maintenance />
+                </ErrorBoundary>
+              } />
+              <Route path="/email" element={
+                <ErrorBoundary>
+                  <Email />
+                </ErrorBoundary>
+              } />
+              <Route path="/emails" element={
+                <ErrorBoundary>
+                  <Email />
+                </ErrorBoundary>
+              } />
+              <Route path="/tasks" element={
+                <ErrorBoundary>
+                  <Tasks />
+                </ErrorBoundary>
+              } />
+              <Route path="/shopping" element={
+                <ErrorBoundary>
+                  <Shopping />
+                </ErrorBoundary>
+              } />
+              <Route path="/photos" element={
+                <ErrorBoundary>
+                  <Photos />
+                </ErrorBoundary>
+              } />
+              <Route path="/voice" element={
+                <ErrorBoundary>
+                  <VoiceAssistant />
+                </ErrorBoundary>
+              } />
+              <Route path="/knowledge" element={
+                <ErrorBoundary>
+                  <Knowledge />
+                </ErrorBoundary>
+              } />
+              <Route path="/files" element={
+                <ErrorBoundary>
+                  <FileUploader />
+                </ErrorBoundary>
+              } />
+              <Route path="/debug" element={<DebugStatus />} />
+              <Route path="/workout-tracker" element={
+                <ErrorBoundary>
+                  <WorkoutTracker />
+                </ErrorBoundary>
+              } />
+              <Route path="*" element={<div style={{ color: '#007BFF', padding: '2rem', textAlign: 'center' }}>Test Render - Route Not Found</div>} />
+            </Routes>
+          </ErrorBoundary>
         </div>
       </Router>
     </ErrorBoundary>
