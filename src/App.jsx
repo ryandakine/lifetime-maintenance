@@ -6,6 +6,7 @@ import Tasks from './components/Tasks'
 import Shopping from './components/Shopping'
 import Photos from './components/Photos'
 import VoiceAssistant from './components/VoiceAssistant'
+import Knowledge from './components/Knowledge'
 import './App.css'
 
 // Error Boundary Component
@@ -169,10 +170,23 @@ function TestRender() {
             backgroundColor: 'var(--primary-color)',
             color: 'white',
             textDecoration: 'none',
-            borderRadius: '4px'
+            borderRadius: '4px',
+            marginRight: '0.5rem'
           }}
         >
           Voice Assistant
+        </a>
+        <a 
+          href="/knowledge" 
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: 'var(--primary-color)',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '4px'
+          }}
+        >
+          Knowledge
         </a>
       </div>
     </div>
@@ -193,6 +207,7 @@ function App() {
             <Route path="/shopping" element={<Shopping />} />
             <Route path="/photos" element={<Photos />} />
             <Route path="/voice" element={<VoiceAssistant />} />
+            <Route path="/knowledge" element={<Knowledge />} />
             <Route path="/workout-tracker" element={<WorkoutTracker />} />
             <Route path="*" element={
               <div style={{ 

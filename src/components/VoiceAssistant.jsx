@@ -319,7 +319,7 @@ Examples:
           break
 
         case 'search_knowledge':
-          navigate('/maintenance')
+          navigate('/knowledge')
           // Trigger knowledge search
           localStorage.setItem('voiceKnowledge', action.parameters?.search_query || '')
           showMessage('success', `Searching knowledge: ${action.parameters?.search_query}`)

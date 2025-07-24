@@ -600,13 +600,13 @@ const Maintenance = () => {
             </a>
           </li>
           <li>
-            <button
-              className={`nav-link ${activeTab === 'knowledge' ? 'active' : ''}`}
-              onClick={() => setActiveTab('knowledge')}
+            <a
+              href="/knowledge"
+              className="nav-link"
             >
               <BookOpen size={16} style={{ marginRight: '0.5rem' }} />
               Knowledge
-            </button>
+            </a>
           </li>
           <li>
             <a
