@@ -384,6 +384,8 @@ Examples:
           <button
             onClick={isListening ? stopListening : startListening}
             disabled={!isSupported || !isOnline || isProcessing}
+            title={isListening ? 'Stop listening' : 'Start voice recognition'}
+            aria-label={isListening ? 'Stop listening' : 'Start voice recognition'}
             style={{
               width: '120px',
               height: '120px',
@@ -402,11 +404,11 @@ Examples:
             }}
           >
             {isProcessing ? (
-              <Loader size={40} style={{ animation: 'spin 1s linear infinite' }} />
+              <Loader size={40} style={{ animation: 'spin 1s linear infinite' }} aria-hidden="true" />
             ) : isListening ? (
-              <MicOff size={40} />
+              <MicOff size={40} aria-hidden="true" />
             ) : (
-              <Mic size={40} />
+              <Mic size={40} aria-hidden="true" />
             )}
           </button>
           
@@ -427,7 +429,7 @@ Examples:
             borderRadius: '20px',
             fontSize: '0.8rem'
           }}>
-            {isSupported ? <CheckCircle size={14} /> : <XCircle size={14} />}
+            {isSupported ? <CheckCircle size={14} aria-hidden="true" /> : <XCircle size={14} aria-hidden="true" />}
             {isSupported ? 'Voice Supported' : 'Voice Not Supported'}
           </div>
           
@@ -441,7 +443,7 @@ Examples:
             borderRadius: '20px',
             fontSize: '0.8rem'
           }}>
-            {isOnline ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            {isOnline ? <Volume2 size={14} aria-hidden="true" /> : <VolumeX size={14} aria-hidden="true" />}
             {isOnline ? 'Online' : 'Offline'}
           </div>
         </div>
@@ -450,7 +452,7 @@ Examples:
         {transcript && (
           <div className="card" style={{ marginBottom: '1rem' }}>
             <h4 style={{ marginBottom: '0.5rem', color: 'var(--primary-color)' }}>
-              <MessageSquare size={16} style={{ marginRight: '0.5rem' }} />
+              <MessageSquare size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
               You Said:
             </h4>
             <div style={{ 
@@ -469,7 +471,7 @@ Examples:
         {clarification && (
           <div className="card" style={{ marginBottom: '1rem' }}>
             <h4 style={{ marginBottom: '0.5rem', color: 'var(--warning-color)' }}>
-              <HelpCircle size={16} style={{ marginRight: '0.5rem' }} />
+              <HelpCircle size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
               Clarification Needed:
             </h4>
             <div style={{ 
@@ -516,7 +518,7 @@ Examples:
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h4 style={{ color: 'var(--primary-color)' }}>
-                <Navigation size={16} style={{ marginRight: '0.5rem' }} />
+                <Navigation size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
                 Recent Commands
               </h4>
               <button

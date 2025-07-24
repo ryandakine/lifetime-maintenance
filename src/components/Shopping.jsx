@@ -365,15 +365,17 @@ Be specific with aisle numbers and part numbers. If exact match not found, provi
           className="btn"
           onClick={processShoppingInput}
           disabled={!userInput.trim() || processing}
+          title="Find parts and aisles"
+          aria-label="Find parts and aisles"
         >
           {processing ? (
             <>
-              <Loader size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} />
+              <Loader size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} aria-hidden="true" />
               Searching for parts...
             </>
           ) : (
             <>
-              <Search size={16} style={{ marginRight: '0.5rem' }} />
+              <Search size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
               Find Parts & Aisles
             </>
           )}

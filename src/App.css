@@ -11,14 +11,13 @@
 }
 
 body {
-  min-height: min-content;
-  /* fallback for old browsers */
-  min-height: 100vh;
-  scrollbar-width: thin;
-  scrollbar-color: var(--primary-color) var(--light-color);
+  min-height: min-content; /* Firefox 22+ support */
+  min-height: 100vh; /* fallback for older browsers */
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: var(--primary-color) var(--light-color); /* Firefox */
 }
 
-/* Fallback for Safari */
+/* WebKit scrollbar fallback for Safari and Chrome */
 body::-webkit-scrollbar {
   width: 8px;
   background: var(--light-color);
@@ -27,10 +26,99 @@ body::-webkit-scrollbar-thumb {
   background: var(--primary-color);
   border-radius: 4px;
 }
+body::-webkit-scrollbar-track {
+  background: var(--light-color);
+}
 
+/* Fix any auto min-height values */
+.container, .card, .form-group {
+  min-height: min-content; /* Instead of auto */
+}
+
+/* Ensure all containers use compatible height values */
 .App {
   min-height: 100vh;
-  background-color: var(--light-color);
+  min-height: min-content; /* Firefox fallback */
+}
+
+/* Additional scrollbar styling for content areas */
+.loading, .task-list, .shopping-list, .email-list, .photo-list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) var(--light-color);
+}
+
+.loading::-webkit-scrollbar,
+.task-list::-webkit-scrollbar,
+.shopping-list::-webkit-scrollbar,
+.email-list::-webkit-scrollbar,
+.photo-list::-webkit-scrollbar {
+  width: 6px;
+  background: var(--light-color);
+}
+
+.loading::-webkit-scrollbar-thumb,
+.task-list::-webkit-scrollbar-thumb,
+.shopping-list::-webkit-scrollbar-thumb,
+.email-list::-webkit-scrollbar-thumb,
+.photo-list::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 3px;
+}
+
+/* CSS animation for SVG optimization */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Apply optimized animations */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+.pulse-animation {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Ensure buttons have proper focus indicators */
+button:focus,
+.btn:focus,
+.nav-link:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* High contrast focus for accessibility */
+@media (prefers-contrast: high) {
+  button:focus,
+  .btn:focus,
+  .nav-link:focus {
+    outline: 3px solid var(--primary-color);
+    outline-offset: 3px;
+  }
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner,
+  .pulse-animation,
+  .fade-in {
+    animation: none;
+  }
 }
 
 /* Additional app-specific styles */

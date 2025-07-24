@@ -353,8 +353,9 @@ const Maintenance = () => {
         <h3>Add New Task</h3>
         <form onSubmit={saveTask}>
           <div className="form-group">
-            <label className="form-label">Task Description</label>
+            <label htmlFor="task-list" className="form-label">Task Description</label>
             <textarea
+              id="task-list"
               className="form-textarea"
               value={taskForm.task_list}
               onChange={(e) => setTaskForm({...taskForm, task_list: e.target.value})}
@@ -363,9 +364,10 @@ const Maintenance = () => {
             />
           </div>
           <div className="form-group">
-            <label className="form-label">Project ID (optional)</label>
+            <label htmlFor="project-id" className="form-label">Project ID (optional)</label>
             <input
               type="text"
+              id="project-id"
               className="form-input"
               value={taskForm.project_id}
               onChange={(e) => setTaskForm({...taskForm, project_id: e.target.value})}
@@ -373,24 +375,26 @@ const Maintenance = () => {
             />
           </div>
           <div className="form-group">
-            <label className="form-label">Due Date</label>
+            <label htmlFor="due-date" className="form-label">Due Date</label>
             <input
               type="date"
+              id="due-date"
               className="form-input"
               value={taskForm.due_date}
               onChange={(e) => setTaskForm({...taskForm, due_date: e.target.value})}
             />
           </div>
           <div className="form-group">
-            <label className="form-label">Notes</label>
+            <label htmlFor="task-notes" className="form-label">Notes</label>
             <textarea
+              id="task-notes"
               className="form-textarea"
               value={taskForm.notes}
               onChange={(e) => setTaskForm({...taskForm, notes: e.target.value})}
               placeholder="Additional notes..."
             />
           </div>
-          <button type="submit" className="btn" disabled={loading}>
+          <button type="submit" className="btn" disabled={loading} aria-label="Save task">
             {loading ? 'Saving...' : 'Save Task'}
           </button>
         </form>
@@ -431,8 +435,9 @@ const Maintenance = () => {
         <h3>Create Shopping List</h3>
         <form onSubmit={saveShoppingList}>
           <div className="form-group">
-            <label className="form-label">Items (one per line)</label>
+            <label htmlFor="shopping-items" className="form-label">Items (one per line)</label>
             <textarea
+              id="shopping-items"
               className="form-textarea"
               value={shoppingForm.items}
               onChange={(e) => setShoppingForm({...shoppingForm, items: e.target.value})}
@@ -440,7 +445,7 @@ const Maintenance = () => {
               required
             />
           </div>
-          <button type="submit" className="btn" disabled={loading}>
+          <button type="submit" className="btn" disabled={loading} aria-label="Create shopping list">
             {loading ? 'Processing...' : 'Create List'}
           </button>
         </form>
@@ -478,9 +483,10 @@ const Maintenance = () => {
         <h3>Maintenance Knowledge Search</h3>
         <form onSubmit={searchKnowledge}>
           <div className="form-group">
-            <label className="form-label">Question</label>
+            <label htmlFor="knowledge-question" className="form-label">Question</label>
             <input
               type="text"
+              id="knowledge-question"
               className="form-input"
               value={knowledgeForm.question}
               onChange={(e) => setKnowledgeForm({...knowledgeForm, question: e.target.value})}
@@ -488,7 +494,7 @@ const Maintenance = () => {
               required
             />
           </div>
-          <button type="submit" className="btn" disabled={loading}>
+          <button type="submit" className="btn" disabled={loading} aria-label="Search knowledge">
             {loading ? 'Searching...' : 'Search Knowledge'}
           </button>
         </form>
@@ -523,8 +529,8 @@ const Maintenance = () => {
             id="file-upload"
             disabled={loading}
           />
-          <label htmlFor="file-upload" style={{ cursor: 'pointer' }}>
-            <Upload size={48} style={{ marginBottom: '1rem' }} />
+          <label htmlFor="file-upload" style={{ cursor: 'pointer' }} aria-label="Upload work files">
+            <Upload size={48} style={{ marginBottom: '1rem' }} aria-hidden="true" />
             <p>Click to upload files or drag and drop</p>
             <p style={{ fontSize: '0.9rem', color: 'var(--secondary-color)' }}>
               {loading ? 'Uploading...' : 'Supported formats: PDF, DOC, XLS, JPG, PNG'}
@@ -547,8 +553,9 @@ const Maintenance = () => {
               <button
                 className="btn btn-secondary"
                 onClick={() => downloadFile(file.name)}
+                aria-label="Download file"
               >
-                <Download size={16} />
+                <Download size={16} aria-hidden="true" />
               </button>
             </div>
           ))}
@@ -577,8 +584,10 @@ const Maintenance = () => {
             <a
               href="/tasks"
               className="nav-link"
+              title="Go to tasks"
+              aria-label="Go to tasks"
             >
-              <FileText size={16} style={{ marginRight: '0.5rem' }} />
+              <FileText size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
               Tasks
             </a>
           </li>
@@ -586,8 +595,10 @@ const Maintenance = () => {
             <a
               href="/shopping"
               className="nav-link"
+              title="Go to shopping"
+              aria-label="Go to shopping"
             >
-              <ShoppingCart size={16} style={{ marginRight: '0.5rem' }} />
+              <ShoppingCart size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
               Shopping
             </a>
           </li>
@@ -595,8 +606,10 @@ const Maintenance = () => {
             <a
               href="/email"
               className="nav-link"
+              title="Go to emails"
+              aria-label="Go to emails"
             >
-              <Send size={16} style={{ marginRight: '0.5rem' }} />
+              <Send size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
               Emails
             </a>
           </li>
@@ -604,8 +617,10 @@ const Maintenance = () => {
             <a
               href="/knowledge"
               className="nav-link"
+              title="Go to knowledge base"
+              aria-label="Go to knowledge base"
             >
-              <BookOpen size={16} style={{ marginRight: '0.5rem' }} />
+              <BookOpen size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
               Knowledge
             </a>
           </li>
@@ -613,8 +628,10 @@ const Maintenance = () => {
             <a
               href="/photos"
               className="nav-link"
+              title="Go to photos"
+              aria-label="Go to photos"
             >
-              <Camera size={16} style={{ marginRight: '0.5rem' }} />
+              <Camera size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
               Photos
             </a>
           </li>
@@ -622,8 +639,10 @@ const Maintenance = () => {
             <a
               href="/files"
               className="nav-link"
+              title="Go to files"
+              aria-label="Go to files"
             >
-              <Upload size={16} style={{ marginRight: '0.5rem' }} />
+              <Upload size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
               Files
             </a>
           </li>

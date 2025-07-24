@@ -349,8 +349,10 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
         </p>
         
         <div className="form-group">
-          <label className="form-label">What maintenance question do you have?</label>
+          <label className="form-label" htmlFor="knowledge-question">What maintenance question do you have?</label>
           <textarea
+            id="knowledge-question"
+            name="knowledge-question"
             className="form-input"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
@@ -364,15 +366,17 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
           className="btn"
           onClick={processQuestion}
           disabled={!question.trim() || processing}
+          title="Get maintenance knowledge"
+          aria-label="Get maintenance knowledge"
         >
           {processing ? (
             <>
-              <Loader size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} />
+              <Loader size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} aria-hidden="true" />
               Generating response...
             </>
           ) : (
             <>
-              <Brain size={16} style={{ marginRight: '0.5rem' }} />
+              <Brain size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
               Get Knowledge
             </>
           )}
@@ -405,8 +409,10 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
                 backgroundColor: viewMode === 'list' ? 'var(--primary-color)' : 'var(--secondary-color)',
                 color: 'white'
               }}
+              title="View as list"
+              aria-label="View as list"
             >
-              <List size={16} />
+              <List size={16} aria-hidden="true" />
             </button>
             <button
               className="btn btn-secondary"
@@ -415,15 +421,19 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
                 backgroundColor: viewMode === 'grid' ? 'var(--primary-color)' : 'var(--secondary-color)',
                 color: 'white'
               }}
+              title="View as grid"
+              aria-label="View as grid"
             >
-              <Grid size={16} />
+              <Grid size={16} aria-hidden="true" />
             </button>
             <button
               className="btn btn-secondary"
               onClick={loadKnowledgeEntries}
               disabled={loading}
+              title="Refresh knowledge base"
+              aria-label="Refresh knowledge base"
             >
-              <RotateCcw size={16} />
+              <RotateCcw size={16} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -438,8 +448,10 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search questions and responses..."
               style={{ flex: 1 }}
+              title="Search knowledge base"
+              aria-label="Search knowledge base"
             />
-            <Search size={16} style={{ color: 'var(--secondary-color)', marginTop: '0.5rem' }} />
+            <Search size={16} style={{ color: 'var(--secondary-color)', marginTop: '0.5rem' }} aria-hidden="true" />
           </div>
         </div>
         
@@ -478,11 +490,11 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
                         color: 'var(--primary-color)',
                         fontSize: '1rem'
                       }}>
-                        <BookOpen size={16} style={{ marginRight: '0.5rem' }} />
+                        <BookOpen size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
                         {entry.question}
                       </h4>
                       <div style={{ fontSize: '0.8rem', color: 'var(--secondary-color)' }}>
-                        <Calendar size={12} style={{ marginRight: '0.25rem' }} />
+                        <Calendar size={12} style={{ marginRight: '0.25rem' }} aria-hidden="true" />
                         {new Date(entry.created_at).toLocaleDateString()}
                         <span style={{ margin: '0 0.5rem' }}>•</span>
                         <span style={{ 
@@ -513,14 +525,14 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
                     <div style={{ marginBottom: '0.5rem' }}>
                       {tools.length > 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
-                          <Tool size={12} style={{ color: 'var(--primary-color)' }} />
+                          <Tool size={12} style={{ color: 'var(--primary-color)' }} aria-hidden="true" />
                           <span style={{ color: 'var(--secondary-color)' }}>Tools:</span>
                           <span style={{ fontSize: '0.75rem' }}>{tools.slice(0, 2).join(', ')}{tools.length > 2 ? '...' : ''}</span>
                         </div>
                       )}
                       {supplies.length > 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
-                          <Package size={12} style={{ color: 'var(--primary-color)' }} />
+                          <Package size={12} style={{ color: 'var(--primary-color)' }} aria-hidden="true" />
                           <span style={{ color: 'var(--secondary-color)' }}>Supplies:</span>
                           <span style={{ fontSize: '0.75rem' }}>{supplies.slice(0, 2).join(', ')}{supplies.length > 2 ? '...' : ''}</span>
                         </div>

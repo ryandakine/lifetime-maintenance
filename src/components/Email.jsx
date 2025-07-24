@@ -475,24 +475,28 @@ Maintenance Team`
         <h3>Send Email</h3>
         <form onSubmit={sendEmail}>
           <div className="form-group">
-            <label className="form-label">To</label>
+            <label className="form-label" htmlFor="email-recipient">Recipient</label>
             <input
+              id="email-recipient"
+              name="email-recipient"
               type="email"
               className="form-input"
-              value={emailForm.to}
-              onChange={(e) => setEmailForm({...emailForm, to: e.target.value})}
-              placeholder="recipient@example.com"
+              value={emailForm.recipient}
+              onChange={(e) => setEmailForm({...emailForm, recipient: e.target.value})}
+              placeholder="Enter email address"
               required
             />
           </div>
           <div className="form-group">
-            <label className="form-label">Subject</label>
+            <label className="form-label" htmlFor="email-subject">Subject</label>
             <input
+              id="email-subject"
+              name="email-subject"
               type="text"
               className="form-input"
               value={emailForm.subject}
               onChange={(e) => setEmailForm({...emailForm, subject: e.target.value})}
-              placeholder="Email subject"
+              placeholder="Enter email subject"
               required
             />
           </div>

@@ -421,16 +421,18 @@ Output:
           className="btn"
           onClick={processUserInput}
           disabled={!userInput.trim() || processing}
+          title="Process tasks"
+          aria-label="Process tasks"
         >
           {processing ? (
             <>
-              <Loader size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} />
+              <Loader size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} aria-hidden="true" />
               Processing...
             </>
           ) : (
             <>
-              <Brain size={16} style={{ marginRight: '0.5rem' }} />
-              Parse Tasks
+              <Brain size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
+              Process Tasks
             </>
           )}
         </button>
