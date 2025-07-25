@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react'
 import { API_KEYS } from '../lib/supabase'
 import { Mic, MicOff, Loader, Send, HelpCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { TABLES } from '../lib/supabase'
+import { format } from 'date-fns'
 
 const CONTEXTS = [
   { key: 'general', label: 'General' },
@@ -44,6 +46,7 @@ const VoiceAssistant = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [tagFilter, setTagFilter] = useState('')
   const [suggestedMemory, setSuggestedMemory] = useState(null)
+  const [suggestion, setSuggestion] = useState(null)
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
@@ -321,12 +324,21 @@ const VoiceAssistant = () => {
       return
     }
     let reply = ''
+    let nextSuggestion = null
     switch (action.action) {
       case 'add_task':
         reply = `Task added: ${action.parameters?.task || userText}`
+        nextSuggestion = {
+          text: 'Would you like to add a shopping list for this task?',
+          onClick: () => setInput('Add to shopping ' + (action.parameters?.task || ''))
+        }
         break
       case 'add_shopping':
         reply = `Added to shopping: ${action.parameters?.shopping_items || userText}`
+        nextSuggestion = {
+          text: 'Would you like to link this shopping list to a task?',
+          onClick: () => setInput('Add task ' + (action.parameters?.shopping_items || ''))
+        }
         break
       case 'send_email':
         reply = `Email composed: ${action.parameters?.email_subject || userText}`
@@ -349,7 +361,29 @@ const VoiceAssistant = () => {
     }))
     saveMessageToSupabase(context, 'assistant', reply)
     setCurrentContext(context)
+    setSuggestion(nextSuggestion)
   }
+
+  // Proactive reminders for due tasks
+  useEffect(() => {
+    if (currentContext !== 'tasks' || !userId) return
+    const fetchDueTasks = async () => {
+      const today = format(new Date(), 'yyyy-MM-dd')
+      const { data, error } = await supabase
+        .from(TABLES.TASKS)
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'pending')
+        .lte('due_date', today)
+      if (!error && data && data.length > 0) {
+        setSuggestion({
+          text: `You have ${data.length} task(s) due today. Want to review them?`,
+          onClick: () => setInput('Show my due tasks')
+        })
+      }
+    }
+    fetchDueTasks()
+  }, [currentContext, userId])
 
   function handleInputKey(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -597,6 +631,12 @@ const VoiceAssistant = () => {
                   {msg.text}
                 </div>
               ))}
+              {suggestion && (
+                <div style={{ background: '#e6ffe6', border: '1px solid #52c41a', borderRadius: 8, padding: '8px 12px', margin: '8px 0', color: '#237804', fontSize: 15, cursor: 'pointer' }}
+                  onClick={suggestion.onClick}>
+                  💡 <b>Suggestion:</b> {suggestion.text}
+                </div>
+              )}
             </>
           )
         )}
