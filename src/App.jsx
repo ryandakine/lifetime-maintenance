@@ -340,56 +340,8 @@ function App() {
         <RouteDiagnostics />
         <div className="App">
           <Routes>
-            <Route path="/" element={<TestRender />} />
-            <Route path="/test" element={<TestRender />} />
-            <Route path="/maintenance" element={
-              <ErrorBoundary>
-                <Maintenance />
-              </ErrorBoundary>
-            } />
-            <Route path="/email" element={
-              <ErrorBoundary>
-                <Email />
-              </ErrorBoundary>
-            } />
-            <Route path="/emails" element={
-              <ErrorBoundary>
-                <Email />
-              </ErrorBoundary>
-            } />
-            <Route path="/tasks" element={
-              <ErrorBoundary>
-                <Tasks />
-              </ErrorBoundary>
-            } />
-            <Route path="/shopping" element={
-              <ErrorBoundary>
-                <Shopping />
-              </ErrorBoundary>
-            } />
-            <Route path="/photos" element={
-              <ErrorBoundary>
-                <Photos />
-              </ErrorBoundary>
-            } />
-            <Route path="/voice" element={
-              <ErrorBoundary>
-                <VoiceAssistant />
-              </ErrorBoundary>
-            } />
-            <Route path="/knowledge" element={
-              <ErrorBoundary>
-                <Knowledge />
-              </ErrorBoundary>
-            } />
-            <Route path="/files" element={
-              <ErrorBoundary>
-                <FileUploader />
-              </ErrorBoundary>
-            } />
-            <Route path="/debug" element={<DebugStatus />} />
-            <Route path="/workout-tracker" element={<WorkoutTracker />} />
-            <Route path="*" element={<div style={{ color: '#007BFF' }}>Test Render</div>} />
+            <Route path="/" element={<VoiceAssistant />} />
+            <Route path="*" element={<VoiceAssistant />} />
           </Routes>
         </div>
       </Router>
