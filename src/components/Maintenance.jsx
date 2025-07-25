@@ -35,38 +35,11 @@ const ComponentLoader = ({ componentName }) => (
 
 const Maintenance = forwardRef(({ isMobile = false }, ref) => {
   const [activeTab, setActiveTab] = useState('tasks')
-  const [componentRefs, setComponentRefs] = useState({})
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     switchToTab: (tabName) => setActiveTab(tabName),
-    getActiveTab: () => activeTab,
-    // Expose methods from child components
-    createTask: (taskData) => {
-      if (componentRefs.tasks && componentRefs.tasks.createTask) {
-        return componentRefs.tasks.createTask(taskData)
-      }
-    },
-    addShoppingItem: (itemData) => {
-      if (componentRefs.shopping && componentRefs.shopping.addItem) {
-        return componentRefs.shopping.addItem(itemData)
-      }
-    },
-    searchKnowledge: (query) => {
-      if (componentRefs.knowledge && componentRefs.knowledge.search) {
-        return componentRefs.knowledge.search(query)
-      }
-    },
-    sendEmail: (emailData) => {
-      if (componentRefs.email && componentRefs.email.sendEmail) {
-        return componentRefs.email.sendEmail(emailData)
-      }
-    },
-    uploadPhoto: (photoData) => {
-      if (componentRefs.photos && componentRefs.photos.uploadPhoto) {
-        return componentRefs.photos.uploadPhoto(photoData)
-      }
-    }
+    getActiveTab: () => activeTab
   }))
 
   const tabs = [
@@ -86,11 +59,6 @@ const Maintenance = forwardRef(({ isMobile = false }, ref) => {
 
   const renderComponent = () => {
     const commonProps = { 
-      ref: (el) => {
-        if (el) {
-          setComponentRefs(prev => ({ ...prev, [activeTab]: el }))
-        }
-      },
       isMobile 
     }
 

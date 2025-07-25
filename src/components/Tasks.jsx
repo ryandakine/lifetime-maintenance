@@ -55,17 +55,17 @@ const TaskItem = React.memo(({
   setEditText,
   isMobile 
 }) => {
-  const priorityColors = {
+  const priorityColors = useMemo(() => ({
     high: '#ef4444',
     medium: '#f59e0b', 
     low: '#10b981'
-  }
+  }), [])
 
-  const priorityIcons = {
+  const priorityIcons = useMemo(() => ({
     high: <AlertTriangle size={16} />,
     medium: <Clock size={16} />,
     low: <Circle size={16} />
-  }
+  }), [])
 
   const isEditing = editingId === task.id
 
@@ -2699,7 +2699,7 @@ const Tasks = forwardRef((props, ref) => {
                   }}>
                     {getPriorityIcon(task.priority)}
                     {getPriorityLabel(task.priority)}
-                  </div>
+                </div>
 
                 {/* Priority Dropdown */}
                 <select

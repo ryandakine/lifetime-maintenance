@@ -22,7 +22,12 @@
     "quick:build": "node scripts/dev-automation.js build",
     "quick:test": "node scripts/dev-automation.js test",
     "quick:deploy": "node scripts/dev-automation.js deploy",
-    "start": "node scripts/quick-start.js"
+    "start": "node scripts/quick-start.js",
+    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,json,css,md}\"",
+    "gh:deploy": "gh pages deploy dist --add --push",
+    "gh:create-issue": "gh issue create --title \"Feature Request\" --body \"New feature request\"",
+    "gh:create-pr": "gh pr create --title \"Feature: \" --body \"Implements new feature\""
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.8.2",

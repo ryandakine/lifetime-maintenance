@@ -1,0 +1,58 @@
+/* Theme CSS Variables */
+:root {
+  --color-primary: #1a3d2f;
+  --color-secondary: #007BFF;
+  --color-background: #f5f6f7;
+  --color-surface: #ffffff;
+  --color-text: #1f2937;
+  --color-text-secondary: #6b7280;
+  --color-border: #e5e7eb;
+  --color-border-light: #f3f4f6;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  --color-shadow: rgba(0, 0, 0, 0.1);
+  --color-shadow-light: rgba(0, 0, 0, 0.05);
+  --font-size-base: 16px;
+}
+
+.theme-dark {
+  --color-primary: #4ade80;
+  --color-secondary: #60a5fa;
+  --color-background: #0f172a;
+  --color-surface: #1e293b;
+  --color-text: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-border: #334155;
+  --color-border-light: #475569;
+  --color-success: #22c55e;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-info: #60a5fa;
+  --color-shadow: rgba(0, 0, 0, 0.3);
+  --color-shadow-light: rgba(0, 0, 0, 0.2);
+}
+
+.theme-auto {
+  /* Will be computed based on system preference */
+}
+
+@media (prefers-color-scheme: dark) {
+  .theme-auto {
+    --color-primary: #4ade80;
+    --color-secondary: #60a5fa;
+    --color-background: #0f172a;
+    --color-surface: #1e293b;
+    --color-text: #f1f5f9;
+    --color-text-secondary: #94a3b8;
+    --color-border: #334155;
+    --color-border-light: #475569;
+    --color-success: #22c55e;
+    --color-warning: #fbbf24;
+    --color-error: #f87171;
+    --color-info: #60a5fa;
+    --color-shadow: rgba(0, 0, 0, 0.3);
+    --color-shadow-light: rgba(0, 0, 0, 0.2);
+  }
+} 

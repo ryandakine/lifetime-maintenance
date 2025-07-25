@@ -1,865 +1,667 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { supabase, TABLES, API_KEYS } from '../lib/supabase'
-import { 
-  Brain, 
-  Mic, 
-  Square, 
-  Check, 
-  Target, 
-  Clock, 
-  TrendingUp, 
-  AlertTriangle,
-  Lightbulb,
-  Calendar,
-  MessageSquare,
-  Zap,
-  Star,
-  Settings,
-  X,
-  Play,
-  Pause,
-  RotateCcw,
-  Bell,
-  CheckCircle,
-  XCircle,
-  ArrowRight,
-  Sparkles
-} from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
 
-const SmartAssistant = ({ isMobile }) => {
-  console.log('Smart Assistant loaded - Your AI companion is ready!')
-  
+const SmartAssistant = () => {
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')
-  const [assistantMessage, setAssistantMessage] = useState('')
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [showAssistant, setShowAssistant] = useState(false)
-  const [assistantMode, setAssistantMode] = useState('general') // general, goals, tasks, insights
-  const [insights, setInsights] = useState([])
-  const [reminders, setReminders] = useState([])
-  const [suggestions, setSuggestions] = useState([])
-  const [userContext, setUserContext] = useState({
-    currentGoals: [],
-    recentTasks: [],
-    productivityScore: 0,
-    focusAreas: [],
-    timeOfDay: 'morning'
-  })
-  
-  const recognitionRef = useRef(null)
-  const timeoutRef = useRef(null)
+  const [recognition, setRecognition] = useState(null)
+  const [conversation, setConversation] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [currentMode, setCurrentMode] = useState('chat') // 'chat' or 'tasks'
+  const [conversationSummary, setConversationSummary] = useState('')
+  const [speechSupported, setSpeechSupported] = useState(false)
+  const [isActivelyListening, setIsActivelyListening] = useState(false)
 
+  // Initialize speech recognition on component mount
   useEffect(() => {
-    initializeAssistant()
-    loadUserContext()
-    startProactiveMonitoring()
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      const newRecognition = new SpeechRecognition()
+      setRecognition(newRecognition)
+      setSpeechSupported(true)
+      console.log('Speech recognition initialized')
+    } else {
+      console.log('Speech recognition not supported')
+      setSpeechSupported(false)
+    }
   }, [])
 
+  // Load conversation history
   useEffect(() => {
-    const hour = new Date().getHours()
-    let timeOfDay = 'morning'
-    if (hour >= 12 && hour < 17) timeOfDay = 'afternoon'
-    else if (hour >= 17) timeOfDay = 'evening'
-    
-    setUserContext(prev => ({ ...prev, timeOfDay }))
+    const savedConversation = localStorage.getItem('lifetime-maintenance-conversation')
+    if (savedConversation) {
+      try {
+        const parsedConversation = JSON.parse(savedConversation)
+        setConversation(parsedConversation)
+        updateConversationSummary(parsedConversation)
+      } catch (error) {
+        console.error('Error loading conversation:', error)
+      }
+    }
   }, [])
 
-  const initializeAssistant = async () => {
-    // Load user preferences and context
-    const savedContext = localStorage.getItem('assistantContext')
-    if (savedContext) {
-      setUserContext(JSON.parse(savedContext))
+  // Save conversation to localStorage whenever conversation changes
+  useEffect(() => {
+    if (conversation.length > 0) {
+      console.log('Saving conversation to localStorage:', conversation)
+      localStorage.setItem('lifetime-maintenance-conversation', JSON.stringify(conversation))
+      updateConversationSummary(conversation)
     }
-    
-    // Generate initial insights
-    await generateInsights()
-    
-    // Set up proactive reminders
-    setupProactiveReminders()
-  }
+  }, [conversation])
 
-  const loadUserContext = async () => {
-    try {
-      // Load goals
-      const { data: goals } = await supabase
-        .from(TABLES.GOALS)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      // Load recent tasks
-      const { data: tasks } = await supabase
-        .from(TABLES.TASKS)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10)
-
-      // Load monetary goals
-      const { data: monetaryGoals } = await supabase
-        .from(TABLES.MONETARY_GOALS)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(3)
-
-      setUserContext(prev => ({
-        ...prev,
-        currentGoals: goals || [],
-        recentTasks: tasks || [],
-        monetaryGoals: monetaryGoals || []
-      }))
-
-      localStorage.setItem('assistantContext', JSON.stringify({
-        ...prev,
-        currentGoals: goals || [],
-        recentTasks: tasks || [],
-        monetaryGoals: monetaryGoals || []
-      }))
-    } catch (error) {
-      console.error('Error loading user context:', error)
-    }
-  }
-
-  const startProactiveMonitoring = () => {
-    // Monitor user activity and provide proactive assistance
-    setInterval(async () => {
-      await checkForProactiveActions()
-    }, 300000) // Every 5 minutes
-  }
-
-  const checkForProactiveActions = async () => {
-    const now = new Date()
-    const hour = now.getHours()
-    
-    // Morning routine suggestions
-    if (hour === 7 && !localStorage.getItem('morningCheckIn')) {
-      addReminder({
-        type: 'morning',
-        title: 'Good Morning! 🌅',
-        message: 'Time to review your goals and plan your day. Would you like me to help you prioritize your tasks?',
-        priority: 'high',
-        action: 'morning_routine'
-      })
-      localStorage.setItem('morningCheckIn', 'true')
-    }
-
-    // Goal progress check
-    if (hour === 12) {
-      await checkGoalProgress()
-    }
-
-    // Evening reflection
-    if (hour === 20) {
-      addReminder({
-        type: 'evening',
-        title: 'Evening Reflection 🌙',
-        message: 'How did your day go? Let\'s review your progress and plan for tomorrow.',
-        priority: 'medium',
-        action: 'evening_reflection'
-      })
-    }
-
-    // Weekly review
-    const dayOfWeek = now.getDay()
-    if (dayOfWeek === 0 && hour === 10) { // Sunday morning
-      await generateWeeklyInsights()
-    }
-  }
-
-  const checkGoalProgress = async () => {
-    const goals = userContext.currentGoals
-    const tasks = userContext.recentTasks
-    
-    let completedToday = 0
-    let totalToday = 0
-    
-    tasks.forEach(task => {
-      const taskDate = new Date(task.created_at).toDateString()
-      const today = new Date().toDateString()
-      
-      if (taskDate === today) {
-        totalToday++
-        if (task.status === 'completed') completedToday++
-      }
-    })
-
-    const progress = totalToday > 0 ? (completedToday / totalToday) * 100 : 0
-    
-    if (progress < 50) {
-      addReminder({
-        type: 'productivity',
-        title: 'Productivity Boost Needed! ⚡',
-        message: `You've completed ${completedToday}/${totalToday} tasks today. Let me help you get back on track!`,
-        priority: 'high',
-        action: 'productivity_boost'
-      })
-    } else if (progress >= 80) {
-      addReminder({
-        type: 'celebration',
-        title: 'Great Progress! 🎉',
-        message: `You're crushing it today! ${completedToday}/${totalToday} tasks completed. Keep up the momentum!`,
-        priority: 'low',
-        action: 'celebration'
-      })
-    }
-  }
-
-  const generateWeeklyInsights = async () => {
-    try {
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEYS.PERPLEXITY_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            {
-              role: 'user',
-              content: `Based on this user data, provide weekly insights and recommendations:
-                Goals: ${JSON.stringify(userContext.currentGoals)}
-                Recent Tasks: ${JSON.stringify(userContext.recentTasks)}
-                Monetary Goals: ${JSON.stringify(userContext.monetaryGoals)}
-                
-                Provide:
-                1. Progress summary
-                2. Areas for improvement
-                3. Next week's focus areas
-                4. Specific actionable recommendations
-                
-                Format as JSON with keys: summary, improvements, focusAreas, recommendations`
-            }
-          ]
-        })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        const insights = JSON.parse(data.choices[0].message.content)
-        setInsights(insights)
-      }
-    } catch (error) {
-      console.error('Error generating weekly insights:', error)
-    }
-  }
-
-  const generateInsights = async () => {
-    try {
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEYS.PERPLEXITY_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            {
-              role: 'user',
-              content: `Analyze this user data and provide intelligent insights and suggestions:
-                Current Goals: ${JSON.stringify(userContext.currentGoals)}
-                Recent Tasks: ${JSON.stringify(userContext.recentTasks)}
-                Time of Day: ${userContext.timeOfDay}
-                
-                Provide:
-                1. Current status assessment
-                2. Priority recommendations
-                3. Smart suggestions for the current time
-                4. Potential obstacles and solutions
-                
-                Format as JSON with keys: status, priorities, suggestions, obstacles`
-            }
-          ]
-        })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        const insights = JSON.parse(data.choices[0].message.content)
-        setInsights(insights)
-      }
-    } catch (error) {
-      console.error('Error generating insights:', error)
-    }
-  }
-
-  const setupProactiveReminders = () => {
-    // Set up smart reminders based on user patterns
-    const reminders = [
-      {
-        id: 1,
-        type: 'goal',
-        title: 'Goal Progress Check',
-        message: 'Time to check in on your goals. How are you progressing?',
-        time: '09:00',
-        frequency: 'daily'
-      },
-      {
-        id: 2,
-        type: 'productivity',
-        title: 'Productivity Peak',
-        message: 'This is typically your most productive time. Focus on your most important task!',
-        time: '10:00',
-        frequency: 'daily'
-      },
-      {
-        id: 3,
-        type: 'break',
-        title: 'Take a Break',
-        message: 'You\'ve been working hard. Time for a short break to recharge!',
-        time: '15:00',
-        frequency: 'daily'
-      }
-    ]
-    
-    setReminders(reminders)
-  }
-
-  const addReminder = (reminder) => {
-    setReminders(prev => [...prev, { ...reminder, id: Date.now() }])
-  }
-
-  const startListening = () => {
-    if (!('webkitSpeechRecognition' in window)) {
-      setAssistantMessage('Speech recognition not supported in your browser.')
+  const updateConversationSummary = (conv) => {
+    if (conv.length === 0) {
+      setConversationSummary('')
       return
     }
 
-    setIsListening(true)
-    setTranscript('')
-    setAssistantMessage('Listening... Speak now!')
-
-    const recognition = new window.webkitSpeechRecognition()
-    recognition.continuous = true
-    recognition.interimResults = true
-    recognition.lang = 'en-US'
-
-    recognition.onstart = () => {
-      console.log('Voice recognition started')
-    }
-
-    recognition.onresult = (event) => {
-      let finalTranscript = ''
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript
+    // Create a summary of key topics discussed
+    const topics = []
+    const tasks = []
+    
+    conv.forEach(msg => {
+      const content = msg.content.toLowerCase()
+      
+      // Extract topics
+      if (content.includes('paver') || content.includes('paving')) topics.push('pavers')
+      if (content.includes('weather')) topics.push('weather')
+      if (content.includes('stock') || content.includes('market')) topics.push('stock market')
+      if (content.includes('fix') || content.includes('repair')) topics.push('maintenance')
+      if (content.includes('order') || content.includes('buy')) topics.push('ordering')
+      
+      // Extract potential tasks
+      if (content.includes('need to') || content.includes('have to') || content.includes('should')) {
+        const taskMatches = content.match(/(?:need to|have to|should)\s+([^.]+)/gi)
+        if (taskMatches) {
+          taskMatches.forEach(match => {
+            const task = match.replace(/(?:need to|have to|should)\s+/i, '').trim()
+            if (task.length > 5) tasks.push(task)
+          })
         }
       }
-      setTranscript(finalTranscript)
+    })
+
+    const uniqueTopics = [...new Set(topics)]
+    const uniqueTasks = [...new Set(tasks)]
+    
+    let summary = ''
+    if (uniqueTopics.length > 0) {
+      summary += `Topics discussed: ${uniqueTopics.join(', ')}. `
+    }
+    if (uniqueTasks.length > 0) {
+      summary += `Tasks mentioned: ${uniqueTasks.slice(0, 3).join(', ')}${uniqueTasks.length > 3 ? '...' : ''}.`
+    }
+    
+    setConversationSummary(summary)
+  }
+
+  const cleanTranscript = (text) => {
+    if (!text) return ''
+    
+    // Remove common speech recognition artifacts
+    let cleaned = text
+    
+    // Remove repeated words/phrases (like "OKOK", "so so", "need to need to")
+    cleaned = cleaned.replace(/\b(\w+)\s+\1\b/gi, '$1')
+    
+    // Remove stuttering patterns (like "I I", "the the", "and and")
+    cleaned = cleaned.replace(/\b(\w+)\s+\1\b/gi, '$1')
+    
+    // Remove filler words that get repeated
+    cleaned = cleaned.replace(/\b(ok|so|um|uh|like|you know|i mean)\s+\1\b/gi, '$1')
+    
+    // Remove excessive punctuation
+    cleaned = cleaned.replace(/\.{2,}/g, '.')
+    cleaned = cleaned.replace(/!{2,}/g, '!')
+    cleaned = cleaned.replace(/\?{2,}/g, '?')
+    
+    // Remove extra spaces
+    cleaned = cleaned.replace(/\s+/g, ' ')
+    
+    // Capitalize first letter of sentences
+    cleaned = cleaned.replace(/(^|\.\s+)([a-z])/g, (match, p1, p2) => p1 + p2.toUpperCase())
+    
+    return cleaned.trim()
+  }
+
+  const startListening = () => {
+    if (!recognition) {
+      console.log('Speech recognition not available')
+      alert('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.')
+      return
     }
 
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error)
-      setIsListening(false)
-      setAssistantMessage('Voice recognition error. Please try again.')
-    }
+    try {
+      setIsListening(true)
+      // Don't clear transcript when starting - keep existing text
+      recognition.continuous = true // Make it continuous
+      recognition.interimResults = true // Show interim results
+      recognition.lang = 'en-US'
+      recognition.maxAlternatives = 1
 
-    recognition.onend = () => {
-      setIsListening(false)
-      if (transcript.trim()) {
-        processVoiceCommand(transcript)
+      // Set longer timeouts for thinking pauses
+      recognition.maxAlternatives = 3 // Allow multiple alternatives
+      
+      // Custom timeout handling for thinking pauses
+      let thinkingTimeout = null
+      let lastSpeechTime = Date.now()
+      let lastFinalTranscript = ''
+
+      recognition.onstart = () => {
+        console.log('Speech recognition started')
+        setIsActivelyListening(true)
+        lastSpeechTime = Date.now()
       }
+
+      recognition.onresult = (event) => {
+        let finalTranscript = ''
+        let interimTranscript = ''
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ' // Add space between final results
+          } else {
+            interimTranscript += transcript
+          }
+        }
+
+        // Clean up the transcripts
+        const cleanedFinal = cleanTranscript(finalTranscript)
+        const cleanedInterim = cleanTranscript(interimTranscript)
+
+        // Update transcript with cleaned results
+        setTranscript(prev => {
+          const currentText = prev || ''
+          let newText = currentText
+          
+          // Only add new final text if it's different from last time
+          if (cleanedFinal && cleanedFinal !== lastFinalTranscript) {
+            newText += cleanedFinal + ' '
+            lastFinalTranscript = cleanedFinal
+          }
+          
+          // Add interim text (will be cleaned up when it becomes final)
+          if (cleanedInterim) {
+            newText += cleanedInterim
+          }
+          
+          console.log('Updated transcript:', newText)
+          return newText
+        })
+        
+        // Show we're actively listening
+        setIsActivelyListening(true)
+        lastSpeechTime = Date.now()
+
+        // Clear any existing thinking timeout
+        if (thinkingTimeout) {
+          clearTimeout(thinkingTimeout)
+        }
+
+        // Set a new thinking timeout (30 seconds for thinking)
+        thinkingTimeout = setTimeout(() => {
+          if (isListening) {
+            console.log('Thinking pause detected - keeping recognition active')
+            setIsActivelyListening(false) // Show we're waiting but still listening
+          }
+        }, 30000) // 30 seconds for thinking
+      }
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error)
+        
+        // Handle different error types intelligently
+        switch (event.error) {
+          case 'no-speech':
+            console.log('No speech detected - waiting for you to think or speak...')
+            // Don't stop - just wait
+            return
+            
+          case 'audio-capture':
+            console.log('Audio capture issue - trying to continue...')
+            // Try to restart after a short delay
+            setTimeout(() => {
+              if (isListening) {
+                recognition.start()
+              }
+            }, 1000)
+            return
+            
+          case 'network':
+            console.log('Network issue - continuing to listen...')
+            // Network issues are temporary
+            return
+            
+          case 'not-allowed':
+            alert('Please allow microphone access to use voice input.')
+            setIsListening(false)
+            setIsActivelyListening(false)
+            break
+            
+          case 'aborted':
+            console.log('Recognition aborted - restarting...')
+            // Restart after a short delay
+            setTimeout(() => {
+              if (isListening) {
+                recognition.start()
+              }
+            }, 500)
+            return
+            
+          default:
+            console.log('Other error - continuing to listen...')
+            return
+        }
+      }
+
+      recognition.onend = () => {
+        console.log('Speech recognition ended')
+        
+        // Check if we should restart (user didn't manually stop)
+        if (isListening) {
+          const timeSinceLastSpeech = Date.now() - lastSpeechTime
+          
+          // If it's been less than 2 minutes since last speech, restart
+          if (timeSinceLastSpeech < 120000) { // 2 minutes
+            console.log('Restarting speech recognition after thinking pause...')
+            setTimeout(() => {
+              if (isListening) {
+                recognition.start()
+              }
+            }, 100)
+          } else {
+            console.log('Long pause detected - keeping recognition ready')
+            // Keep it ready but show we're waiting
+            setIsActivelyListening(false)
+          }
+        } else {
+          setIsListening(false)
+          setIsActivelyListening(false)
+        }
+      }
+
+      recognition.start()
+    } catch (error) {
+      console.error('Error starting speech recognition:', error)
+      setIsListening(false)
+      setIsActivelyListening(false)
+      alert('Error starting speech recognition. Please try again.')
     }
-
-    recognitionRef.current = recognition
-    recognition.start()
-
-    // Auto-stop after 10 seconds
-    timeoutRef.current = setTimeout(() => {
-      recognition.stop()
-    }, 10000)
   }
 
   const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop()
+    if (recognition) {
+      recognition.stop()
+      setIsListening(false)
+      setIsActivelyListening(false)
+      // Don't clear transcript - keep it for editing
     }
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-    }
-    setIsListening(false)
   }
 
-  const processVoiceCommand = async (command) => {
-    setIsProcessing(true)
-    setAssistantMessage('Processing your request...')
+  const clearTranscript = () => {
+    setTranscript('')
+  }
+
+  const cleanCurrentTranscript = () => {
+    setTranscript(prev => cleanTranscript(prev))
+  }
+
+  const clearConversation = () => {
+    if (window.confirm('Are you sure you want to clear the conversation history?')) {
+      console.log('Clearing conversation')
+      setConversation([])
+      setConversationSummary('')
+      localStorage.removeItem('lifetime-maintenance-conversation')
+    }
+  }
+
+  const sendMessage = async (message) => {
+    if (!message.trim()) return
+
+    const userMessage = { role: 'user', content: message, timestamp: new Date() }
+    setConversation(prev => [...prev, userMessage])
+    setIsLoading(true)
 
     try {
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEYS.PERPLEXITY_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            {
-              role: 'system',
-              content: `You are an intelligent personal assistant helping a user manage their life. 
-                User Context: ${JSON.stringify(userContext)}
-                Current Time: ${userContext.timeOfDay}
-                
-                Respond as a helpful, proactive assistant. Provide specific, actionable advice.
-                If the user asks for help with tasks, goals, or productivity, give concrete suggestions.
-                Always be encouraging and supportive.`
-            },
-            {
-              role: 'user',
-              content: command
-            }
-          ]
-        })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        const assistantResponse = data.choices[0].message.content
-        setAssistantMessage(assistantResponse)
-        
-        // Auto-generate suggestions based on the conversation
-        await generateSuggestionsFromCommand(command, assistantResponse)
-      } else {
-        setAssistantMessage('I apologize, but I\'m having trouble processing your request right now. Please try again.')
-      }
+      // Simulate AI response (replace with actual AI API call)
+      const aiResponse = await simulateAIResponse(message)
+      const assistantMessage = { role: 'assistant', content: aiResponse, timestamp: new Date() }
+      setConversation(prev => [...prev, assistantMessage])
     } catch (error) {
-      console.error('Error processing voice command:', error)
-      setAssistantMessage('I encountered an error. Please try again.')
+      console.error('Error getting AI response:', error)
+      const errorMessage = { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.', timestamp: new Date() }
+      setConversation(prev => [...prev, errorMessage])
     } finally {
-      setIsProcessing(false)
+      setIsLoading(false)
     }
   }
 
-  const generateSuggestionsFromCommand = async (command, response) => {
-    try {
-      const suggestionResponse = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEYS.PERPLEXITY_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            {
-              role: 'user',
-              content: `Based on this conversation:
-                User Command: "${command}"
-                Assistant Response: "${response}"
-                
-                Generate 3-5 specific, actionable suggestions for the user.
-                Format as JSON array: ["suggestion1", "suggestion2", "suggestion3"]`
-            }
-          ]
-        })
-      })
+  const simulateAIResponse = async (message) => {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000))
 
-      if (suggestionResponse.ok) {
-        const data = await suggestionResponse.json()
-        const suggestions = JSON.parse(data.choices[0].message.content)
-        setSuggestions(suggestions)
+    const lowerMessage = message.toLowerCase()
+    
+    // Get conversation context for better responses
+    const conversationContext = conversation.map(msg => `${msg.role}: ${msg.content}`).join('\n')
+    const hasContext = conversation.length > 0
+    
+    // Weather responses
+    if (lowerMessage.includes('weather')) {
+      return "I'd be happy to help with weather information! However, I'm currently in demo mode and don't have access to real-time weather data. In a full implementation, I would connect to a weather API to provide current conditions, forecasts, and detailed weather information for your location."
+    }
+    
+    // Stock price responses
+    if (lowerMessage.includes('stock') || lowerMessage.includes('price') || lowerMessage.includes('market')) {
+      return "I can help with stock market information! In demo mode, I can't access real-time stock prices, but in a full implementation I would connect to financial APIs to provide current stock prices, market trends, and investment insights."
+    }
+    
+    // Task-related responses with context awareness
+    if (lowerMessage.includes('task') || lowerMessage.includes('todo') || lowerMessage.includes('remind') || lowerMessage.includes('need to') || lowerMessage.includes('have to')) {
+      if (hasContext) {
+        return "I can help you manage tasks! I remember our conversation and can reference the tasks you mentioned earlier. I can create tasks from your voice or text input, organize them, and help you stay on top of your maintenance work. Just tell me what you need to do!"
+      } else {
+        return "I can help you manage tasks! I can create tasks from your voice or text input, organize them, and help you stay on top of your maintenance work. Just tell me what you need to do!"
       }
-    } catch (error) {
-      console.error('Error generating suggestions:', error)
+    }
+    
+    // Pavers and materials questions
+    if (lowerMessage.includes('paver') || lowerMessage.includes('paving')) {
+      if (hasContext && conversationContext.includes('paver')) {
+        return "Based on our conversation about the pavers outside, I can help you choose the right type! For outdoor pavers, I'd recommend concrete pavers for durability and weather resistance. Consider factors like color, size, and pattern to match your existing setup. Would you like me to help you calculate how many you need based on the area you mentioned?"
+      } else {
+        return "I can help you with paver selection! For outdoor applications, I'd recommend concrete pavers for durability and weather resistance. What type of project are you working on?"
+      }
+    }
+    
+    // Context-aware responses for maintenance work
+    if (lowerMessage.includes('fix') || lowerMessage.includes('repair') || lowerMessage.includes('maintenance')) {
+      if (hasContext) {
+        return "I understand you're working on maintenance tasks. I remember our earlier conversation and can help you prioritize and organize your work. What specific maintenance task would you like to discuss or add to your list?"
+      } else {
+        return "I can help you with maintenance tasks! I can create task lists, provide guidance, and help you stay organized. What maintenance work do you need to do?"
+      }
+    }
+    
+    // Ordering and purchasing context
+    if (lowerMessage.includes('order') || lowerMessage.includes('buy') || lowerMessage.includes('purchase')) {
+      if (hasContext && conversationContext.includes('paver')) {
+        return "I see you need to order more pavers for the outside project we discussed. I can help you determine the quantity needed and recommend suppliers. Do you have the measurements for the area you need to cover?"
+      } else {
+        return "I can help you with ordering materials and supplies for your maintenance work. What do you need to order?"
+      }
+    }
+    
+    // General conversation with context awareness
+    if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
+      if (hasContext) {
+        return "Hello! I remember our conversation from earlier. I'm here to help you continue with your maintenance work and answer any questions you have. What would you like to work on next?"
+      } else {
+        return "Hello! I'm your AI assistant for the Lifetime Maintenance app. I can help you with tasks, answer questions, provide information, and assist with your maintenance work. What can I help you with today?"
+      }
+    }
+    
+    // Context-aware general responses
+    if (hasContext) {
+      return "I understand your question and I remember our conversation context. I'm here to help you with your maintenance work and can reference what we've discussed earlier. How can I assist you further?"
+    } else {
+      return "That's an interesting question! I'm your AI assistant and I'm here to help with your maintenance work, answer questions, and assist with various tasks. In a full implementation, I would have access to real-time data and more advanced capabilities. How can I help you today?"
     }
   }
 
-  const handleQuickAction = async (action) => {
-    setIsProcessing(true)
-    
-    switch (action) {
-      case 'morning_routine':
-        await processVoiceCommand('Help me plan my morning routine and prioritize my tasks for today')
-        break
-      case 'evening_reflection':
-        await processVoiceCommand('Help me reflect on my day and plan for tomorrow')
-        break
-      case 'productivity_boost':
-        await processVoiceCommand('I need help getting more productive. What should I focus on?')
-        break
-      case 'goal_review':
-        await processVoiceCommand('Review my current goals and suggest next steps')
-        break
-      case 'smart_suggestions':
-        await generateInsights()
-        break
-      default:
-        setAssistantMessage('Quick action executed!')
-    }
-    
-    setIsProcessing(false)
-  }
-
-  const renderInsights = () => {
-    if (!insights || Object.keys(insights).length === 0) return null
-
-    return (
-      <div className="insights-section">
-        <h3><Sparkles size={20} /> Smart Insights</h3>
-        
-        {insights.status && (
-          <div className="insight-card">
-            <h4>Current Status</h4>
-            <p>{insights.status}</p>
-          </div>
-        )}
-        
-        {insights.priorities && (
-          <div className="insight-card">
-            <h4>Priorities</h4>
-            <ul>
-              {insights.priorities.map((priority, index) => (
-                <li key={index}>{priority}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        
-        {insights.suggestions && (
-          <div className="insight-card">
-            <h4>Smart Suggestions</h4>
-            <ul>
-              {insights.suggestions.map((suggestion, index) => (
-                <li key={index}>{suggestion}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const renderReminders = () => {
-    if (reminders.length === 0) return null
-
-    return (
-      <div className="reminders-section">
-        <h3><Bell size={20} /> Smart Reminders</h3>
-        {reminders.slice(0, 3).map(reminder => (
-          <div key={reminder.id} className={`reminder-card ${reminder.priority}`}>
-            <div className="reminder-header">
-              <h4>{reminder.title}</h4>
-              <span className={`priority-badge ${reminder.priority}`}>
-                {reminder.priority}
-              </span>
-            </div>
-            <p>{reminder.message}</p>
-            <button 
-              onClick={() => handleQuickAction(reminder.action)}
-              className="action-btn"
-            >
-              Take Action <ArrowRight size={16} />
-            </button>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  const renderSuggestions = () => {
-    if (suggestions.length === 0) return null
-
-    return (
-      <div className="suggestions-section">
-        <h3><Lightbulb size={20} /> Smart Suggestions</h3>
-        {suggestions.map((suggestion, index) => (
-          <div key={index} className="suggestion-card">
-            <p>{suggestion}</p>
-            <button 
-              onClick={() => processVoiceCommand(suggestion)}
-              className="suggestion-btn"
-            >
-              Try This <Zap size={16} />
-            </button>
-          </div>
-        ))}
-      </div>
-    )
-  }
+  const [newMessage, setNewMessage] = useState('')
 
   return (
     <div className="smart-assistant">
-      {/* Floating Assistant Button */}
-      <button
-        onClick={() => setShowAssistant(!showAssistant)}
-        className={`assistant-toggle ${showAssistant ? 'active' : ''}`}
-        style={{
-          position: 'fixed',
-          bottom: isMobile ? '20px' : '40px',
-          right: isMobile ? '20px' : '40px',
-          width: '60px',
-          height: '60px',
-          borderRadius: '50%',
-          background: showAssistant ? 'var(--primary-color)' : 'linear-gradient(135deg, #007BFF, #1a3d2f)',
-          border: 'none',
-          color: 'white',
-          fontSize: '24px',
-          cursor: 'pointer',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-          zIndex: 1000,
-          transition: 'all 0.3s ease',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-      >
-        {isListening ? (
-          <Mic size={24} style={{ animation: 'pulse 1s infinite' }} />
-        ) : (
-          <Brain size={24} />
-        )}
-      </button>
+      <div className="assistant-header">
+        <h2>🤖 Smart Assistant</h2>
+        <p>Your AI-powered maintenance assistant with enhanced voice capabilities</p>
+      </div>
 
-      {/* Assistant Panel */}
-      {showAssistant && (
-        <div className="assistant-panel" style={{
-          position: 'fixed',
-          bottom: isMobile ? '100px' : '120px',
-          right: isMobile ? '20px' : '40px',
-          width: isMobile ? 'calc(100vw - 40px)' : '400px',
-          maxHeight: '70vh',
-          background: 'white',
-          borderRadius: '16px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-          zIndex: 999,
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          {/* Header */}
-          <div className="assistant-header" style={{
-            background: 'linear-gradient(135deg, #007BFF, #1a3d2f)',
-            color: 'white',
-            padding: '1rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Brain size={20} />
-              <h3 style={{ margin: 0 }}>Smart Assistant</h3>
+      <div className="assistant-container">
+        {/* Mode Toggle */}
+        <div className="mode-toggle">
+          <button
+            className={`mode-button ${currentMode === 'chat' ? 'active' : ''}`}
+            onClick={() => setCurrentMode('chat')}
+          >
+            🤖 AI Chat
+          </button>
+          <button
+            className={`mode-button ${currentMode === 'tasks' ? 'active' : ''}`}
+            onClick={() => setCurrentMode('tasks')}
+          >
+            📋 Tasks
+          </button>
+        </div>
+
+        {/* AI Chat Mode */}
+        {currentMode === 'chat' && (
+          <div className="chat-container">
+            <div className="chat-header">
+              <h3>AI Assistant</h3>
+              {conversation.length > 0 && (
+                <button
+                  className="clear-button"
+                  onClick={clearConversation}
+                >
+                  Clear Chat
+                </button>
+              )}
             </div>
-            <button
-              onClick={() => setShowAssistant(false)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'white',
-                cursor: 'pointer'
-              }}
-            >
-              <X size={20} />
-            </button>
-          </div>
 
-          {/* Content */}
-          <div className="assistant-content" style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '1rem'
-          }}>
-            {/* Quick Actions */}
-            <div className="quick-actions" style={{ marginBottom: '1rem' }}>
-              <h4 style={{ marginBottom: '0.5rem' }}>Quick Actions</h4>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => handleQuickAction('morning_routine')}
-                  className="quick-action-btn"
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: 'var(--primary-color)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '20px',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🌅 Morning
-                </button>
-                <button
-                  onClick={() => handleQuickAction('goal_review')}
-                  className="quick-action-btn"
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: 'var(--success-color)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '20px',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🎯 Goals
-                </button>
-                <button
-                  onClick={() => handleQuickAction('smart_suggestions')}
-                  className="quick-action-btn"
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: 'var(--warning-color)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '20px',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  💡 Insights
-                </button>
+            {/* Conversation Summary */}
+            {conversationSummary && (
+              <div className="conversation-summary">
+                <strong>📝 Conversation Context:</strong> {conversationSummary}
               </div>
-            </div>
-
-            {/* Voice Input */}
-            <div className="voice-section" style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <button
-                  onClick={isListening ? stopListening : startListening}
-                  className="voice-btn"
-                  style={{
-                    padding: '0.75rem',
-                    background: isListening ? 'var(--error-color)' : 'var(--primary-color)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '50%',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  {isListening ? <Square size={20} /> : <Mic size={20} />}
-                </button>
-                <div style={{ flex: 1 }}>
-                  <input
-                    type="text"
-                    value={transcript}
-                    onChange={(e) => setTranscript(e.target.value)}
-                    placeholder="Ask me anything or use voice..."
-                    style={{
-                      width: '100%',
-                      padding: '0.5rem',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      fontSize: '0.9rem'
-                    }}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && transcript.trim()) {
-                        processVoiceCommand(transcript)
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Assistant Response */}
-            {assistantMessage && (
-              <div className="assistant-response" style={{
-                background: 'var(--light-color)',
-                padding: '1rem',
-                borderRadius: '8px',
-                marginBottom: '1rem'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                  <Brain size={16} style={{ marginTop: '2px' }} />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-                      {isProcessing ? 'Thinking...' : assistantMessage}
-                    </p>
+            )}
+            
+            {/* Chat Messages */}
+            <div className="chat-messages">
+              {conversation.length === 0 ? (
+                <p className="empty-message">
+                  Start a conversation! Ask me about weather, stocks, tasks, or anything else. I'll remember our conversation context like ChatGPT.
+                </p>
+              ) : (
+                conversation.map((msg, index) => (
+                  <div key={index} className={`message ${msg.role}`}>
+                    <strong>{msg.role === 'user' ? 'You' : 'AI Assistant'}:</strong>
+                    <p>{msg.content}</p>
                   </div>
+                ))
+              )}
+              {isLoading && (
+                <div className="loading-message">
+                  AI is thinking...
+                </div>
+              )}
+            </div>
+
+            {/* Voice Input for Chat */}
+            <div className="voice-input-section">
+              <button
+                className={`voice-button ${isListening ? 'listening' : ''} ${!speechSupported ? 'disabled' : ''}`}
+                onClick={isListening ? stopListening : startListening}
+                disabled={!speechSupported}
+                title={!speechSupported ? 'Speech recognition not supported in this browser' : isListening ? 'Click to stop listening' : 'Click to start voice input'}
+              >
+                {!speechSupported ? '🎤 Voice (Not Supported)' : isListening ? (isActivelyListening ? '🔴 Listening...' : '⏸️ Waiting...') : '🎤 Voice'}
+              </button>
+              
+              {!speechSupported && (
+                <div className="warning-message">
+                  ⚠️ Use Chrome/Edge/Safari for voice
+                </div>
+              )}
+              
+              {isActivelyListening && (
+                <div className="status-message success">
+                  🎯 Actively listening - speak naturally!
+                </div>
+              )}
+              
+              {isListening && !isActivelyListening && (
+                <div className="status-message waiting">
+                  🤔 Waiting for you to think or speak...
+                </div>
+              )}
+
+              <div className="text-input-section">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type your message..."
+                  className="message-input"
+                  onKeyPress={(e) => e.key === 'Enter' && sendMessage(newMessage)}
+                />
+                <button
+                  className="send-button"
+                  onClick={() => sendMessage(newMessage)}
+                  disabled={!newMessage.trim() || isLoading}
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+
+            {/* Voice Transcript - Editable */}
+            {transcript && (
+              <div className="transcript-section">
+                <div className="transcript-header">
+                  <strong>Voice Input (Edit if needed):</strong>
+                  <div className="transcript-controls">
+                    <button
+                      className="clean-button"
+                      onClick={cleanCurrentTranscript}
+                      title="Clean up repeated words and speech artifacts"
+                    >
+                      🧹 Clean
+                    </button>
+                    <button
+                      className="clear-button"
+                      onClick={clearTranscript}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <textarea
+                  value={transcript}
+                  onChange={(e) => setTranscript(e.target.value)}
+                  placeholder="Your voice input will appear here..."
+                  className="transcript-textarea"
+                />
+                <div className="transcript-actions">
+                  <button
+                    className="send-voice-button"
+                    onClick={() => {
+                      sendMessage(transcript)
+                      setTranscript('')
+                    }}
+                  >
+                    Send Voice Message
+                  </button>
+                  <button
+                    className="copy-button"
+                    onClick={() => setNewMessage(transcript)}
+                  >
+                    Copy to Text Box
+                  </button>
                 </div>
               </div>
             )}
-
-            {/* Smart Suggestions */}
-            {renderSuggestions()}
-
-            {/* Insights */}
-            {renderInsights()}
-
-            {/* Reminders */}
-            {renderReminders()}
           </div>
-        </div>
-      )}
+        )}
 
-      <style jsx>{`
-        @keyframes pulse {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.1); }
-          100% { transform: scale(1); }
-        }
-        
-        .insight-card, .reminder-card, .suggestion-card {
-          background: white;
-          border: 1px solid var(--border-color);
-          border-radius: 8px;
-          padding: 1rem;
-          margin-bottom: 0.5rem;
-        }
-        
-        .reminder-card.high {
-          border-left: 4px solid var(--error-color);
-        }
-        
-        .reminder-card.medium {
-          border-left: 4px solid var(--warning-color);
-        }
-        
-        .reminder-card.low {
-          border-left: 4px solid var(--success-color);
-        }
-        
-        .priority-badge {
-          padding: 0.25rem 0.5rem;
-          border-radius: 12px;
-          font-size: 0.7rem;
-          font-weight: bold;
-          text-transform: uppercase;
-        }
-        
-        .priority-badge.high {
-          background: var(--error-color);
-          color: white;
-        }
-        
-        .priority-badge.medium {
-          background: var(--warning-color);
-          color: white;
-        }
-        
-        .priority-badge.low {
-          background: var(--success-color);
-          color: white;
-        }
-        
-        .action-btn, .suggestion-btn {
-          background: var(--primary-color);
-          color: white;
-          border: none;
-          padding: 0.5rem 1rem;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 0.8rem;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-top: 0.5rem;
-        }
-        
-        .reminder-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 0.5rem;
-        }
-        
-        .reminder-header h4 {
-          margin: 0;
-          font-size: 0.9rem;
-        }
-      `}</style>
+        {/* Task Mode */}
+        {currentMode === 'tasks' && (
+          <div className="task-mode">
+            <h3>Voice Task Creation</h3>
+            <p>Use voice to create tasks for your maintenance work</p>
+            
+            <div className="voice-input-section">
+              <button
+                className={`voice-button ${isListening ? 'listening' : ''} ${!speechSupported ? 'disabled' : ''}`}
+                onClick={isListening ? stopListening : startListening}
+                disabled={!speechSupported}
+              >
+                {!speechSupported ? '🎤 Voice (Not Supported)' : isListening ? (isActivelyListening ? '🔴 Listening...' : '⏸️ Waiting...') : '🎤 Start Voice Input'}
+              </button>
+              
+              {!speechSupported && (
+                <div className="warning-message">
+                  ⚠️ Voice input requires Chrome, Edge, or Safari browser
+                </div>
+              )}
+              
+              {isActivelyListening && (
+                <div className="status-message success">
+                  🎯 Actively listening - speak naturally!
+                </div>
+              )}
+              
+              {isListening && !isActivelyListening && (
+                <div className="status-message waiting">
+                  🤔 Waiting for you to think or speak...
+                </div>
+              )}
+            </div>
+
+            {transcript && (
+              <div className="transcript-section">
+                <div className="transcript-header">
+                  <strong>Voice Input (Edit if needed):</strong>
+                  <div className="transcript-controls">
+                    <button
+                      className="clean-button"
+                      onClick={cleanCurrentTranscript}
+                    >
+                      🧹 Clean
+                    </button>
+                    <button
+                      className="clear-button"
+                      onClick={clearTranscript}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <textarea
+                  value={transcript}
+                  onChange={(e) => setTranscript(e.target.value)}
+                  placeholder="Your voice input will appear here..."
+                  className="transcript-textarea"
+                />
+                <div className="transcript-actions">
+                  <button
+                    className="auto-detect-button"
+                    onClick={() => {
+                      // This would integrate with your task system
+                      console.log('Auto-detecting tasks from:', transcript)
+                      setTranscript('')
+                    }}
+                  >
+                    🧠 Auto-Detect Tasks
+                  </button>
+                  <button
+                    className="single-task-button"
+                    onClick={() => {
+                      // This would add as a single task
+                      console.log('Adding as single task:', transcript)
+                      setTranscript('')
+                    }}
+                  >
+                    Add as Single Task
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
