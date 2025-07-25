@@ -72,6 +72,54 @@ CREATE TABLE IF NOT EXISTS photos (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Monetary Goals table for off-days
+CREATE TABLE IF NOT EXISTS monetary_goals (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  description TEXT NOT NULL,
+  amount DECIMAL(10,2) DEFAULT 0,
+  deadline DATE,
+  completed BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- General Goals table for off-days
+CREATE TABLE IF NOT EXISTS goals (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  category TEXT NOT NULL,
+  description TEXT NOT NULL,
+  progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+  completed BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Workouts table for off-days
+CREATE TABLE IF NOT EXISTS workouts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL,
+  description TEXT NOT NULL,
+  duration TEXT,
+  nutrition TEXT,
+  completed BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Spiritual Growth table for off-days
+CREATE TABLE IF NOT EXISTS spiritual (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  reflection TEXT NOT NULL,
+  gratitude TEXT,
+  prayer TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
@@ -94,6 +142,22 @@ CREATE INDEX IF NOT EXISTS idx_photos_user_id ON photos(user_id);
 CREATE INDEX IF NOT EXISTS idx_photos_task_id ON photos(task_id);
 CREATE INDEX IF NOT EXISTS idx_photos_created_at ON photos(created_at);
 
+-- Indexes for off-days tables
+CREATE INDEX IF NOT EXISTS idx_monetary_goals_user_id ON monetary_goals(user_id);
+CREATE INDEX IF NOT EXISTS idx_monetary_goals_completed ON monetary_goals(completed);
+CREATE INDEX IF NOT EXISTS idx_monetary_goals_deadline ON monetary_goals(deadline);
+
+CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
+CREATE INDEX IF NOT EXISTS idx_goals_category ON goals(category);
+CREATE INDEX IF NOT EXISTS idx_goals_completed ON goals(completed);
+
+CREATE INDEX IF NOT EXISTS idx_workouts_user_id ON workouts(user_id);
+CREATE INDEX IF NOT EXISTS idx_workouts_type ON workouts(type);
+CREATE INDEX IF NOT EXISTS idx_workouts_completed ON workouts(completed);
+
+CREATE INDEX IF NOT EXISTS idx_spiritual_user_id ON spiritual(user_id);
+CREATE INDEX IF NOT EXISTS idx_spiritual_created_at ON spiritual(created_at);
+
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -111,6 +175,19 @@ CREATE TRIGGER update_shopping_lists_updated_at BEFORE UPDATE ON shopping_lists
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Triggers for off-days tables
+CREATE TRIGGER update_monetary_goals_updated_at BEFORE UPDATE ON monetary_goals
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_goals_updated_at BEFORE UPDATE ON goals
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_workouts_updated_at BEFORE UPDATE ON workouts
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_spiritual_updated_at BEFORE UPDATE ON spiritual
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Create storage bucket for work files
@@ -141,6 +218,12 @@ ALTER TABLE emails ENABLE ROW LEVEL SECURITY;
 ALTER TABLE knowledge ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE photos ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS for off-days tables
+ALTER TABLE monetary_goals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE goals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE workouts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE spiritual ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for tasks
 CREATE POLICY "Users can view their own tasks" ON tasks
@@ -262,4 +345,76 @@ INSERT INTO emails (user_id, to_email, subject, body, sent) VALUES
 ('current-user', 'manager@lifetime.com', 'Weekly Maintenance Report', 'Completed HVAC filter replacement and scheduled light bulb replacement.', true);
 
 INSERT INTO knowledge (user_id, question, response) VALUES
-('current-user', 'How to change a light bulb', '1. Turn off power\n2. Remove old bulb\n3. Install new bulb\n4. Test functionality\n\nTools needed: Screwdriver, ladder\nSupplies: New light bulb'); 
+('current-user', 'How to change a light bulb', '1. Turn off power\n2. Remove old bulb\n3. Install new bulb\n4. Test functionality\n\nTools needed: Screwdriver, ladder\nSupplies: New light bulb');
+
+-- Create policies for off-days tables
+-- Monetary Goals policies
+CREATE POLICY "Users can view their own monetary goals" ON monetary_goals
+  FOR SELECT USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can insert their own monetary goals" ON monetary_goals
+  FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can update their own monetary goals" ON monetary_goals
+  FOR UPDATE USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can delete their own monetary goals" ON monetary_goals
+  FOR DELETE USING (auth.uid()::text = user_id);
+
+-- General Goals policies
+CREATE POLICY "Users can view their own goals" ON goals
+  FOR SELECT USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can insert their own goals" ON goals
+  FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can update their own goals" ON goals
+  FOR UPDATE USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can delete their own goals" ON goals
+  FOR DELETE USING (auth.uid()::text = user_id);
+
+-- Workouts policies
+CREATE POLICY "Users can view their own workouts" ON workouts
+  FOR SELECT USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can insert their own workouts" ON workouts
+  FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can update their own workouts" ON workouts
+  FOR UPDATE USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can delete their own workouts" ON workouts
+  FOR DELETE USING (auth.uid()::text = user_id);
+
+-- Spiritual policies
+CREATE POLICY "Users can view their own spiritual notes" ON spiritual
+  FOR SELECT USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can insert their own spiritual notes" ON spiritual
+  FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can update their own spiritual notes" ON spiritual
+  FOR UPDATE USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can delete their own spiritual notes" ON spiritual
+  FOR DELETE USING (auth.uid()::text = user_id);
+
+-- Insert sample data for off-days features
+INSERT INTO monetary_goals (user_id, description, amount, deadline) VALUES
+('current-user', 'Save for vacation', 2000.00, CURRENT_DATE + INTERVAL '3 months'),
+('current-user', 'Emergency fund', 5000.00, CURRENT_DATE + INTERVAL '6 months');
+
+INSERT INTO goals (user_id, category, description, progress) VALUES
+('current-user', 'personal', 'Learn Spanish', 25),
+('current-user', 'career', 'Complete online course', 60),
+('current-user', 'health', 'Run a 5K', 40);
+
+INSERT INTO workouts (user_id, type, description, duration, nutrition) VALUES
+('current-user', 'cardio', 'Morning run', '30 min', 'Protein shake after'),
+('current-user', 'strength', 'Upper body workout', '45 min', 'Chicken and rice'),
+('current-user', 'yoga', 'Evening stretch', '20 min', 'Green tea');
+
+INSERT INTO spiritual (user_id, reflection, gratitude, prayer) VALUES
+('current-user', 'Today I felt grateful for my health and family', 'Family, good health, beautiful weather', 'Prayer for peace and guidance'),
+('current-user', 'Reflecting on my goals and progress', 'Opportunities, support from friends', 'Thankful for blessings'); 

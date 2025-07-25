@@ -16,7 +16,6 @@ import {
   List,
   Grid,
   Zap,
-  Tool,
   Package,
   Clock,
   User,
@@ -34,8 +33,6 @@ import {
   Lightbulb,
   Wrench,
   Hammer,
-  Screwdriver,
-  Construction,
   Shield,
   AlertTriangle
 } from 'lucide-react'
@@ -52,6 +49,15 @@ const Knowledge = () => {
   const [filteredEntries, setFilteredEntries] = useState([])
   const [selectedEntry, setSelectedEntry] = useState(null)
   const [viewMode, setViewMode] = useState('list') // 'list' or 'grid'
+  const [isListening, setIsListening] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [listeningTimeout, setListeningTimeout] = useState(null)
+  const [showVoiceModal, setShowVoiceModal] = useState(false)
+  const [voiceModalText, setVoiceModalText] = useState('')
+  const [voiceModalListening, setVoiceModalListening] = useState(false)
+  const [voiceModalRecognitionRef, setVoiceModalRecognitionRef] = useState(null)
+  const [aiSuggestions, setAiSuggestions] = useState([])
+  const [showAnalytics, setShowAnalytics] = useState(false)
 
   // Check online status
   useEffect(() => {
@@ -327,6 +333,195 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
     setTimeout(() => setMessage({ type: '', text: '' }), 5000)
   }
 
+  // Voice Input Functions
+  const startListening = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      showMessage('error', 'Speech recognition not supported')
+      return
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    
+    recognition.continuous = false
+    recognition.interimResults = true
+    recognition.lang = 'en-US'
+
+    recognition.onstart = () => {
+      setIsListening(true)
+      setTranscript('')
+    }
+
+    recognition.onresult = (event) => {
+      let finalTranscript = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript
+        }
+      }
+      if (finalTranscript) {
+        setTranscript(finalTranscript)
+        setQuestion(finalTranscript)
+      }
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+      if (transcript) {
+        processQuestion()
+      }
+    }
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error)
+      setIsListening(false)
+    }
+
+    // Auto-stop after 30 seconds
+    const timeout = setTimeout(() => {
+      recognition.stop()
+      recognition.abort()
+    }, 30000)
+    setListeningTimeout(timeout)
+
+    recognition.start()
+  }
+
+  const stopListening = () => {
+    if (listeningTimeout) {
+      clearTimeout(listeningTimeout)
+      setListeningTimeout(null)
+    }
+    try {
+      // Stop any active recognition
+      if (window.speechRecognition) {
+        window.speechRecognition.stop()
+        window.speechRecognition.abort()
+      }
+    } catch (error) {
+      console.log('Recognition already stopped')
+    }
+    
+    setIsListening(false)
+    showMessage('info', 'Voice input stopped.')
+  }
+
+  // Voice Modal Functions
+  const openVoiceModal = () => {
+    setShowVoiceModal(true)
+    setVoiceModalText('')
+  }
+
+  const closeVoiceModal = () => {
+    setShowVoiceModal(false)
+    setVoiceModalText('')
+    if (voiceModalRecognitionRef) {
+      voiceModalRecognitionRef.stop()
+      voiceModalRecognitionRef.abort()
+    }
+  }
+
+  const startVoiceModalListening = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      showMessage('error', 'Speech recognition not supported')
+      return
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    
+    recognition.continuous = false
+    recognition.interimResults = true
+    recognition.lang = 'en-US'
+
+    recognition.onstart = () => {
+      setVoiceModalListening(true)
+    }
+
+    recognition.onresult = (event) => {
+      let finalTranscript = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript
+        }
+      }
+      if (finalTranscript) {
+        setVoiceModalText(prev => prev + finalTranscript + ' ')
+      }
+    }
+
+    recognition.onend = () => {
+      setVoiceModalListening(false)
+    }
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error)
+      setVoiceModalListening(false)
+    }
+
+    recognition.start()
+    setVoiceModalRecognitionRef(recognition)
+  }
+
+  const stopVoiceModalListening = () => {
+    if (voiceModalRecognitionRef) {
+      voiceModalRecognitionRef.stop()
+      voiceModalRecognitionRef.abort()
+      setVoiceModalListening(false)
+    }
+  }
+
+  const applyVoiceModalText = () => {
+    if (voiceModalText.trim()) {
+      setQuestion(voiceModalText.trim())
+      closeVoiceModal()
+    }
+  }
+
+  // AI Suggestions
+  const generateAiSuggestions = async () => {
+    try {
+      const perplexityApiKey = import.meta.env.VITE_PERPLEXITY_API_KEY
+      if (!perplexityApiKey) {
+        console.log('Perplexity API key not configured')
+        return
+      }
+
+      const knowledgeSummary = knowledgeEntries.map(entry => ({
+        question: entry.question,
+        response: entry.response,
+        category: entry.category,
+        created_at: entry.created_at
+      }))
+
+      const response = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${perplexityApiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'user',
+              content: `Analyze this maintenance knowledge base and provide 3-5 suggestions for improving knowledge organization, finding gaps, or adding useful content. Return as JSON array with 'suggestion' and 'reason' fields. Knowledge: ${JSON.stringify(knowledgeSummary)}`
+            }
+          ]
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const messageContent = data.choices[0].message.content
+        const suggestions = JSON.parse(messageContent)
+        setAiSuggestions(suggestions)
+      }
+    } catch (error) {
+      console.error('Error generating AI suggestions:', error)
+    }
+  }
+
   return (
     <div className="container">
       {!isOnline && (
@@ -382,6 +577,112 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
           )}
         </button>
 
+        {/* Voice Input Section */}
+        <div style={{ 
+          marginTop: '1rem', 
+          padding: '1rem', 
+          backgroundColor: isListening ? 'var(--warning-color)' : 'var(--light-color)', 
+          borderRadius: '8px',
+          border: isListening ? '2px solid var(--warning-color)' : '1px solid var(--border-color)',
+          textAlign: 'center'
+        }}>
+          <h4 style={{ 
+            marginBottom: '0.5rem', 
+            color: isListening ? 'white' : 'var(--primary-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem'
+          }}>
+            <MessageSquare size={20} />
+            Voice Input
+          </h4>
+          
+          {/* Voice Buttons */}
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '1rem' }}>
+            <button
+              onClick={isListening ? stopListening : startListening}
+              style={{
+                padding: '1rem 2rem',
+                borderRadius: '50px',
+                border: 'none',
+                backgroundColor: isListening ? '#dc3545' : 'var(--primary-color)',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '1.1rem',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.3s ease',
+                boxShadow: isListening ? '0 0 20px rgba(220, 53, 69, 0.5)' : '0 2px 8px rgba(0,0,0,0.1)',
+                animation: isListening ? 'pulse 2s infinite' : 'none'
+              }}
+            >
+              {isListening ? (
+                <>
+                  <Square size={20} />
+                  STOP LISTENING
+                </>
+              ) : (
+                <>
+                  <MessageSquare size={20} />
+                  Quick Voice
+                </>
+              )}
+            </button>
+            
+            <button
+              onClick={openVoiceModal}
+              style={{
+                padding: '1rem 2rem',
+                borderRadius: '50px',
+                border: '2px solid var(--primary-color)',
+                backgroundColor: 'white',
+                color: 'var(--primary-color)',
+                cursor: 'pointer',
+                fontSize: '1.1rem',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <MessageSquare size={20} />
+              Voice Modal
+            </button>
+          </div>
+          
+          {/* Voice Status */}
+          {isListening && (
+            <div style={{ 
+              color: 'white', 
+              fontSize: '0.9rem',
+              marginBottom: '0.5rem',
+              textAlign: 'center',
+              fontWeight: '600'
+            }}>
+              🎤 LISTENING - Click "STOP LISTENING" to stop
+            </div>
+          )}
+          
+          {/* Voice Transcript */}
+          {transcript && (
+            <div style={{ 
+              marginTop: '0.5rem',
+              padding: '0.5rem',
+              backgroundColor: 'white',
+              borderRadius: '4px',
+              fontSize: '0.9rem',
+              color: 'var(--text-color)',
+              minHeight: '40px'
+            }}>
+              <strong>You said:</strong> {transcript}
+            </div>
+          )}
+        </div>
+
         {/* Knowledge Features */}
         <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--light-color)', borderRadius: '8px' }}>
           <h4 style={{ marginBottom: '0.5rem', color: 'var(--primary-color)' }}>
@@ -395,7 +696,140 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
             <div>• Difficulty levels and troubleshooting tips</div>
           </div>
         </div>
+
+        {/* AI Suggestions */}
+        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--light-color)', borderRadius: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h4 style={{ color: 'var(--primary-color)', margin: 0 }}>🤖 AI Knowledge Suggestions</h4>
+            <button
+              onClick={generateAiSuggestions}
+              style={{
+                padding: '0.5rem 1rem',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--primary-color)',
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <Brain size={16} />
+              Get AI Suggestions
+            </button>
+          </div>
+          
+          {aiSuggestions.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {aiSuggestions.map((suggestion, index) => (
+                <div key={index} style={{ 
+                  padding: '0.75rem', 
+                  backgroundColor: 'white', 
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  <div style={{ fontWeight: '500', marginBottom: '0.25rem' }}>{suggestion.suggestion}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--secondary-color)' }}>{suggestion.reason}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Voice Modal */}
+      {showVoiceModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '12px',
+            width: '90%',
+            maxWidth: '500px',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
+          }}>
+            <h3 style={{ marginBottom: '1rem', color: 'var(--primary-color)' }}>🎤 Voice Knowledge Input</h3>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <textarea
+                value={voiceModalText}
+                onChange={(e) => setVoiceModalText(e.target.value)}
+                placeholder="Your voice input will appear here..."
+                style={{
+                  width: '100%',
+                  minHeight: '100px',
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '0.9rem',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+            
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+              <button
+                onClick={voiceModalListening ? stopVoiceModalListening : startVoiceModalListening}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: voiceModalListening ? '#dc3545' : 'var(--primary-color)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                {voiceModalListening ? <Square size={16} /> : <MessageSquare size={16} />}
+                {voiceModalListening ? 'Stop' : 'Start'} Recording
+              </button>
+              
+              <button
+                onClick={applyVoiceModalText}
+                disabled={!voiceModalText.trim()}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: voiceModalText.trim() ? 'var(--success-color)' : 'var(--secondary-color)',
+                  color: 'white',
+                  cursor: voiceModalText.trim() ? 'pointer' : 'not-allowed'
+                }}
+              >
+                Ask Question
+              </button>
+              
+              <button
+                onClick={closeVoiceModal}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'white',
+                  color: 'var(--text-color)',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search Section */}
       <div className="card">
@@ -439,7 +873,7 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
         </div>
 
         <div className="form-group">
-          <label className="form-label">Search Knowledge</label>
+          <label className="form-label" htmlFor="knowledge-search">Search Knowledge</label>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <input
               type="text"
@@ -529,7 +963,7 @@ Note: This is a fallback response. Configure Grok Pro API for detailed, specific
                     <div style={{ marginBottom: '0.5rem' }}>
                       {tools.length > 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
-                          <Tool size={12} style={{ color: 'var(--primary-color)' }} aria-hidden="true" />
+                          <Wrench size={12} style={{ color: 'var(--primary-color)' }} aria-hidden="true" />
                           <span style={{ color: 'var(--secondary-color)' }}>Tools:</span>
                           <span style={{ fontSize: '0.75rem' }}>{tools.slice(0, 2).join(', ')}{tools.length > 2 ? '...' : ''}</span>
                         </div>

@@ -1,6 +1,26 @@
 import React, { useState, useEffect } from 'react'
 import { supabase, TABLES, API_KEYS } from '../lib/supabase'
-import { Send, MessageSquare, RotateCcw, Brain, Copy, FileText } from 'lucide-react'
+import { 
+  Send, 
+  MessageSquare, 
+  RotateCcw, 
+  Brain, 
+  Copy, 
+  FileText,
+  Mic,
+  Square,
+  Mail,
+  Users,
+  Clock,
+  Star,
+  Trash2,
+  Archive,
+  Reply,
+  Forward,
+  Edit,
+  Save,
+  X
+} from 'lucide-react'
 
 const Email = () => {
   console.log('Rendering Email')
@@ -21,6 +41,21 @@ const Email = () => {
     generatedReply: '',
     showContextForm: false
   })
+
+  // Voice input state
+  const [isListening, setIsListening] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [listeningTimeout, setListeningTimeout] = useState(null)
+  const [showVoiceModal, setShowVoiceModal] = useState(false)
+  const [voiceModalText, setVoiceModalText] = useState('')
+  const [voiceModalListening, setVoiceModalListening] = useState(false)
+  const [voiceModalRecognitionRef, setVoiceModalRecognitionRef] = useState(null)
+  const [voiceMode, setVoiceMode] = useState('body') // 'body', 'subject', 'to'
+
+  // AI features state
+  const [aiSuggestions, setAiSuggestions] = useState([])
+  const [emailTemplates, setEmailTemplates] = useState([])
+  const [showTemplates, setShowTemplates] = useState(false)
 
   // Load emails on component mount
   useEffect(() => {
@@ -463,6 +498,247 @@ Maintenance Team`
     setTimeout(() => setMessage({ type: '', text: '' }), 5000)
   }
 
+  // Voice Input Functions
+  const startListening = (mode = 'body') => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      showMessage('error', 'Speech recognition not supported')
+      return
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    
+    recognition.continuous = false
+    recognition.interimResults = true
+    recognition.lang = 'en-US'
+
+    recognition.onstart = () => {
+      setIsListening(true)
+      setTranscript('')
+      setVoiceMode(mode)
+    }
+
+    recognition.onresult = (event) => {
+      let finalTranscript = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript
+        }
+      }
+      if (finalTranscript) {
+        setTranscript(finalTranscript)
+        // Apply to appropriate field based on mode
+        if (mode === 'to') {
+          setEmailForm(prev => ({ ...prev, to: finalTranscript }))
+        } else if (mode === 'subject') {
+          setEmailForm(prev => ({ ...prev, subject: finalTranscript }))
+        } else {
+          setEmailForm(prev => ({ ...prev, body: prev.body + ' ' + finalTranscript }))
+        }
+      }
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+    }
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error)
+      setIsListening(false)
+    }
+
+    // Auto-stop after 30 seconds
+    const timeout = setTimeout(() => {
+      recognition.stop()
+      recognition.abort()
+    }, 30000)
+    setListeningTimeout(timeout)
+
+    recognition.start()
+  }
+
+  const stopListening = () => {
+    if (listeningTimeout) {
+      clearTimeout(listeningTimeout)
+      setListeningTimeout(null)
+    }
+    try {
+      // Stop any active recognition
+      if (window.speechRecognition) {
+        window.speechRecognition.stop()
+        window.speechRecognition.abort()
+      }
+    } catch (error) {
+      console.log('Recognition already stopped')
+    }
+    
+    setIsListening(false)
+    showMessage('info', 'Voice input stopped.')
+  }
+
+  // Voice Modal Functions
+  const openVoiceModal = (mode = 'body') => {
+    setShowVoiceModal(true)
+    setVoiceModalText('')
+    setVoiceMode(mode)
+  }
+
+  const closeVoiceModal = () => {
+    setShowVoiceModal(false)
+    setVoiceModalText('')
+    if (voiceModalRecognitionRef) {
+      voiceModalRecognitionRef.stop()
+      voiceModalRecognitionRef.abort()
+    }
+  }
+
+  const startVoiceModalListening = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      showMessage('error', 'Speech recognition not supported')
+      return
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    
+    recognition.continuous = false
+    recognition.interimResults = true
+    recognition.lang = 'en-US'
+
+    recognition.onstart = () => {
+      setVoiceModalListening(true)
+    }
+
+    recognition.onresult = (event) => {
+      let finalTranscript = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript
+        }
+      }
+      if (finalTranscript) {
+        setVoiceModalText(prev => prev + finalTranscript + ' ')
+      }
+    }
+
+    recognition.onend = () => {
+      setVoiceModalListening(false)
+    }
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error)
+      setVoiceModalListening(false)
+    }
+
+    recognition.start()
+    setVoiceModalRecognitionRef(recognition)
+  }
+
+  const stopVoiceModalListening = () => {
+    if (voiceModalRecognitionRef) {
+      voiceModalRecognitionRef.stop()
+      voiceModalRecognitionRef.abort()
+      setVoiceModalListening(false)
+    }
+  }
+
+  const applyVoiceModalText = () => {
+    if (voiceModalText.trim()) {
+      if (voiceMode === 'to') {
+        setEmailForm(prev => ({ ...prev, to: voiceModalText.trim() }))
+      } else if (voiceMode === 'subject') {
+        setEmailForm(prev => ({ ...prev, subject: voiceModalText.trim() }))
+      } else {
+        setEmailForm(prev => ({ ...prev, body: voiceModalText.trim() }))
+      }
+      closeVoiceModal()
+    }
+  }
+
+  // Email Templates
+  const emailTemplatesList = [
+    {
+      name: 'Maintenance Report',
+      subject: 'Maintenance Report - {{date}}',
+      body: 'Dear {{recipient}},\n\nPlease find below the maintenance report for {{date}}:\n\n{{content}}\n\nBest regards,\n{{sender}}'
+    },
+    {
+      name: 'Equipment Issue',
+      subject: 'Equipment Issue Report - {{equipment}}',
+      body: 'Dear {{recipient}},\n\nI am reporting an issue with {{equipment}}:\n\nIssue: {{issue}}\nLocation: {{location}}\nPriority: {{priority}}\n\nPlease advise on next steps.\n\nBest regards,\n{{sender}}'
+    },
+    {
+      name: 'Work Order Request',
+      subject: 'Work Order Request - {{project}}',
+      body: 'Dear {{recipient}},\n\nI am requesting a work order for the following project:\n\nProject: {{project}}\nDescription: {{description}}\nEstimated Time: {{time}}\nMaterials Needed: {{materials}}\n\nPlease review and approve.\n\nBest regards,\n{{sender}}'
+    },
+    {
+      name: 'Safety Concern',
+      subject: 'Safety Concern Report',
+      body: 'Dear {{recipient}},\n\nI am reporting a safety concern:\n\nIssue: {{issue}}\nLocation: {{location}}\nSeverity: {{severity}}\nImmediate Action Required: {{action}}\n\nPlease address as soon as possible.\n\nBest regards,\n{{sender}}'
+    }
+  ]
+
+  const applyEmailTemplate = (template) => {
+    const today = new Date().toLocaleDateString()
+    const processedSubject = template.subject.replace('{{date}}', today)
+    const processedBody = template.body
+      .replace('{{date}}', today)
+      .replace('{{sender}}', 'Maintenance Team')
+    
+    setEmailForm(prev => ({
+      ...prev,
+      subject: processedSubject,
+      body: processedBody
+    }))
+    setShowTemplates(false)
+  }
+
+  // AI Suggestions
+  const generateAiSuggestions = async () => {
+    try {
+      const perplexityApiKey = import.meta.env.VITE_PERPLEXITY_API_KEY
+      if (!perplexityApiKey) {
+        console.log('Perplexity API key not configured')
+        return
+      }
+
+      const emailSummary = emails.map(email => ({
+        to: email.to_email,
+        subject: email.subject,
+        body: email.body,
+        sent: email.sent,
+        created_at: email.created_at
+      }))
+
+      const response = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${perplexityApiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'user',
+              content: `Analyze this email history and provide 3-5 suggestions for improving email communication, templates, or workflow. Return as JSON array with 'suggestion' and 'reason' fields. Emails: ${JSON.stringify(emailSummary)}`
+            }
+          ]
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const messageContent = data.choices[0].message.content
+        const suggestions = JSON.parse(messageContent)
+        setAiSuggestions(suggestions)
+      }
+    } catch (error) {
+      console.error('Error generating AI suggestions:', error)
+    }
+  }
+
   return (
     <div className="container">
       {message.text && (
@@ -527,7 +803,330 @@ Maintenance Team`
             )}
           </button>
         </form>
+
+        {/* Voice Input Section */}
+        <div style={{ 
+          marginTop: '1rem', 
+          padding: '1rem', 
+          backgroundColor: isListening ? 'var(--warning-color)' : 'var(--light-color)', 
+          borderRadius: '8px',
+          border: isListening ? '2px solid var(--warning-color)' : '1px solid var(--border-color)',
+          textAlign: 'center'
+        }}>
+          <h4 style={{ 
+            marginBottom: '0.5rem', 
+            color: isListening ? 'white' : 'var(--primary-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem'
+          }}>
+            <Mic size={20} />
+            Voice Input
+          </h4>
+          
+          {/* Voice Buttons */}
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => startListening('to')}
+              style={{
+                padding: '0.75rem 1rem',
+                borderRadius: '25px',
+                border: 'none',
+                backgroundColor: isListening && voiceMode === 'to' ? '#dc3545' : 'var(--primary-color)',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <Users size={16} />
+              To
+            </button>
+            
+            <button
+              onClick={() => startListening('subject')}
+              style={{
+                padding: '0.75rem 1rem',
+                borderRadius: '25px',
+                border: 'none',
+                backgroundColor: isListening && voiceMode === 'subject' ? '#dc3545' : 'var(--primary-color)',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <FileText size={16} />
+              Subject
+            </button>
+            
+            <button
+              onClick={() => startListening('body')}
+              style={{
+                padding: '0.75rem 1rem',
+                borderRadius: '25px',
+                border: 'none',
+                backgroundColor: isListening && voiceMode === 'body' ? '#dc3545' : 'var(--primary-color)',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <MessageSquare size={16} />
+              Body
+            </button>
+            
+            <button
+              onClick={openVoiceModal}
+              style={{
+                padding: '0.75rem 1rem',
+                borderRadius: '25px',
+                border: '2px solid var(--primary-color)',
+                backgroundColor: 'white',
+                color: 'var(--primary-color)',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <Mic size={16} />
+              Modal
+            </button>
+          </div>
+          
+          {/* Voice Status */}
+          {isListening && (
+            <div style={{ 
+              color: 'white', 
+              fontSize: '0.9rem',
+              marginBottom: '0.5rem',
+              textAlign: 'center',
+              fontWeight: '600'
+            }}>
+              🎤 LISTENING - Click button to stop
+            </div>
+          )}
+          
+          {/* Voice Transcript */}
+          {transcript && (
+            <div style={{ 
+              marginTop: '0.5rem',
+              padding: '0.5rem',
+              backgroundColor: 'white',
+              borderRadius: '4px',
+              fontSize: '0.9rem',
+              color: 'var(--text-color)',
+              minHeight: '40px'
+            }}>
+              <strong>You said:</strong> {transcript}
+            </div>
+          )}
+        </div>
+
+        {/* Email Templates */}
+        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--light-color)', borderRadius: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h4 style={{ color: 'var(--primary-color)', margin: 0 }}>📧 Email Templates</h4>
+            <button
+              onClick={() => setShowTemplates(!showTemplates)}
+              style={{
+                padding: '0.5rem 1rem',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: showTemplates ? 'var(--primary-color)' : 'white',
+                color: showTemplates ? 'white' : 'var(--text-color)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <FileText size={16} />
+              {showTemplates ? 'Hide Templates' : 'Show Templates'}
+            </button>
+          </div>
+          
+          {showTemplates && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+              {emailTemplatesList.map((template, index) => (
+                <button
+                  key={index}
+                  onClick={() => applyEmailTemplate(template)}
+                  style={{
+                    padding: '1rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'white',
+                    color: 'var(--text-color)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <div style={{ fontWeight: '500', marginBottom: '0.5rem' }}>{template.name}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--secondary-color)' }}>
+                    {template.subject}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* AI Suggestions */}
+        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--light-color)', borderRadius: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h4 style={{ color: 'var(--primary-color)', margin: 0 }}>🤖 AI Email Suggestions</h4>
+            <button
+              onClick={generateAiSuggestions}
+              style={{
+                padding: '0.5rem 1rem',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--primary-color)',
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <Brain size={16} />
+              Get AI Suggestions
+            </button>
+          </div>
+          
+          {aiSuggestions.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {aiSuggestions.map((suggestion, index) => (
+                <div key={index} style={{ 
+                  padding: '0.75rem', 
+                  backgroundColor: 'white', 
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  <div style={{ fontWeight: '500', marginBottom: '0.25rem' }}>{suggestion.suggestion}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--secondary-color)' }}>{suggestion.reason}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Voice Modal */}
+      {showVoiceModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '12px',
+            width: '90%',
+            maxWidth: '500px',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
+          }}>
+            <h3 style={{ marginBottom: '1rem', color: 'var(--primary-color)' }}>🎤 Voice Email Input</h3>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ marginBottom: '0.5rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: '500' }}>Mode: {voiceMode}</label>
+              </div>
+              <textarea
+                value={voiceModalText}
+                onChange={(e) => setVoiceModalText(e.target.value)}
+                placeholder="Your voice input will appear here..."
+                style={{
+                  width: '100%',
+                  minHeight: '100px',
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '0.9rem',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+            
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+              <button
+                onClick={voiceModalListening ? stopVoiceModalListening : startVoiceModalListening}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: voiceModalListening ? '#dc3545' : 'var(--primary-color)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                {voiceModalListening ? <Square size={16} /> : <Mic size={16} />}
+                {voiceModalListening ? 'Stop' : 'Start'} Recording
+              </button>
+              
+              <button
+                onClick={applyVoiceModalText}
+                disabled={!voiceModalText.trim()}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: voiceModalText.trim() ? 'var(--success-color)' : 'var(--secondary-color)',
+                  color: 'white',
+                  cursor: voiceModalText.trim() ? 'pointer' : 'not-allowed'
+                }}
+              >
+                Apply
+              </button>
+              
+              <button
+                onClick={closeVoiceModal}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'white',
+                  color: 'var(--text-color)',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Email Context Reply Section */}
       <div className="card">
@@ -578,7 +1177,7 @@ Maintenance Team`
             <div style={{ 
               padding: '1rem', 
               backgroundColor: 'var(--light-color)', 
-              border: '1px solid #ddd',
+              border: '1px solid var(--border-color)',
               borderRadius: 'var(--border-radius)',
               marginBottom: '1rem'
             }}>

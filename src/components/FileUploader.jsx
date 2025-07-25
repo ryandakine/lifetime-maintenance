@@ -7,7 +7,7 @@ import {
   File, 
   FileText, 
   Image, 
-  FileVideo, 
+  Video, // Changed from FileVideo
   Music, 
   Archive,
   CheckCircle,
@@ -24,7 +24,7 @@ import {
   Eye,
   Copy,
   Share2,
-  MoreVertical
+  MoreHorizontal
 } from 'lucide-react'
 
 const FileUploader = () => {
@@ -278,27 +278,27 @@ const FileUploader = () => {
       case 'png':
       case 'gif':
       case 'webp':
-        return <Image size={20} style={{ color: '#007BFF' }} />
+        return <Image size={20} style={{ color: 'var(--primary-color)' }} />
       case 'pdf':
-        return <FileText size={20} style={{ color: '#dc3545' }} />
+        return <FileText size={20} style={{ color: 'var(--danger-color)' }} />
       case 'doc':
       case 'docx':
-        return <FileText size={20} style={{ color: '#0066cc' }} />
+        return <FileText size={20} style={{ color: 'var(--primary-color)' }} />
       case 'xls':
       case 'xlsx':
-        return <FileText size={20} style={{ color: '#28a745' }} />
+        return <FileText size={20} style={{ color: 'var(--success-color)' }} />
       case 'mp4':
       case 'avi':
       case 'mov':
-        return <FileVideo size={20} style={{ color: '#6f42c1' }} />
+        return <Video size={20} style={{ color: 'var(--secondary-color)' }} />
       case 'mp3':
       case 'wav':
-        return <Music size={20} style={{ color: '#fd7e14' }} />
+        return <Music size={20} style={{ color: 'var(--warning-text)' }} />
       case 'zip':
       case 'rar':
-        return <Archive size={20} style={{ color: '#6c757d' }} />
+        return <Archive size={20} style={{ color: 'var(--secondary-color)' }} />
       default:
-        return <File size={20} style={{ color: '#007BFF' }} />
+        return <File size={20} style={{ color: 'var(--primary-color)' }} />
     }
   }
 
@@ -334,12 +334,12 @@ const FileUploader = () => {
     <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '1rem' }}>
       {!isOnline && (
         <div style={{
-          backgroundColor: '#fff3cd',
-          color: '#856404',
+                  backgroundColor: 'var(--warning-color)',
+        color: 'var(--dark-color)',
           padding: '1rem',
           borderRadius: '8px',
           marginBottom: '1rem',
-          border: '1px solid #ffeeba',
+          border: '1px solid var(--warning-color)',
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem'
@@ -351,15 +351,14 @@ const FileUploader = () => {
 
       {message.text && (
         <div style={{
-          backgroundColor: message.type === 'success' ? '#d4edda' : 
-                          message.type === 'warning' ? '#fff3cd' : '#f8d7da',
-          color: message.type === 'success' ? '#155724' : 
-                 message.type === 'warning' ? '#856404' : '#721c24',
+                  backgroundColor: message.type === 'success' ? 'var(--success-color)' :
+        message.type === 'warning' ? 'var(--warning-color)' : 'var(--danger-color)',
+        color: 'var(--white)',
           padding: '1rem',
           borderRadius: '8px',
           marginBottom: '1rem',
-          border: `1px solid ${message.type === 'success' ? '#c3e6cb' : 
-                               message.type === 'warning' ? '#ffeeba' : '#f5c6cb'}`,
+                  border: `1px solid ${message.type === 'success' ? 'var(--success-color)' :
+        message.type === 'warning' ? 'var(--warning-color)' : 'var(--danger-color)'}`,
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem'
@@ -397,17 +396,18 @@ const FileUploader = () => {
           onDragOver={handleDrag}
           onDrop={handleDrop}
           style={{
-            border: `2px dashed ${dragActive ? '#007BFF' : '#dee2e6'}`,
+            border: `2px dashed ${dragActive ? 'var(--primary-color)' : '#dee2e6'}`,
             borderRadius: '8px',
             padding: '3rem 2rem',
             textAlign: 'center',
-            backgroundColor: dragActive ? '#f8f9ff' : '#f8f9fa',
+            backgroundColor: dragActive ? 'var(--light-color)' : '#f8f9fa',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             position: 'relative'
           }}
           onClick={() => fileInputRef.current?.click()}
         >
+          <label htmlFor="file-upload" style={{ display: 'none' }}>Choose file to upload</label>
           <input
             ref={fileInputRef}
             type="file"
@@ -428,22 +428,22 @@ const FileUploader = () => {
                 marginBottom: '1rem',
                 animation: 'spin 1s linear infinite'
               }} aria-hidden="true" />
-              <h3 style={{ color: '#007BFF', marginBottom: '0.5rem' }}>Uploading Files...</h3>
-              <div style={{ fontSize: '0.9rem', color: '#6c757d' }}>
+              <h3 style={{ color: 'var(--primary-color)', marginBottom: '0.5rem' }}>Uploading Files...</h3>
+              <div style={{ fontSize: '0.9rem', color: 'var(--secondary-color)' }}>
                 Please wait while your files are being uploaded
               </div>
             </div>
           ) : (
             <div>
-              <Upload size={48} style={{ color: '#007BFF', marginBottom: '1rem' }} aria-hidden="true" />
-              <h3 style={{ color: '#007BFF', marginBottom: '0.5rem' }}>
+              <Upload size={48} style={{ color: 'var(--primary-color)', marginBottom: '1rem' }} aria-hidden="true" />
+              <h3 style={{ color: 'var(--primary-color)', marginBottom: '0.5rem' }}>
                 Drop files here or click to browse
               </h3>
-              <p style={{ fontSize: '0.9rem', color: '#6c757d', margin: 0 }}>
+              <p style={{ fontSize: '0.9rem', color: 'var(--secondary-color)', margin: 0 }}>
                 Supports: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, MP4, ZIP and more
               </p>
               {!isOnline && (
-                <p style={{ fontSize: '0.8rem', color: '#dc3545', marginTop: '0.5rem' }}>
+                <p style={{ fontSize: '0.8rem', color: 'var(--danger-color)', marginTop: '0.5rem' }}>
                   Upload requires internet connection
                 </p>
               )}
@@ -567,6 +567,7 @@ const FileUploader = () => {
 
         {/* Search */}
         <div style={{ marginBottom: '1.5rem' }}>
+          <label htmlFor="search-input" className="form-label" style={{marginBottom: '0.5rem', display: 'block'}}>Search Files</label>
           <div style={{ position: 'relative' }}>
             <input
               type="text"

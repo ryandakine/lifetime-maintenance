@@ -17,7 +17,15 @@ import {
   Image,
   HelpCircle,
   ArrowRight,
-  Shield
+  Shield,
+  Mic,
+  Square,
+  MessageSquare,
+  Star,
+  Tag,
+  Folder,
+  Search,
+  Filter
 } from 'lucide-react'
 
 const Photos = () => {
@@ -44,6 +52,22 @@ const Photos = () => {
     uploadMode: 'file', // 'camera' or 'file'
     uploadType: 'file' // 'camera' or 'file' for database
   })
+
+  // Voice input state
+  const [isListening, setIsListening] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [listeningTimeout, setListeningTimeout] = useState(null)
+  const [showVoiceModal, setShowVoiceModal] = useState(false)
+  const [voiceModalText, setVoiceModalText] = useState('')
+  const [voiceModalListening, setVoiceModalListening] = useState(false)
+  const [voiceModalRecognitionRef, setVoiceModalRecognitionRef] = useState(null)
+
+  // AI features state
+  const [aiSuggestions, setAiSuggestions] = useState([])
+  const [photoTags, setPhotoTags] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filteredPhotos, setFilteredPhotos] = useState([])
+  const [showAnalytics, setShowAnalytics] = useState(false)
 
   // Check camera availability on mount
   useEffect(() => {
@@ -512,7 +536,7 @@ Format your response as:
     if (analysis.includes('✅ Work Complete and Correct') || analysis.includes('✅ Complete and Correct')) {
       return <CheckCircle size={16} style={{ color: 'var(--success-color)' }} />
     } else if (analysis.includes('⚠️ Work Needs Attention') || analysis.includes('⚠️ Needs Attention')) {
-      return <AlertCircle size={16} style={{ color: 'var(--warning-color)' }} />
+      return <AlertCircle size={16} style={{ color: 'var(--warning-text)' }} />
     } else if (analysis.includes('❌ Work Incomplete') || analysis.includes('🔄 In Progress')) {
       return <Clock size={16} style={{ color: 'var(--primary-color)' }} />
     }
@@ -538,6 +562,235 @@ Format your response as:
     setMessage({ type, text })
     setTimeout(() => setMessage({ type: '', text: '' }), 5000)
   }
+
+  // Voice Input Functions
+  const startListening = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      showMessage('error', 'Speech recognition not supported')
+      return
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    
+    recognition.continuous = false
+    recognition.interimResults = true
+    recognition.lang = 'en-US'
+
+    recognition.onstart = () => {
+      setIsListening(true)
+      setTranscript('')
+    }
+
+    recognition.onresult = (event) => {
+      let finalTranscript = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript
+        }
+      }
+      if (finalTranscript) {
+        setTranscript(finalTranscript)
+        // Process voice command for photo description
+        processVoiceCommand(finalTranscript)
+      }
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+    }
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error)
+      setIsListening(false)
+    }
+
+    // Auto-stop after 30 seconds
+    const timeout = setTimeout(() => {
+      recognition.stop()
+      recognition.abort()
+    }, 30000)
+    setListeningTimeout(timeout)
+
+    recognition.start()
+  }
+
+  const stopListening = () => {
+    if (listeningTimeout) {
+      clearTimeout(listeningTimeout)
+      setListeningTimeout(null)
+    }
+    try {
+      // Stop any active recognition
+      if (window.speechRecognition) {
+        window.speechRecognition.stop()
+        window.speechRecognition.abort()
+      }
+    } catch (error) {
+      console.log('Recognition already stopped')
+    }
+    
+    setIsListening(false)
+    showMessage('info', 'Voice input stopped.')
+  }
+
+  const processVoiceCommand = (command) => {
+    const lowerCommand = command.toLowerCase()
+    
+    // Voice commands for photo descriptions
+    if (lowerCommand.includes('describe') || lowerCommand.includes('analyze')) {
+      // Add voice description to photo analysis
+      setPhotoUpload(prev => ({
+        ...prev,
+        analysis: prev.analysis + '\n\nVoice Description: ' + command
+      }))
+    } else if (lowerCommand.includes('tag') || lowerCommand.includes('label')) {
+      // Extract tags from voice command
+      const tags = command.match(/(?:tag|label)\s+(.+)/i)?.[1]?.split(/\s+and\s+|\s*,\s*/) || []
+      setPhotoTags(prev => [...prev, ...tags])
+    } else if (lowerCommand.includes('purpose')) {
+      // Set photo purpose
+      if (lowerCommand.includes('clarification')) {
+        setPhotoUpload(prev => ({ ...prev, purpose: 'clarification' }))
+      } else if (lowerCommand.includes('next steps') || lowerCommand.includes('next step')) {
+        setPhotoUpload(prev => ({ ...prev, purpose: 'next_steps' }))
+      } else if (lowerCommand.includes('verify') || lowerCommand.includes('done')) {
+        setPhotoUpload(prev => ({ ...prev, purpose: 'verify_done' }))
+      }
+    }
+  }
+
+  // Voice Modal Functions
+  const openVoiceModal = () => {
+    setShowVoiceModal(true)
+    setVoiceModalText('')
+  }
+
+  const closeVoiceModal = () => {
+    setShowVoiceModal(false)
+    setVoiceModalText('')
+    if (voiceModalRecognitionRef) {
+      voiceModalRecognitionRef.stop()
+      voiceModalRecognitionRef.abort()
+    }
+  }
+
+  const startVoiceModalListening = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      showMessage('error', 'Speech recognition not supported')
+      return
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    
+    recognition.continuous = false
+    recognition.interimResults = true
+    recognition.lang = 'en-US'
+
+    recognition.onstart = () => {
+      setVoiceModalListening(true)
+    }
+
+    recognition.onresult = (event) => {
+      let finalTranscript = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript
+        }
+      }
+      if (finalTranscript) {
+        setVoiceModalText(prev => prev + finalTranscript + ' ')
+      }
+    }
+
+    recognition.onend = () => {
+      setVoiceModalListening(false)
+    }
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error)
+      setVoiceModalListening(false)
+    }
+
+    recognition.start()
+    setVoiceModalRecognitionRef(recognition)
+  }
+
+  const stopVoiceModalListening = () => {
+    if (voiceModalRecognitionRef) {
+      voiceModalRecognitionRef.stop()
+      voiceModalRecognitionRef.abort()
+      setVoiceModalListening(false)
+    }
+  }
+
+  const applyVoiceModalText = () => {
+    if (voiceModalText.trim()) {
+      setPhotoUpload(prev => ({
+        ...prev,
+        analysis: prev.analysis + '\n\nVoice Description: ' + voiceModalText.trim()
+      }))
+      closeVoiceModal()
+    }
+  }
+
+  // AI Suggestions
+  const generateAiSuggestions = async () => {
+    try {
+      const perplexityApiKey = import.meta.env.VITE_PERPLEXITY_API_KEY
+      if (!perplexityApiKey) {
+        console.log('Perplexity API key not configured')
+        return
+      }
+
+      const photoSummary = photos.map(photo => ({
+        purpose: photo.purpose,
+        analysis: photo.analysis,
+        created_at: photo.created_at,
+        task_id: photo.task_id
+      }))
+
+      const response = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${perplexityApiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'user',
+              content: `Analyze this photo collection and provide 3-5 suggestions for improving photo organization, analysis, or workflow. Return as JSON array with 'suggestion' and 'reason' fields. Photos: ${JSON.stringify(photoSummary)}`
+            }
+          ]
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const messageContent = data.choices[0].message.content
+        const suggestions = JSON.parse(messageContent)
+        setAiSuggestions(suggestions)
+      }
+    } catch (error) {
+      console.error('Error generating AI suggestions:', error)
+    }
+  }
+
+  // Search and Filter
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredPhotos(photos)
+    } else {
+      const filtered = photos.filter(photo => 
+        photo.analysis?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        photo.purpose?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      setFilteredPhotos(filtered)
+    }
+  }, [searchQuery, photos])
 
   return (
     <div className="container">
@@ -615,8 +868,8 @@ Format your response as:
             </div>
 
             {/* Upload Mode Selection */}
-            <div className="form-group" style={{ marginBottom: '1rem' }}>
-              <label className="form-label">Upload Method</label>
+            <fieldset className="form-group" style={{ marginBottom: '1rem', border: 'none', padding: '0' }}>
+              <legend className="form-label" style={{ padding: '0', marginBottom: '0.5rem' }}>Upload Method</legend>
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                 <label style={{ 
                   display: 'flex', 
@@ -637,9 +890,10 @@ Format your response as:
                     checked={photoUpload.uploadMode === 'camera'}
                     onChange={(e) => handleUploadModeChange(e.target.value)}
                     style={{ display: 'none' }}
+                    aria-labelledby="camera-option"
                   />
-                  <Camera size={16} />
-                  Use Camera
+                  <Camera size={16} aria-hidden="true" />
+                  <span id="camera-option">Use Camera</span>
                 </label>
                 <label style={{ 
                   display: 'flex', 
@@ -660,17 +914,20 @@ Format your response as:
                     checked={photoUpload.uploadMode === 'file'}
                     onChange={(e) => handleUploadModeChange(e.target.value)}
                     style={{ display: 'none' }}
+                    aria-labelledby="file-option"
                   />
-                  <Upload size={16} />
-                  Upload File
+                  <Upload size={16} aria-hidden="true" />
+                  <span id="file-option">Upload File</span>
                 </label>
               </div>
-            </div>
+            </fieldset>
 
             {/* Purpose Selection */}
             <div className="form-group" style={{ marginBottom: '1rem' }}>
-              <label className="form-label">Analysis Purpose</label>
+              <label className="form-label" htmlFor="analysis-purpose">Analysis Purpose</label>
               <select
+                id="analysis-purpose"
+                name="analysis-purpose"
                 className="form-input"
                 value={photoUpload.purpose}
                 onChange={(e) => setPhotoUpload({...photoUpload, purpose: e.target.value})}
@@ -738,8 +995,10 @@ Format your response as:
             {/* File Upload Mode */}
             {!photoUpload.cameraMode && (
               <div className="form-group">
-                <label className="form-label">Upload Photo</label>
+                <label className="form-label" htmlFor="photo-file-upload">Upload Photo</label>
                 <input
+                  id="photo-file-upload"
+                  name="photo-file-upload"
                   type="file"
                   accept="image/*"
                   onChange={handlePhotoUpload}
@@ -920,6 +1179,268 @@ Format your response as:
           </div>
         )}
       </div>
+
+      {/* Voice Input Section */}
+      <div style={{ 
+        marginTop: '1rem', 
+        padding: '1rem', 
+        backgroundColor: isListening ? 'var(--warning-color)' : 'var(--light-color)', 
+        borderRadius: '8px',
+        border: isListening ? '2px solid var(--warning-color)' : '1px solid var(--border-color)',
+        textAlign: 'center'
+      }}>
+        <h4 style={{ 
+          marginBottom: '0.5rem', 
+          color: isListening ? 'white' : 'var(--primary-color)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem'
+        }}>
+          <Mic size={20} />
+          Voice Photo Description
+        </h4>
+        
+        {/* Voice Buttons */}
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '1rem' }}>
+          <button
+            onClick={isListening ? stopListening : startListening}
+            style={{
+              padding: '1rem 2rem',
+              borderRadius: '50px',
+              border: 'none',
+              backgroundColor: isListening ? '#dc3545' : 'var(--primary-color)',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '1.1rem',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.3s ease',
+              boxShadow: isListening ? '0 0 20px rgba(220, 53, 69, 0.5)' : '0 2px 8px rgba(0,0,0,0.1)',
+              animation: isListening ? 'pulse 2s infinite' : 'none'
+            }}
+          >
+            {isListening ? (
+              <>
+                <Square size={20} />
+                STOP LISTENING
+              </>
+            ) : (
+              <>
+                <Mic size={20} />
+                Quick Voice
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={openVoiceModal}
+            style={{
+              padding: '1rem 2rem',
+              borderRadius: '50px',
+              border: '2px solid var(--primary-color)',
+              backgroundColor: 'white',
+              color: 'var(--primary-color)',
+              cursor: 'pointer',
+              fontSize: '1.1rem',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <MessageSquare size={20} />
+            Voice Modal
+          </button>
+        </div>
+        
+        {/* Voice Status */}
+        {isListening && (
+          <div style={{ 
+            color: 'white', 
+            fontSize: '0.9rem',
+            marginBottom: '0.5rem',
+            textAlign: 'center',
+            fontWeight: '600'
+          }}>
+            🎤 LISTENING - Click "STOP LISTENING" to stop
+          </div>
+        )}
+        
+        {/* Voice Transcript */}
+        {transcript && (
+          <div style={{ 
+            marginTop: '0.5rem',
+            padding: '0.5rem',
+            backgroundColor: 'white',
+            borderRadius: '4px',
+            fontSize: '0.9rem',
+            color: 'var(--text-color)',
+            minHeight: '40px'
+          }}>
+            <strong>You said:</strong> {transcript}
+          </div>
+        )}
+      </div>
+
+      {/* Search and Filter */}
+      <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--light-color)', borderRadius: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h4 style={{ color: 'var(--primary-color)', margin: 0 }}>🔍 Search Photos</h4>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <Search size={16} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search photos by analysis or purpose..."
+              style={{
+                padding: '0.5rem',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color)',
+                fontSize: '0.9rem',
+                minWidth: '200px'
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* AI Suggestions */}
+      <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--light-color)', borderRadius: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h4 style={{ color: 'var(--primary-color)', margin: 0 }}>🤖 AI Photo Suggestions</h4>
+          <button
+            onClick={generateAiSuggestions}
+            style={{
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--primary-color)',
+              color: 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <Brain size={16} />
+            Get AI Suggestions
+          </button>
+        </div>
+        
+        {aiSuggestions.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {aiSuggestions.map((suggestion, index) => (
+              <div key={index} style={{ 
+                padding: '0.75rem', 
+                backgroundColor: 'white', 
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)'
+              }}>
+                <div style={{ fontWeight: '500', marginBottom: '0.25rem' }}>{suggestion.suggestion}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--secondary-color)' }}>{suggestion.reason}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Voice Modal */}
+      {showVoiceModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '12px',
+            width: '90%',
+            maxWidth: '500px',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
+          }}>
+            <h3 style={{ marginBottom: '1rem', color: 'var(--primary-color)' }}>🎤 Voice Photo Description</h3>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <textarea
+                value={voiceModalText}
+                onChange={(e) => setVoiceModalText(e.target.value)}
+                placeholder="Your voice input will appear here..."
+                style={{
+                  width: '100%',
+                  minHeight: '100px',
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '0.9rem',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+            
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+              <button
+                onClick={voiceModalListening ? stopVoiceModalListening : startVoiceModalListening}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: voiceModalListening ? '#dc3545' : 'var(--primary-color)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                {voiceModalListening ? <Square size={16} /> : <Mic size={16} />}
+                {voiceModalListening ? 'Stop' : 'Start'} Recording
+              </button>
+              
+              <button
+                onClick={applyVoiceModalText}
+                disabled={!voiceModalText.trim()}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: voiceModalText.trim() ? 'var(--success-color)' : 'var(--secondary-color)',
+                  color: 'white',
+                  cursor: voiceModalText.trim() ? 'pointer' : 'not-allowed'
+                }}
+              >
+                Add Description
+              </button>
+              
+              <button
+                onClick={closeVoiceModal}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'white',
+                  color: 'var(--text-color)',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         @keyframes spin {

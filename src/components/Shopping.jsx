@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase, TABLES, API_KEYS } from '../lib/supabase'
 import { 
   ShoppingCart, 
@@ -19,8 +19,25 @@ import {
   ExternalLink,
   Filter,
   List,
-  Grid
+  Grid,
+  Mic,
+  Copy,
+  Lightbulb,
+  Droplet,
+  Paintbrush,
+  Wrench,
+  HelpCircle
 } from 'lucide-react'
+
+// Add color palette for Lifetime Fitness look
+const LIFETIME_COLORS = {
+  primary: '#1a3d2f', // dark green
+  accent: '#bfc1c2',  // silver
+  background: '#f5f6f7',
+  white: '#fff',
+  black: '#222',
+  highlight: '#e6f4ea',
+}
 
 const Shopping = () => {
   console.log('Rendering Shopping')
@@ -32,6 +49,72 @@ const Shopping = () => {
   const [userInput, setUserInput] = useState('')
   const [processing, setProcessing] = useState(false)
   const [selectedTaskId, setSelectedTaskId] = useState('')
+  const [isListening, setIsListening] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const recognitionRef = useRef(null)
+  const listeningTimeoutRef = useRef(null)
+  const [activeList, setActiveList] = useState('main') // 'main' or 'misc'
+  const [mainList, setMainList] = useState([])
+  const [miscList, setMiscList] = useState([])
+  const [suggestedItems, setSuggestedItems] = useState([])
+  const [analytics, setAnalytics] = useState({})
+  const [reminder, setReminder] = useState('')
+  const [aiQuery, setAiQuery] = useState('')
+  const [aiResponse, setAiResponse] = useState('')
+  const [aiProcessing, setAiProcessing] = useState(false)
+  const [aiListening, setAiListening] = useState(false)
+  const [aiTranscript, setAiTranscript] = useState('')
+  const aiRecognitionRef = useRef(null)
+  const aiListeningTimeoutRef = useRef(null)
+  const [showVoiceModal, setShowVoiceModal] = useState(false)
+  const [voiceModalText, setVoiceModalText] = useState('')
+  const [voiceModalListening, setVoiceModalListening] = useState(false)
+  const voiceModalRecognitionRef = useRef(null)
+
+  const COMMON_ITEMS = [
+    'LED bulbs',
+    'HVAC filter',
+    'Toilet flapper',
+    'Pipe wrench',
+    'Outlet cover',
+    'Paint roller',
+    'Extension cord',
+    'Concrete patch',
+    'Caulk',
+    'Screws',
+    'Batteries',
+    'WD-40',
+    'Shop towels',
+    'Zip ties',
+    'Wire nuts'
+  ]
+
+  const CATEGORY_KEYWORDS = {
+    Electrical: ['bulb', 'outlet', 'wire', 'extension cord', 'batteries', 'switch'],
+    Plumbing: ['toilet', 'flapper', 'pipe', 'caulk'],
+    Paint: ['paint', 'roller', 'brush'],
+    Tools: ['wrench', 'screwdriver', 'zip ties'],
+    Misc: []
+  }
+  const SUGGESTIONS = {
+    'paint': ['Paint tray', 'Painter’s tape', 'Drop cloth'],
+    'toilet': ['Wax ring', 'Toilet bolts'],
+    'bulb': ['Light fixture', 'Dimmer switch'],
+    'filter': ['Replacement filter', 'Filter cleaner'],
+    'batteries': ['Battery tester'],
+    'outlet': ['Outlet cover', 'GFCI outlet'],
+    'pipe': ['Pipe tape', 'Pipe insulation'],
+    'roller': ['Paint tray liner'],
+    'wrench': ['Pipe wrench', 'Adjustable wrench'],
+  }
+
+  const CATEGORY_ICONS = {
+    Electrical: <Lightbulb size={18} style={{ marginRight: 4 }} />,
+    Plumbing: <Droplet size={18} style={{ marginRight: 4 }} />,
+    Paint: <Paintbrush size={18} style={{ marginRight: 4 }} />,
+    Tools: <Wrench size={18} style={{ marginRight: 4 }} />,
+    Misc: <HelpCircle size={18} style={{ marginRight: 4 }} />
+  }
 
   // Check online status
   useEffect(() => {
@@ -52,6 +135,22 @@ const Shopping = () => {
     loadShoppingLists()
     loadTasks()
   }, [])
+
+  // On mount, load both lists from localStorage (or Supabase in future)
+  useEffect(() => {
+    const main = JSON.parse(localStorage.getItem('shoppingList_main') || '[]')
+    const misc = JSON.parse(localStorage.getItem('shoppingList_misc') || '[]')
+    setMainList(main)
+    setMiscList(misc)
+  }, [])
+
+  // Save lists to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('shoppingList_main', JSON.stringify(mainList))
+  }, [mainList])
+  useEffect(() => {
+    localStorage.setItem('shoppingList_misc', JSON.stringify(miscList))
+  }, [miscList])
 
   // Handle voice commands
   useEffect(() => {
@@ -112,23 +211,145 @@ const Shopping = () => {
 
       if (!perplexityApiKey || perplexityApiKey === 'your-perplexity-key') {
         console.warn('Perplexity Pro API key not configured, using fallback parsing')
-        // Fallback: simple parsing without API
-        const items = userInput.split('\n').filter(line => line.trim()).map(item => ({
-          name: item,
+        // Fallback: improved parsing for quantity and brand
+        const items = userInput.split('\n').filter(line => line.trim()).map(itemLine => {
+          // Try to extract quantity and brand
+          const match = itemLine.match(/^(\d+)\s+([A-Za-z0-9\- ]+)?(.*)$/)
+          let quantity = 1
+          let name = itemLine.trim()
+          let brand = ''
+          if (match) {
+            quantity = parseInt(match[1], 10)
+            name = (match[2] + (match[3] || '')).trim()
+          } else {
+            // Try to extract brand if present (e.g., 'GE LED bulb')
+            const brandMatch = itemLine.match(/^(\w+)\s+(.+)$/)
+            if (brandMatch) {
+              brand = brandMatch[1]
+              name = brandMatch[2]
+            }
+          }
+          return {
+            name,
+            quantity,
+            brand,
           grainger_part: 'N/A',
           grainger_url: '',
           home_depot_aisle: 'N/A',
-          home_depot_url: '',
-          alternatives: [],
-          checked: false
-        }))
-        
-        await saveShoppingList(items)
-        return
+          }
+        })
+        addItemToActiveList(items)
+      } else {
+        // Use Perplexity Pro for AI parsing
+        const response = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${perplexityApiKey}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4',
+            messages: [
+              {
+                role: 'user',
+                content: `Parse the following shopping list and return it in a JSON array of objects. Each object should have 'name', 'quantity', 'brand', 'grainger_part', 'grainger_url', 'home_depot_aisle'. If a part number or URL is not available, set it to 'N/A'. For example: [{"name": "LED bulbs", "quantity": 10, "brand": "GE", "grainger_part": "123456", "grainger_url": "https://www.grainger.com/part/123456", "home_depot_aisle": "Aisle 10"}, {"name": "HVAC filter", "quantity": 2, "brand": "Honeywell", "grainger_part": "789012", "grainger_url": "https://www.grainger.com/part/789012", "home_depot_aisle": "Aisle 5"}]`
+              }
+            ]
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error(`Perplexity API error: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        const messageContent = data.choices[0].message.content
+        const parsedItems = JSON.parse(messageContent)
+        addItemToActiveList(parsedItems)
       }
+    } catch (error) {
+      console.error('Error processing voice input:', error)
+      showMessage('error', 'Failed to process voice input')
+    } finally {
+      setProcessing(false)
+    }
+  }
 
-      console.log('Processing shopping input with Perplexity Pro...')
+  const addItemToActiveList = (items) => {
+    // Auto-categorize and suggest
+    const categorized = items.map(item => {
+      let category = 'Misc'
+      for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+        if (keywords.some(k => item.name.toLowerCase().includes(k))) {
+          category = cat
+          break
+        }
+      }
+      return { ...item, category }
+    })
+    // AI suggestions
+    let suggestions = []
+    categorized.forEach(item => {
+      for (const [key, suggs] of Object.entries(SUGGESTIONS)) {
+        if (item.name.toLowerCase().includes(key)) {
+          suggestions = [...suggestions, ...suggs]
+        }
+      }
+    })
+    setSuggestedItems(suggestions)
+    // Smart reminders (if item bought >2x in last 30 days)
+    const allItems = [...mainList, ...miscList, ...categorized]
+    const freq = {}
+    allItems.forEach(i => {
+      if (!freq[i.name]) freq[i.name] = 0
+      freq[i.name]++
+    })
+    const frequent = Object.entries(freq).filter(([_, count]) => count > 2).map(([name]) => name)
+    if (frequent.length) setReminder(`Reminder: You often buy ${frequent.join(', ')}. Need again?`)
+    // Analytics
+    const completed = allItems.filter(i => i.checked).length
+    const total = allItems.length
+    const byCategory = {}
+    allItems.forEach(i => {
+      byCategory[i.category] = (byCategory[i.category] || 0) + 1
+    })
+    setAnalytics({ total, completed, byCategory })
+    // Save
+    if (activeList === 'main') {
+      setMainList(prev => [...prev, ...categorized])
+    } else {
+      setMiscList(prev => [...prev, ...categorized])
+    }
+  }
 
+  // Move item to Misc
+  const moveToMisc = (index) => {
+    const item = activeList === 'main' ? mainList[index] : miscList[index]
+    if (activeList === 'main') {
+      setMainList(mainList.filter((_, i) => i !== index))
+      setMiscList(prev => [...prev, item])
+    } else {
+      setMiscList(miscList.filter((_, i) => i !== index))
+      setMainList(prev => [...prev, item])
+    }
+  }
+
+  const showMessage = (type, text) => {
+    setMessage({ type, text })
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000)
+  }
+
+  // --- Smart Shopping Assistant handler ---
+  const handleAiQuery = async () => {
+    if (!aiQuery.trim()) return
+    setAiProcessing(true)
+    setAiResponse('')
+    // Compose a summary of purchase history
+    const allItems = [...mainList, ...miscList]
+    const history = allItems.map(i => `${i.quantity}x ${i.name} (${i.category})`).join(', ')
+    const prompt = `User asked: "${aiQuery}". Here is their shopping history: ${history}. Based on this, give a smart, concise answer. If they ask what to buy this month, suggest items they buy often, are seasonal, or are due for replacement. If they ask about low stock, infer from frequency. Reply as a helpful assistant.`
+    try {
+      const perplexityApiKey = API_KEYS.PERPLEXITY_PRO
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
@@ -136,456 +357,502 @@ const Shopping = () => {
           'Authorization': `Bearer ${perplexityApiKey}`
         },
         body: JSON.stringify({
-          model: 'llama-3.1-70b-instruct',
+          model: 'gpt-4',
           messages: [
-            {
-              role: 'system',
-              content: `You are a helpful assistant that finds Grainger part numbers and Home Depot aisle information for maintenance and repair items. Always provide accurate, specific information.`
-            },
-            {
-              role: 'user',
-              content: `Find Grainger part numbers and Home Depot aisle information for these maintenance items. Assume Home Depot store at 123 Main St, Denver, CO.
-
-Items: ${userInput}
-
-For each item, provide:
-1. Grainger part number and direct link
-2. Home Depot aisle location and direct link
-3. Alternative options (other brands/suppliers)
-
-Return as JSON:
-{
-  "items": [
-    {
-      "name": "item name",
-      "grainger_part": "part number",
-      "grainger_url": "direct link to product",
-      "home_depot_aisle": "aisle location",
-      "home_depot_url": "direct link to product",
-      "alternatives": ["alternative 1", "alternative 2"]
-    }
-  ]
-}
-
-Be specific with aisle numbers and part numbers. If exact match not found, provide closest alternative.`
-            }
-          ],
-          max_tokens: 2000,
-          temperature: 0.1
+            { role: 'system', content: 'You are a smart shopping assistant for maintenance and facility supplies.' },
+            { role: 'user', content: prompt }
+          ]
         })
       })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Perplexity API error:', response.status, errorText)
-        throw new Error(`Perplexity API error: ${response.status}`)
-      }
-
-      const result = await response.json()
-      const content = result.choices[0].message.content
-      
-      // Extract JSON from response
-      const jsonMatch = content.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) {
-        throw new Error('No valid JSON found in Perplexity response')
-      }
-
-      const parsedData = JSON.parse(jsonMatch[0])
-      console.log('Perplexity parsed shopping items:', parsedData)
-
-      if (parsedData.items && Array.isArray(parsedData.items)) {
-        // Add checked property to each item
-        const itemsWithChecked = parsedData.items.map(item => ({
-          ...item,
-          checked: false
-        }))
-        
-        await saveShoppingList(itemsWithChecked)
-      } else {
-        throw new Error('Invalid item structure from Perplexity')
-      }
-
-    } catch (error) {
-      console.error('Error processing shopping input:', error)
-      showMessage('error', 'Failed to process input. Using fallback parsing.')
-      
-      // Fallback: simple parsing
-      const items = userInput.split('\n').filter(line => line.trim()).map(item => ({
-        name: item,
-        grainger_part: 'N/A',
-        grainger_url: '',
-        home_depot_aisle: 'N/A',
-        home_depot_url: '',
-        alternatives: [],
-        checked: false
-      }))
-      
-      await saveShoppingList(items)
+      if (!response.ok) throw new Error('AI API error')
+      const data = await response.json()
+      setAiResponse(data.choices[0].message.content)
+    } catch (e) {
+      setAiResponse('Sorry, I could not process your request.')
     } finally {
-      setProcessing(false)
-      setUserInput('')
+      setAiProcessing(false)
     }
   }
 
-  const saveShoppingList = async (items) => {
-    try {
-      const { error } = await supabase
-        .from(TABLES.SHOPPING_LISTS)
-        .insert({
-          user_id: 'current-user',
-          task_id: selectedTaskId || null,
-          items_json: items,
-          store_address: '123 Main St, Denver, CO',
-          created_at: new Date().toISOString()
-        })
+  // Voice input for Smart Shopping Assistant
+  const startAiListening = () => {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      alert('Speech Recognition not supported in this browser.')
+      return
+    }
+    
+    // Stop any existing recognition first
+    if (aiRecognitionRef.current) {
+      aiRecognitionRef.current.stop()
+      aiRecognitionRef.current.abort()
+    }
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'en-US'
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+    recognition.continuous = false
+    
+    recognition.onresult = (event) => {
+      const text = event.results[0][0].transcript
+      setAiTranscript(text)
+      setAiQuery(text)
+      stopAiListening() // Auto-stop after getting result
+    }
+    
+    recognition.onend = () => {
+      setAiListening(false)
+      if (aiListeningTimeoutRef.current) {
+        clearTimeout(aiListeningTimeoutRef.current)
+        aiListeningTimeoutRef.current = null
+      }
+    }
+    
+    recognition.onerror = (event) => {
+      console.log('Speech recognition error:', event.error)
+      setAiListening(false)
+      if (aiListeningTimeoutRef.current) {
+        clearTimeout(aiListeningTimeoutRef.current)
+        aiListeningTimeoutRef.current = null
+      }
+    }
+    
+    recognition.onstart = () => {
+      setAiListening(true)
+      // Auto-stop after 30 seconds
+      aiListeningTimeoutRef.current = setTimeout(() => {
+        stopAiListening()
+      }, 30000)
+    }
+    
+    aiRecognitionRef.current = recognition
+    recognition.start()
+  }
 
-      if (error) throw error
-
-      console.log(`Shopping list generated with ${items.length} items`)
-      showMessage('success', `Shopping list created with ${items.length} items`)
-      
-      await loadShoppingLists()
-    } catch (error) {
-      console.error('Error saving shopping list:', error)
-      showMessage('error', 'Failed to save shopping list')
+  const stopAiListening = () => {
+    if (aiRecognitionRef.current) {
+      try {
+        aiRecognitionRef.current.stop()
+        aiRecognitionRef.current.abort()
+      } catch (e) {
+        console.log('Error stopping recognition:', e)
+      }
+      aiRecognitionRef.current = null
+    }
+    setAiListening(false)
+    if (aiListeningTimeoutRef.current) {
+      clearTimeout(aiListeningTimeoutRef.current)
+      aiListeningTimeoutRef.current = null
     }
   }
 
-  const updateItemChecked = async (listId, itemIndex, checked) => {
-    try {
-      const list = shoppingLists.find(l => l.id === listId)
-      if (!list) return
+  // Voice input logic
+  const startListening = () => {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      alert('Speech Recognition not supported in this browser.')
+      return
+    }
+    
+    // Stop any existing recognition first
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
+      recognitionRef.current.abort()
+    }
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'en-US'
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+    recognition.continuous = false
+    
+    recognition.onresult = (event) => {
+      const text = event.results[0][0].transcript
+      setTranscript(text)
+      setUserInput(userInput ? userInput + '\n' + text : text)
+      stopListening() // Auto-stop after getting result
+    }
+    
+    recognition.onend = () => {
+      setIsListening(false)
+      if (listeningTimeoutRef.current) {
+        clearTimeout(listeningTimeoutRef.current)
+        listeningTimeoutRef.current = null
+      }
+    }
+    
+    recognition.onerror = (event) => {
+      console.log('Speech recognition error:', event.error)
+      setIsListening(false)
+      if (listeningTimeoutRef.current) {
+        clearTimeout(listeningTimeoutRef.current)
+        listeningTimeoutRef.current = null
+      }
+    }
+    
+    recognition.onstart = () => {
+      setIsListening(true)
+      // Auto-stop after 30 seconds
+      listeningTimeoutRef.current = setTimeout(() => {
+        stopListening()
+      }, 30000)
+    }
+    
+    recognitionRef.current = recognition
+    recognition.start()
+  }
 
-      const updatedItems = [...list.items_json]
-      updatedItems[itemIndex].checked = checked
-
-      const { error } = await supabase
-        .from(TABLES.SHOPPING_LISTS)
-        .update({ items_json: updatedItems })
-        .eq('id', listId)
-
-      if (error) throw error
-
-      setShoppingLists(shoppingLists.map(l => 
-        l.id === listId ? { ...l, items_json: updatedItems } : l
-      ))
-      
-      console.log(`Item ${itemIndex} ${checked ? 'checked' : 'unchecked'} in list ${listId}`)
-    } catch (error) {
-      console.error('Error updating item checked status:', error)
-      showMessage('error', 'Failed to update item status')
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop()
+        recognitionRef.current.abort()
+      } catch (e) {
+        console.log('Error stopping recognition:', e)
+      }
+      recognitionRef.current = null
+    }
+    setIsListening(false)
+    if (listeningTimeoutRef.current) {
+      clearTimeout(listeningTimeoutRef.current)
+      listeningTimeoutRef.current = null
     }
   }
 
-  const deleteShoppingList = async (listId) => {
-    try {
-      const { error } = await supabase
-        .from(TABLES.SHOPPING_LISTS)
-        .delete()
-        .eq('id', listId)
+  // Custom voice modal functions
+  const openVoiceModal = () => {
+    setShowVoiceModal(true)
+    setVoiceModalText('')
+    setVoiceModalListening(false)
+  }
 
-      if (error) throw error
-
-      setShoppingLists(shoppingLists.filter(list => list.id !== listId))
-      console.log(`Shopping list ${listId} deleted`)
-      showMessage('success', 'Shopping list deleted')
-    } catch (error) {
-      console.error('Error deleting shopping list:', error)
-      showMessage('error', 'Failed to delete shopping list')
+  const closeVoiceModal = () => {
+    setShowVoiceModal(false)
+    if (voiceModalRecognitionRef.current) {
+      voiceModalRecognitionRef.current.stop()
+      voiceModalRecognitionRef.current.abort()
     }
+    setVoiceModalListening(false)
   }
 
-  const getCheckedCount = (items) => {
-    return items.filter(item => item.checked).length
+  const startVoiceModalListening = () => {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      alert('Speech Recognition not supported in this browser.')
+      return
+    }
+    
+    if (voiceModalRecognitionRef.current) {
+      voiceModalRecognitionRef.current.stop()
+      voiceModalRecognitionRef.current.abort()
+    }
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'en-US'
+    recognition.interimResults = true
+    recognition.maxAlternatives = 1
+    recognition.continuous = false
+    
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map(result => result[0])
+        .map(result => result.transcript)
+        .join('')
+      setVoiceModalText(transcript)
+    }
+    
+    recognition.onend = () => {
+      setVoiceModalListening(false)
+      // Auto-focus the text area for editing after speaking
+      setTimeout(() => {
+        const textArea = document.getElementById('voice-modal-textarea')
+        if (textArea) textArea.focus()
+      }, 100)
+    }
+    
+    recognition.onerror = (event) => {
+      console.log('Voice modal error:', event.error)
+      setVoiceModalListening(false)
+    }
+    
+    recognition.onstart = () => {
+      setVoiceModalListening(true)
+      setVoiceModalText('') // Clear previous text when starting
+    }
+    
+    voiceModalRecognitionRef.current = recognition
+    recognition.start()
   }
 
-  const getTotalCount = (items) => {
-    return items.length
+  const stopVoiceModalListening = () => {
+    if (voiceModalRecognitionRef.current) {
+      voiceModalRecognitionRef.current.stop()
+      voiceModalRecognitionRef.current.abort()
+    }
+    setVoiceModalListening(false)
   }
 
-  const showMessage = (type, text) => {
-    setMessage({ type, text })
-    setTimeout(() => setMessage({ type: '', text: '' }), 5000)
+  const applyVoiceModalText = () => {
+    if (voiceModalText.trim()) {
+      setUserInput(userInput ? userInput + '\n' + voiceModalText : voiceModalText)
+    }
+    closeVoiceModal()
   }
 
   return (
-    <div className="container">
-      {!isOnline && (
-        <div className="offline-alert">
-          ⚠️ You are currently offline. Some features may not work properly.
+    <div className="shopping-container">
+      <h1>Shopping List</h1>
+      <div style={{ marginBottom: 24, padding: 16, background: LIFETIME_COLORS.background, borderRadius: 16, boxShadow: '0 2px 12px #bfc1c2', border: `1px solid ${LIFETIME_COLORS.accent}` }}>
+        <h2 style={{ marginBottom: 8, color: LIFETIME_COLORS.primary, fontWeight: 800 }}>Smart Shopping Assistant</h2>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="Ask e.g. 'What should I buy this month?'"
+            value={aiQuery}
+            onChange={e => setAiQuery(e.target.value)}
+            style={{ flex: 1, padding: 12, borderRadius: 12, border: `1.5px solid ${LIFETIME_COLORS.accent}`, fontSize: 18, background: LIFETIME_COLORS.white, color: LIFETIME_COLORS.black, boxShadow: '0 1px 4px #e6f4ea' }}
+            onKeyDown={e => { if (e.key === 'Enter') handleAiQuery() }}
+          />
+          <button
+            onClick={aiListening ? stopAiListening : startAiListening}
+            style={{
+              background: aiListening ? LIFETIME_COLORS.primary : LIFETIME_COLORS.accent,
+              color: aiListening ? LIFETIME_COLORS.white : LIFETIME_COLORS.primary,
+              border: 'none',
+              borderRadius: '50%',
+              width: 44,
+              height: 44,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: aiListening ? `0 0 8px 2px ${LIFETIME_COLORS.primary}` : 'none',
+              animation: aiListening ? 'pulse 1s infinite' : 'none',
+              cursor: 'pointer',
+              outline: 'none',
+              transition: 'all 0.2s'
+            }}
+            title={aiListening ? 'Stop Listening' : 'Start Voice Input'}
+          >
+            {aiListening ? <Square size={24} /> : <Mic size={24} />}
+          </button>
+          <button onClick={handleAiQuery} disabled={aiProcessing} style={{ padding: '12px 24px', borderRadius: 12, background: LIFETIME_COLORS.primary, color: LIFETIME_COLORS.white, border: 'none', fontWeight: 700, fontSize: 18, boxShadow: '0 1px 4px #bfc1c2' }}>
+            {aiProcessing ? 'Thinking...' : 'Ask AI'}
+          </button>
+        </div>
+        {aiListening && <span style={{ color: LIFETIME_COLORS.primary, fontWeight: 600, marginLeft: 8 }}>Listening...</span>}
+        {aiTranscript && !aiListening && (
+          <span style={{ color: LIFETIME_COLORS.primary, marginLeft: 8 }}>Heard: "{aiTranscript}"</span>
+        )}
+        {aiResponse && <div style={{ marginTop: 16, color: LIFETIME_COLORS.primary, background: LIFETIME_COLORS.highlight, padding: 14, borderRadius: 10, fontSize: 17, fontWeight: 500 }}>{aiResponse}</div>}
+      </div>
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+        <button onClick={() => setActiveList('main')} style={{ fontWeight: activeList === 'main' ? 'bold' : 'normal' }}>Main List</button>
+        <button onClick={() => setActiveList('misc')} style={{ fontWeight: activeList === 'misc' ? 'bold' : 'normal' }}>Misc List</button>
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <h3>Shopping Analytics</h3>
+        <div>Total items: {analytics.total || 0}</div>
+        <div>Completed: {analytics.completed || 0}</div>
+        <div>By Category: {Object.entries(analytics.byCategory || {}).map(([cat, n]) => `${cat}: ${n}`).join(', ')}</div>
+        {reminder && <div style={{ color: 'orange', fontWeight: 600 }}>{reminder}</div>}
+      </div>
+      <div className="shopping-list-container">
+        {Object.entries((activeList === 'main' ? mainList : miscList).reduce((acc, item) => {
+          acc[item.category] = acc[item.category] || []
+          acc[item.category].push(item)
+          return acc
+        }, {})).map(([cat, items]) => (
+          <div key={cat} style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', fontWeight: 700, fontSize: 18, marginBottom: 4 }}>
+              {CATEGORY_ICONS[cat] || null}{cat}
+        </div>
+            {items.map((item, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f1f5f9', borderRadius: 6, padding: 6, marginBottom: 2 }}>
+                <span>{item.quantity}x {item.name}</span>
+                {item.brand && <span>({item.brand})</span>}
+                {item.grainger_part && (
+                  <a href={item.grainger_url} target="_blank" rel="noopener noreferrer" title="View on Grainger">
+                    <Store size={16} />
+                  </a>
+                )}
+                {item.home_depot_aisle && (
+                  <a href={`https://www.homedepot.com/s/search?q=${item.name}`} target="_blank" rel="noopener noreferrer" title="View on Home Depot">
+                    <MapPin size={16} />
+                  </a>
+                )}
+                {activeList === 'main' && (
+                  <button onClick={() => moveToMisc(idx)} title="Move to Misc" style={{ marginLeft: 8 }}>
+                    Move to Misc
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        ))}
+        </div>
+
+      <div className="input-section">
+        <h2>Add Items</h2>
+        <div className="input-group">
+          <input
+            type="text"
+            placeholder={`Add item to ${activeList} list (e.g., "10x LED bulbs")`}
+            value={userInput}
+            onChange={(e) => setUserInput(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                processShoppingInput()
+              }
+            }}
+          />
+          <button
+            onClick={openVoiceModal}
+            style={{
+              background: LIFETIME_COLORS.accent,
+              color: LIFETIME_COLORS.primary,
+              border: 'none',
+              borderRadius: '50%',
+              width: 40,
+              height: 40,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              outline: 'none',
+              transition: 'all 0.2s'
+            }}
+            title="Voice Input"
+          >
+            <Mic size={20} />
+          </button>
+          <button onClick={processShoppingInput} disabled={processing}>
+            {processing ? <Loader className="loader" /> : <Plus />}
+          </button>
+        </div>
+      </div>
+      {suggestedItems.length > 0 && (
+        <div style={{ marginTop: 16, background: '#f6f6f6', padding: 12, borderRadius: 8 }}>
+          <b>AI Suggestions:</b> {suggestedItems.join(', ')}
         </div>
       )}
 
       {message.text && (
-        <div className={`message ${message.type}`}>
+        <div className={`message-box ${message.type}`}>
           {message.text}
         </div>
       )}
-
-      {/* Shopping Input Section */}
-      <div className="card">
-        <h3>Generate Shopping List</h3>
-        <p style={{ color: 'var(--secondary-color)', marginBottom: '1rem' }}>
-          Describe what you need to fix or maintain, and I'll find Grainger part numbers and Home Depot aisle information.
-        </p>
-        
-        <div className="form-group">
-          <label className="form-label" htmlFor="task-select">Link to Task (optional)</label>
-          <select
-            id="task-select"
-            name="task-select"
-            className="form-input"
-            value={selectedTaskId}
-            onChange={(e) => setSelectedTaskId(e.target.value)}
-          >
-            <option value="">Select a task...</option>
-            {tasks.map(task => (
-              <option key={task.id} value={task.id}>
-                {task.task_list} ({task.status})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label className="form-label" htmlFor="shopping-input">What do you need to fix or maintain?</label>
-          <textarea
-            id="shopping-input"
-            name="shopping-input"
-            className="form-input"
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            placeholder="Example: Fix concrete cracks, replace light bulbs, repair HVAC filter"
-            rows={4}
-            disabled={processing}
-          />
-        </div>
-
-        <button
-          className="btn"
-          onClick={processShoppingInput}
-          disabled={!userInput.trim() || processing}
-          title="Find parts and aisles"
-          aria-label="Find parts and aisles"
-        >
-          {processing ? (
-            <>
-              <Loader size={16} style={{ marginRight: '0.5rem', animation: 'spin 1s linear infinite' }} aria-hidden="true" />
-              Searching for parts...
-            </>
-          ) : (
-            <>
-              <Search size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
-              Find Parts & Aisles
-            </>
-          )}
-        </button>
-
-        {/* Store Information */}
-        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--light-color)', borderRadius: '8px' }}>
-          <h4 style={{ marginBottom: '0.5rem', color: 'var(--primary-color)' }}>
-            <Store size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
-            Store Information
-          </h4>
-          <div style={{ fontSize: '0.9rem', color: 'var(--secondary-color)' }}>
-            <div><strong>Home Depot:</strong> 123 Main St, Denver, CO</div>
-            <div><strong>Grainger:</strong> Online parts lookup with direct links</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Shopping Lists */}
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h3>Shopping Lists</h3>
-          <button
-            className="btn btn-secondary"
-            onClick={loadShoppingLists}
-            disabled={loading}
-            title="Refresh shopping lists"
-            aria-label="Refresh shopping lists"
-          >
-            <RotateCcw size={16} style={{ marginRight: '0.5rem' }} aria-hidden="true" />
-            Refresh
-          </button>
-        </div>
-        
-        {loading && shoppingLists.length === 0 ? (
-          <div className="loading">Loading shopping lists...</div>
-        ) : shoppingLists.length === 0 ? (
-          <p style={{ textAlign: 'center', color: 'var(--secondary-color)' }}>
-            No shopping lists yet. Generate one above to get started!
-          </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {shoppingLists.map(list => {
-              const linkedTask = tasks.find(t => t.id === list.task_id)
-              const checkedCount = getCheckedCount(list.items_json)
-              const totalCount = getTotalCount(list.items_json)
-              
-              return (
-                <div key={list.id} style={{ 
-                  border: '1px solid var(--border-color)', 
-                  borderRadius: '8px', 
-                  padding: '1rem',
-                  backgroundColor: 'var(--light-color)'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                        <ShoppingCart size={16} style={{ color: 'var(--primary-color)' }} />
-                        <span style={{ fontWeight: '600', color: 'var(--primary-color)' }}>
-                          Shopping List
-                        </span>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--secondary-color)' }}>
-                          {new Date(list.created_at).toLocaleDateString()}
-                        </span>
-                        <span style={{ 
+      {showVoiceModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
                           display: 'flex', 
                           alignItems: 'center', 
-                          gap: '0.25rem',
-                          fontSize: '0.8rem', 
-                          marginLeft: '0.5rem',
-                          padding: '0.25rem 0.5rem',
-                          backgroundColor: checkedCount === totalCount ? 'var(--success-color)' : 'var(--warning-color)',
-                          color: 'white',
-                          borderRadius: '4px'
-                        }}>
-                          {checkedCount === totalCount ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
-                          {checkedCount}/{totalCount} items
-                        </span>
-                      </div>
-                      
-                      {linkedTask && (
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
                         <div style={{ 
-                          fontSize: '0.9rem', 
-                          color: 'var(--primary-color)',
-                          marginBottom: '0.5rem'
-                        }}>
-                          📋 Linked to: {linkedTask.task_list}
-                        </div>
-                      )}
-                    </div>
-                    
+            background: LIFETIME_COLORS.white,
+            padding: 24,
+            borderRadius: 16,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            maxWidth: 500,
+            width: '90%',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ color: LIFETIME_COLORS.primary, marginBottom: 16 }}>Voice Input</h3>
+            
+            <div style={{ marginBottom: 16 }}>
                     <button
-                      className="btn btn-danger"
-                      onClick={() => deleteShoppingList(list.id)}
-                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                      title="Delete shopping list"
-                      aria-label="Delete shopping list"
-                    >
-                      <Trash2 size={14} aria-hidden="true" />
-                    </button>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {list.items_json.map((item, index) => (
-                      <div key={index} style={{ 
-                        display: 'flex', 
-                        alignItems: 'flex-start', 
-                        gap: '1rem',
-                        padding: '0.75rem',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '6px',
-                        backgroundColor: 'white',
-                        opacity: item.checked ? 0.7 : 1,
-                        transition: 'all 0.2s ease'
-                      }}>
-                        {/* Checkbox */}
-                        <button
-                          onClick={() => updateItemChecked(list.id, index, !item.checked)}
-                          title={item.checked ? 'Mark as not got' : 'Mark as got'}
-                          aria-label={item.checked ? 'Mark as not got' : 'Mark as got'}
+                onClick={voiceModalListening ? stopVoiceModalListening : startVoiceModalListening}
                           style={{
-                            background: 'none',
+                  background: voiceModalListening ? LIFETIME_COLORS.primary : LIFETIME_COLORS.accent,
+                  color: voiceModalListening ? LIFETIME_COLORS.white : LIFETIME_COLORS.primary,
                             border: 'none',
+                  borderRadius: '50%',
+                  width: 60,
+                  height: 60,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto',
+                  boxShadow: voiceModalListening ? `0 0 12px 4px ${LIFETIME_COLORS.primary}` : 'none',
+                  animation: voiceModalListening ? 'pulse 1s infinite' : 'none',
                             cursor: 'pointer',
-                            padding: '0.25rem',
-                            borderRadius: '4px',
-                            color: item.checked ? 'var(--success-color)' : 'var(--secondary-color)',
-                            transition: 'all 0.2s ease',
-                            marginTop: '0.25rem'
-                          }}
-                        >
-                          {item.checked ? <CheckSquare size={20} aria-hidden="true" /> : <Square size={20} aria-hidden="true" />}
+                  outline: 'none',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {voiceModalListening ? <Square size={30} /> : <Mic size={30} />}
                         </button>
-
-                        {/* Item Content */}
-                        <div style={{ flex: 1 }}>
-                          <div style={{ 
-                            textDecoration: item.checked ? 'line-through' : 'none',
-                            color: item.checked ? 'var(--secondary-color)' : 'var(--text-color)',
-                            fontWeight: '500',
-                            marginBottom: '0.5rem'
-                          }}>
-                            {item.name}
+              <p style={{ marginTop: 8, color: LIFETIME_COLORS.primary, fontWeight: 600 }}>
+                {voiceModalListening ? 'Listening... Click to stop' : 'Click to start speaking'}
+              </p>
                           </div>
                           
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
-                            {/* Grainger Info */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <Package size={12} style={{ color: 'var(--primary-color)' }} aria-hidden="true" />
-                              <span style={{ color: 'var(--secondary-color)' }}>Grainger:</span>
-                              <span style={{ fontWeight: '500' }}>{item.grainger_part}</span>
-                              {item.grainger_url && (
-                                <a 
-                                  href={item.grainger_url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  style={{ color: 'var(--primary-color)', textDecoration: 'none' }}
-                                  title="View on Grainger website"
-                                  aria-label="View on Grainger website"
-                                >
-                                  <ExternalLink size={12} aria-hidden="true" />
-                                </a>
-                              )}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', textAlign: 'left', marginBottom: 8, color: LIFETIME_COLORS.primary, fontWeight: 600 }}>
+                Edit your text:
+              </label>
+              <textarea
+                id="voice-modal-textarea"
+                value={voiceModalText}
+                onChange={(e) => setVoiceModalText(e.target.value)}
+                placeholder="Speak to add items to your shopping list..."
+                style={{
+                  width: '100%',
+                  minHeight: 100,
+                  padding: 12,
+                  borderRadius: 8,
+                  border: `1.5px solid ${LIFETIME_COLORS.accent}`,
+                  fontSize: 16,
+                  fontFamily: 'inherit',
+                  resize: 'vertical',
+                  background: LIFETIME_COLORS.white,
+                  color: LIFETIME_COLORS.black
+                }}
+              />
                             </div>
                             
-                            {/* Home Depot Info */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <MapPin size={12} style={{ color: 'var(--primary-color)' }} aria-hidden="true" />
-                              <span style={{ color: 'var(--secondary-color)' }}>Home Depot:</span>
-                              <span style={{ fontWeight: '500' }}>{item.home_depot_aisle}</span>
-                              {item.home_depot_url && (
-                                <a 
-                                  href={item.home_depot_url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  style={{ color: 'var(--primary-color)', textDecoration: 'none' }}
-                                  title="View on Home Depot website"
-                                  aria-label="View on Home Depot website"
-                                >
-                                  <ExternalLink size={12} aria-hidden="true" />
-                                </a>
-                              )}
-                            </div>
-                            
-                            {/* Alternatives */}
-                            {item.alternatives && item.alternatives.length > 0 && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <Filter size={12} style={{ color: 'var(--secondary-color)' }} aria-hidden="true" />
-                                <span style={{ color: 'var(--secondary-color)' }}>Alternatives:</span>
-                                <span style={{ fontSize: '0.75rem' }}>{item.alternatives.join(', ')}</span>
-                              </div>
-                            )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button
+                onClick={closeVoiceModal}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  border: `1px solid ${LIFETIME_COLORS.accent}`,
+                  background: LIFETIME_COLORS.white,
+                  color: LIFETIME_COLORS.primary,
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={applyVoiceModalText}
+                disabled={!voiceModalText.trim()}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  background: LIFETIME_COLORS.primary,
+                  color: LIFETIME_COLORS.white,
+                  border: 'none',
+                  cursor: voiceModalText.trim() ? 'pointer' : 'not-allowed',
+                  opacity: voiceModalText.trim() ? 1 : 0.5,
+                  fontWeight: 600
+                }}
+              >
+                Add to List
+              </button>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
           </div>
         )}
-      </div>
-
-      <style jsx>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   )
 }

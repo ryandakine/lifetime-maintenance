@@ -13,7 +13,7 @@ const WorkoutTracker = () => {
 
   return (
     <div style={{ padding: '2rem', maxWidth: 500, margin: '0 auto' }}>
-      <h2 style={{ color: '#007BFF' }}>Workout Tracker</h2>
+      <h2 style={{ color: 'var(--primary-color)' }}>Workout Tracker</h2>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1rem' }}>
           <label htmlFor="workout-type">Workout Type</label>
@@ -49,7 +49,7 @@ const WorkoutTracker = () => {
             style={{ width: '100%', padding: '0.5rem' }}
           />
         </div>
-        <button type="submit" style={{ background: '#007BFF', color: 'white', padding: '0.75rem 1.5rem', border: 'none', borderRadius: 4 }} aria-label="Save workout">
+        <button type="submit" style={{ background: 'var(--primary-color)', color: 'white', padding: '0.75rem 1.5rem', border: 'none', borderRadius: 4 }} aria-label="Save workout">
           Save
         </button>
       </form>

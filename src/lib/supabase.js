@@ -47,7 +47,13 @@ export const TABLES = {
   SHOPPING_LISTS: 'shopping_lists',
   EMAILS: 'emails',
   KNOWLEDGE: 'knowledge',
-  PROJECTS: 'projects'
+  PROJECTS: 'projects',
+  PHOTOS: 'photos',
+  // Off-days tables
+  MONETARY_GOALS: 'monetary_goals',
+  GOALS: 'goals',
+  WORKOUTS: 'workouts',
+  SPIRITUAL: 'spiritual'
 }
 
 // Task status constants
@@ -59,9 +65,10 @@ export const TASK_STATUS = {
 
 // API Keys (placeholder - replace with actual keys)
 export const API_KEYS = {
-  PERPLEXITY_PRO: import.meta.env.VITE_PERPLEXITY_API_KEY || 'your-perplexity-key',
-  CLAUDE_API: import.meta.env.VITE_ANTHROPIC_API_KEY || 'sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+  PERPLEXITY_API_KEY: import.meta.env.VITE_PERPLEXITY_API_KEY || 'your-perplexity-key',
+  CLAUDE_API_KEY: import.meta.env.VITE_ANTHROPIC_API_KEY || 'sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
   ANTHROPIC: import.meta.env.VITE_ANTHROPIC_API_KEY || 'your-anthropic-key',
-  GROK_PRO: import.meta.env.VITE_GROK_API_KEY || 'your-grok-key',
-  RESEND: import.meta.env.VITE_RESEND_API_KEY || 're_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+  GROK_API_KEY: import.meta.env.VITE_GROK_API_KEY || 'your-grok-key',
+  RESEND: import.meta.env.VITE_RESEND_API_KEY || 're_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+  GITHUB_TOKEN: import.meta.env.VITE_GITHUB_TOKEN || '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'
 } 

@@ -2,8 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-console.log('🚀 Vite config loaded')
-
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
@@ -12,48 +11,52 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       },
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Lifetime Maintenance PWA',
-        short_name: 'Lifetime Maint',
-        description: 'Lifetime Fitness Maintenance Management',
-        theme_color: '#007BFF',
-        background_color: '#ffffff',
+        name: 'Lifetime Maintenance',
+        short_name: 'Lifetime Maintenance',
+        description: 'AI-powered maintenance management system for Lifetime Fitness',
+        theme_color: '#1a3d2f',
+        background_color: '#f5f6f7',
         display: 'standalone',
+        orientation: 'portrait-primary',
         icons: [
-          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' }
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
         ]
       }
     })
   ],
-  server: {
-    port: 5174,
-    open: true,
-    hmr: {
-      overlay: false // Disable HMR overlay to prevent blocking
-    },
-    // Log server start
-    configureServer(server) {
-      server.httpServer?.on('listening', () => {
-        const address = server.httpServer.address()
-        const port = typeof address === 'object' && address ? address.port : 'unknown'
-        console.log(`🚀 Vite dev server started on port: ${port}`)
-        console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`)
-        console.log(`⚙️ Port: ${port}`)
-      })
-    }
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.js',
+    css: true,
   },
-  define: {
-    // Add development logging hook
-    __DEV_SERVER_START__: JSON.stringify(new Date().toISOString())
+  server: {
+    host: true,
+    port: 5174,
   },
   build: {
+    outDir: 'dist',
+    sourcemap: true,
     rollupOptions: {
-      onwarn(warning, warn) {
-        // Suppress certain warnings that might cause issues
-        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return
-        warn(warning)
-      }
-    }
-  }
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          redux: ['@reduxjs/toolkit', 'react-redux'],
+          ui: ['lucide-react'],
+          utils: ['date-fns'],
+        },
+      },
+    },
+  },
 }) 
