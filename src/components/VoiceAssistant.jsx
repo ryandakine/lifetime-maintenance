@@ -39,7 +39,10 @@ const VoiceAssistant = () => {
   const [profile, setProfile] = useState(null)
   const [messageCount, setMessageCount] = useState(0)
   const [showMemoryManager, setShowMemoryManager] = useState(false)
-  const [memoryEdit, setMemoryEdit] = useState({ index: null, text: '', role: 'user' })
+  // Update memoryEdit state to include pinned and tags
+  const [memoryEdit, setMemoryEdit] = useState({ index: null, text: '', role: 'user', pinned: false, tags: [] })
+  const [searchTerm, setSearchTerm] = useState('')
+  const [tagFilter, setTagFilter] = useState('')
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
@@ -358,19 +361,31 @@ const VoiceAssistant = () => {
   // Memory management functions
   function openMemoryManager() { setShowMemoryManager(true) }
   function closeMemoryManager() { setShowMemoryManager(false); setMemoryEdit({ index: null, text: '', role: 'user' }) }
-  function startEditMemory(i, msg) { setMemoryEdit({ index: i, text: msg.text, role: msg.role }) }
+  // Update memoryEdit state to include pinned and tags
+  function startEditMemory(i, msg) {
+    setMemoryEdit({
+      index: i,
+      text: msg.text,
+      role: msg.role,
+      pinned: msg.pinned || false,
+      tags: msg.tags || []
+    })
+  }
   function cancelEditMemory() { setMemoryEdit({ index: null, text: '', role: 'user' }) }
   async function saveEditMemory() {
-    // Update in state
     setChatLogs(logs => {
       const updated = [...logs[currentContext]]
-      updated[memoryEdit.index] = { ...updated[memoryEdit.index], text: memoryEdit.text }
+      updated[memoryEdit.index] = {
+        ...updated[memoryEdit.index],
+        text: memoryEdit.text,
+        pinned: memoryEdit.pinned,
+        tags: memoryEdit.tags
+      }
       return { ...logs, [currentContext]: updated }
     })
-    // Update in Supabase
-    const { data, error } = await supabase
+    await supabase
       .from('chat_logs')
-      .update({ text: memoryEdit.text })
+      .update({ text: memoryEdit.text, pinned: memoryEdit.pinned, tags: memoryEdit.tags })
       .match({ user_id: userId, context: currentContext, role: memoryEdit.role, text: chatLogs[currentContext][memoryEdit.index].text })
     cancelEditMemory()
   }
@@ -398,6 +413,45 @@ const VoiceAssistant = () => {
       text: memoryEdit.text
     })
     cancelEditMemory()
+  }
+  // Update memory management functions for pinning and tags
+  async function togglePinMemory(i) {
+    const msg = chatLogs[currentContext][i]
+    setChatLogs(logs => {
+      const updated = [...logs[currentContext]]
+      updated[i] = { ...updated[i], pinned: !updated[i].pinned }
+      return { ...logs, [currentContext]: updated }
+    })
+    await supabase
+      .from('chat_logs')
+      .update({ pinned: !msg.pinned })
+      .match({ user_id: userId, context: currentContext, role: msg.role, text: msg.text })
+  }
+  async function addTagToMemory(i, tag) {
+    const msg = chatLogs[currentContext][i]
+    const tags = Array.from(new Set([...(msg.tags || []), tag]))
+    setChatLogs(logs => {
+      const updated = [...logs[currentContext]]
+      updated[i] = { ...updated[i], tags }
+      return { ...logs, [currentContext]: updated }
+    })
+    await supabase
+      .from('chat_logs')
+      .update({ tags })
+      .match({ user_id: userId, context: currentContext, role: msg.role, text: msg.text })
+  }
+  async function removeTagFromMemory(i, tag) {
+    const msg = chatLogs[currentContext][i]
+    const tags = (msg.tags || []).filter(t => t !== tag)
+    setChatLogs(logs => {
+      const updated = [...logs[currentContext]]
+      updated[i] = { ...updated[i], tags }
+      return { ...logs, [currentContext]: updated }
+    })
+    await supabase
+      .from('chat_logs')
+      .update({ tags })
+      .match({ user_id: userId, context: currentContext, role: msg.role, text: msg.text })
   }
 
   return (
@@ -462,25 +516,47 @@ const VoiceAssistant = () => {
                 <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.3)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ background: '#fff', padding: 24, borderRadius: 12, minWidth: 320, maxWidth: 480 }}>
                     <h3>Manage Memories ({CONTEXTS.find(c=>c.key===currentContext)?.label})</h3>
+                    <div style={{ marginBottom: 8 }}>
+                      <input value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} placeholder="Search memories..." style={{ width: '60%', marginRight: 8 }} />
+                      <input value={tagFilter} onChange={e=>setTagFilter(e.target.value)} placeholder="Filter by tag..." style={{ width: '30%' }} />
+                    </div>
                     <div style={{ maxHeight: 300, overflowY: 'auto', marginBottom: 16 }}>
-                      {chatLogs[currentContext].map((msg, i) => (
-                        <div key={i} style={{ borderBottom: '1px solid #eee', padding: 8, display: 'flex', alignItems: 'center' }}>
-                          <span style={{ flex: 1 }}>{msg.role}: {memoryEdit.index === i ? (
-                            <input value={memoryEdit.text} onChange={e=>setMemoryEdit(m=>({...m,text:e.target.value}))} style={{ width: '80%' }} />
-                          ) : msg.text}</span>
-                          {memoryEdit.index === i ? (
-                            <>
-                              <button onClick={saveEditMemory} style={{ marginLeft: 4 }}>Save</button>
-                              <button onClick={cancelEditMemory} style={{ marginLeft: 4 }}>Cancel</button>
-                            </>
-                          ) : (
-                            <>
-                              <button onClick={()=>startEditMemory(i,msg)} style={{ marginLeft: 4 }}>Edit</button>
-                              <button onClick={()=>deleteMemory(i)} style={{ marginLeft: 4 }}>Delete</button>
-                            </>
-                          )}
-                        </div>
-                      ))}
+                      {chatLogs[currentContext]
+                        .map((msg, i) => ({ ...msg, i }))
+                        .filter(msg => (!searchTerm || msg.text.toLowerCase().includes(searchTerm.toLowerCase())) && (!tagFilter || (msg.tags||[]).includes(tagFilter)))
+                        .map((msg, i) => (
+                          <div key={i} style={{ borderBottom: '1px solid #eee', padding: 8, display: 'flex', alignItems: 'center', background: msg.pinned ? '#fffbe6' : undefined }}>
+                            <span style={{ flex: 1 }}>
+                              <button onClick={()=>togglePinMemory(msg.i)} style={{ marginRight: 4 }}>{msg.pinned ? '★' : '☆'}</button>
+                              {msg.role}: {memoryEdit.index === msg.i ? (
+                                <input value={memoryEdit.text} onChange={e=>setMemoryEdit(m=>({...m,text:e.target.value}))} style={{ width: '60%' }} />
+                              ) : msg.text}
+                              <span style={{ marginLeft: 8 }}>
+                                {(msg.tags||[]).map(tag => (
+                                  <span key={tag} style={{ background: '#e0e0e0', borderRadius: 8, padding: '2px 6px', marginRight: 4, fontSize: 12 }}>
+                                    {tag} <button onClick={()=>removeTagFromMemory(msg.i, tag)} style={{ fontSize: 10, marginLeft: 2 }}>x</button>
+                                  </span>
+                                ))}
+                                {memoryEdit.index === msg.i ? (
+                                  <input value={memoryEdit.tags.join(',')} onChange={e=>setMemoryEdit(m=>({...m,tags:e.target.value.split(',').map(t=>t.trim()).filter(Boolean)}))} placeholder="tags..." style={{ width: 60, marginLeft: 4 }} />
+                                ) : (
+                                  <input placeholder="+tag" style={{ width: 40, marginLeft: 4 }} onKeyDown={e=>{if(e.key==='Enter'){addTagToMemory(msg.i,e.target.value);e.target.value=''}}} />
+                                )}
+                              </span>
+                            </span>
+                            {memoryEdit.index === msg.i ? (
+                              <>
+                                <button onClick={saveEditMemory} style={{ marginLeft: 4 }}>Save</button>
+                                <button onClick={cancelEditMemory} style={{ marginLeft: 4 }}>Cancel</button>
+                              </>
+                            ) : (
+                              <>
+                                <button onClick={()=>startEditMemory(msg.i,msg)} style={{ marginLeft: 4 }}>Edit</button>
+                                <button onClick={()=>deleteMemory(msg.i)} style={{ marginLeft: 4 }}>Delete</button>
+                              </>
+                            )}
+                          </div>
+                        ))}
                     </div>
                     <div style={{ marginBottom: 8 }}>
                       <input value={memoryEdit.index===null?memoryEdit.text:''} onChange={e=>setMemoryEdit(m=>({...m,text:e.target.value}))} placeholder="Add new memory..." style={{ width: '80%' }} />
@@ -492,6 +568,16 @@ const VoiceAssistant = () => {
                     </div>
                     <button onClick={closeMemoryManager}>Close</button>
                   </div>
+                </div>
+              )}
+              {chatLogs[currentContext].filter(m=>m.pinned).length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <b>Pinned Memories:</b>
+                  {chatLogs[currentContext].filter(m=>m.pinned).map((msg, i) => (
+                    <div key={i} style={{ background: '#fffbe6', borderRadius: 8, padding: '4px 10px', margin: '4px 0', fontSize: 14 }}>
+                      {msg.text} {msg.tags && msg.tags.length > 0 && <span style={{ color: '#888', fontSize: 12 }}>[{msg.tags.join(', ')}]</span>}
+                    </div>
+                  ))}
                 </div>
               )}
               {chatLogs[currentContext].map((msg, i) => (
