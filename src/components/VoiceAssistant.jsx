@@ -47,6 +47,7 @@ const VoiceAssistant = () => {
   const [tagFilter, setTagFilter] = useState('')
   const [suggestedMemory, setSuggestedMemory] = useState(null)
   const [suggestion, setSuggestion] = useState(null)
+  const [resourceSuggestions, setResourceSuggestions] = useState([])
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
@@ -617,6 +618,22 @@ const VoiceAssistant = () => {
                   ))}
                 </div>
               )}
+              {resourceSuggestions.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <b>Related Resources:</b>
+                  {resourceSuggestions.map((msg, i) => (
+                    <div key={i} style={{ background: '#f0f8ff', border: '1px solid #bae7ff', borderRadius: 8, padding: '4px 10px', margin: '4px 0', fontSize: 14, cursor: 'pointer' }}
+                      title={`From ${CONTEXTS.find(c=>c.key===msg.context)?.label}`}
+                      onClick={() => {
+                        setCurrentContext(msg.context)
+                        setInput(msg.text)
+                      }}>
+                      <span style={{ fontWeight: 500, color: '#1890ff' }}>📎</span> {msg.text} <span style={{ color: '#888', fontSize: 12 }}>({CONTEXTS.find(c=>c.key===msg.context)?.label})</span>
+                      {msg.tags && msg.tags.length > 0 && <span style={{ color: '#888', fontSize: 12 }}> [{msg.tags.join(', ')}]</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
               {chatLogs[currentContext].map((msg, i) => (
                 <div key={i} style={{
                   alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
@@ -670,6 +687,22 @@ const VoiceAssistant = () => {
               m.text.toLowerCase().includes(e.target.value.toLowerCase())
             )
             setSuggestedMemory(match || null)
+            
+            // Suggest relevant resources from other contexts
+            if (e.target.value.length > 2) {
+              const allPins = Object.entries(chatLogs).flatMap(([ctx, msgs]) =>
+                msgs.filter(m => m.pinned).map(m => ({ ...m, context: ctx }))
+              )
+              const relevant = allPins.filter(m =>
+                m.context !== currentContext && (
+                  (m.tags || []).some(tag => e.target.value.toLowerCase().includes(tag.toLowerCase())) ||
+                  m.text.toLowerCase().includes(e.target.value.toLowerCase())
+                )
+              ).slice(0, 3)
+              setResourceSuggestions(relevant)
+            } else {
+              setResourceSuggestions([])
+            }
           }}
           onKeyDown={handleInputKey}
           placeholder={isListening ? 'Listening...' : 'Type a message...'}
