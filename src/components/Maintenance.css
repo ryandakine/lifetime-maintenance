@@ -1,0 +1,97 @@
+/* Maintenance Component Styles */
+
+.maintenance-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.tab-navigation {
+  display: flex;
+  background: var(--primary-color);
+  border-radius: 12px;
+  padding: 0.5rem;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+  gap: 0.5rem;
+}
+
+.tab-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.tab-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tab-button.active {
+  background: rgba(255, 255, 255, 0.2);
+  font-weight: 600;
+}
+
+.tab-icon {
+  font-size: 1.2rem;
+}
+
+.component-container {
+  min-height: 400px;
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .maintenance-container {
+    padding: 0.5rem;
+  }
+  
+  .tab-navigation {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+  
+  .tab-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+  
+  .component-container {
+    padding: 1rem;
+  }
+}
+
+/* Foldable Device Support */
+@media (max-width: 280px) {
+  .tab-navigation {
+    flex-direction: column;
+  }
+  
+  .tab-button {
+    justify-content: center;
+  }
+}
+
+@media (min-width: 904px) and (max-width: 1856px) {
+  .maintenance-container {
+    max-width: 1000px;
+  }
+}
+
+@media (min-width: 1856px) {
+  .maintenance-container {
+    max-width: 1400px;
+  }
+} 
