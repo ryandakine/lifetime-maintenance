@@ -10,6 +10,7 @@ const CONTEXTS = [
   { key: 'knowledge', label: 'Knowledge' },
   { key: 'email', label: 'Email' },
   { key: 'files', label: 'Files' },
+  { key: 'profile', label: 'Profile' },
 ]
 
 const PROFILE_UPDATE_INTERVAL = 10 // messages
@@ -37,6 +38,8 @@ const VoiceAssistant = () => {
   const [userId, setUserId] = useState(null)
   const [profile, setProfile] = useState(null)
   const [messageCount, setMessageCount] = useState(0)
+  const [showMemoryManager, setShowMemoryManager] = useState(false)
+  const [memoryEdit, setMemoryEdit] = useState({ index: null, text: '', role: 'user' })
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
@@ -154,25 +157,58 @@ const VoiceAssistant = () => {
 
   // Utility: Analyze logs and update profile
   async function updateUserProfile() {
-    // Simple learning: count actions, favorite context, most used words
     const allLogs = Object.entries(chatLogs).flatMap(([context, msgs]) =>
       msgs.map(m => ({ ...m, context }))
     )
     const wordCounts = {}
+    const phraseCounts = {}
     let favoriteContext = 'general'
     const contextCounts = {}
+    const actionCounts = {}
+    const hourCounts = Array(24).fill(0)
     allLogs.forEach(m => {
       if (m.role === 'user') {
+        // Words
         m.text.split(/\s+/).forEach(word => {
           wordCounts[word] = (wordCounts[word] || 0) + 1
         })
+        // Phrases (bigrams)
+        const words = m.text.split(/\s+/)
+        for (let i = 0; i < words.length - 1; i++) {
+          const phrase = words[i] + ' ' + words[i + 1]
+          phraseCounts[phrase] = (phraseCounts[phrase] || 0) + 1
+        }
+        // Context
         contextCounts[m.context] = (contextCounts[m.context] || 0) + 1
+        // Actions (simple intent guess)
+        if (m.text.match(/add task|task/i)) actionCounts['add_task'] = (actionCounts['add_task'] || 0) + 1
+        if (m.text.match(/shopping|add to shopping/i)) actionCounts['add_shopping'] = (actionCounts['add_shopping'] || 0) + 1
+        if (m.text.match(/email|send email/i)) actionCounts['send_email'] = (actionCounts['send_email'] || 0) + 1
+        if (m.text.match(/knowledge|search knowledge/i)) actionCounts['search_knowledge'] = (actionCounts['search_knowledge'] || 0) + 1
+        if (m.text.match(/file|upload file/i)) actionCounts['upload_file'] = (actionCounts['upload_file'] || 0) + 1
+        // Time of day
+        if (m.timestamp) {
+          const hour = new Date(m.timestamp).getHours()
+          hourCounts[hour]++
+        }
       }
     })
     favoriteContext = Object.entries(contextCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'general'
+    // Most common phrases
+    const topPhrases = Object.entries(phraseCounts).sort((a, b) => b[1] - a[1]).slice(0, 10)
+    // Most common actions
+    const topActions = Object.entries(actionCounts).sort((a, b) => b[1] - a[1])
+    // Most active hours
+    const topHours = hourCounts.map((count, hour) => ({ hour, count })).sort((a, b) => b.count - a.count).slice(0, 3)
+    // Placeholder sentiment
+    const sentiment = 'neutral'
     const profileData = {
       favoriteContext,
       wordCounts,
+      topPhrases,
+      topActions,
+      topHours,
+      sentiment,
       lastUpdated: new Date().toISOString()
     }
     setProfile(profileData)
@@ -319,6 +355,51 @@ const VoiceAssistant = () => {
     }
   }
 
+  // Memory management functions
+  function openMemoryManager() { setShowMemoryManager(true) }
+  function closeMemoryManager() { setShowMemoryManager(false); setMemoryEdit({ index: null, text: '', role: 'user' }) }
+  function startEditMemory(i, msg) { setMemoryEdit({ index: i, text: msg.text, role: msg.role }) }
+  function cancelEditMemory() { setMemoryEdit({ index: null, text: '', role: 'user' }) }
+  async function saveEditMemory() {
+    // Update in state
+    setChatLogs(logs => {
+      const updated = [...logs[currentContext]]
+      updated[memoryEdit.index] = { ...updated[memoryEdit.index], text: memoryEdit.text }
+      return { ...logs, [currentContext]: updated }
+    })
+    // Update in Supabase
+    const { data, error } = await supabase
+      .from('chat_logs')
+      .update({ text: memoryEdit.text })
+      .match({ user_id: userId, context: currentContext, role: memoryEdit.role, text: chatLogs[currentContext][memoryEdit.index].text })
+    cancelEditMemory()
+  }
+  async function deleteMemory(i) {
+    const msg = chatLogs[currentContext][i]
+    setChatLogs(logs => {
+      const updated = [...logs[currentContext]]
+      updated.splice(i, 1)
+      return { ...logs, [currentContext]: updated }
+    })
+    await supabase
+      .from('chat_logs')
+      .delete()
+      .match({ user_id: userId, context: currentContext, role: msg.role, text: msg.text })
+  }
+  async function addMemory() {
+    setChatLogs(logs => ({
+      ...logs,
+      [currentContext]: [...logs[currentContext], { role: memoryEdit.role, text: memoryEdit.text }]
+    }))
+    await supabase.from('chat_logs').insert({
+      user_id: userId,
+      context: currentContext,
+      role: memoryEdit.role,
+      text: memoryEdit.text
+    })
+    cancelEditMemory()
+  }
+
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', height: '100vh', display: 'flex', flexDirection: 'column', background: '#f9f9fb' }}>
       {/* Context Tabs/Header */}
@@ -351,20 +432,84 @@ const VoiceAssistant = () => {
             <Loader size={32} className="spin" /> Loading conversation...
           </div>
         ) : (
-          chatLogs[currentContext].map((msg, i) => (
-            <div key={i} style={{
-              alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-              background: msg.role === 'user' ? '#007bff' : '#fff',
-              color: msg.role === 'user' ? '#fff' : '#222',
-              borderRadius: '18px',
-              padding: '0.75rem 1.25rem',
-              marginBottom: '0.5rem',
-              maxWidth: '80%',
-              boxShadow: msg.error ? '0 0 0 2px #ff4d4f' : '0 1px 4px rgba(0,0,0,0.04)'
-            }}>
-              {msg.text}
+          currentContext === 'profile' ? (
+            <div style={{ padding: '2rem', color: '#222' }}>
+              <h2>Profile & Analytics</h2>
+              {profile ? (
+                <>
+                  <div><b>Favorite Context:</b> {profile.favoriteContext}</div>
+                  <div><b>Top Words:</b> {Object.entries(profile.wordCounts).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([w,c])=>`${w} (${c})`).join(', ')}</div>
+                  <div><b>Top Phrases:</b> {profile.topPhrases.map(([p,c])=>`${p} (${c})`).join(', ')}</div>
+                  <div><b>Top Actions:</b> {profile.topActions.map(([a,c])=>`${a} (${c})`).join(', ')}</div>
+                  <div><b>Most Active Hours:</b> {profile.topHours.map(h=>`${h.hour}:00 (${h.count})`).join(', ')}</div>
+                  <div><b>Sentiment:</b> {profile.sentiment}</div>
+                  <div><b>Last Updated:</b> {profile.lastUpdated}</div>
+                  <div style={{ marginTop: '1rem' }}>
+                    <button style={{ marginRight: 8 }}>Export Profile</button>
+                    <button>Clear Profile/History</button>
+                  </div>
+                </>
+              ) : <div>Loading profile...</div>}
             </div>
-          ))
+          ) : (
+            <>
+              {currentContext !== 'profile' && (
+                <div style={{ marginBottom: 8, textAlign: 'right' }}>
+                  <button onClick={openMemoryManager} style={{ fontSize: 14 }}>Manage Memories</button>
+                </div>
+              )}
+              {showMemoryManager && (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.3)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ background: '#fff', padding: 24, borderRadius: 12, minWidth: 320, maxWidth: 480 }}>
+                    <h3>Manage Memories ({CONTEXTS.find(c=>c.key===currentContext)?.label})</h3>
+                    <div style={{ maxHeight: 300, overflowY: 'auto', marginBottom: 16 }}>
+                      {chatLogs[currentContext].map((msg, i) => (
+                        <div key={i} style={{ borderBottom: '1px solid #eee', padding: 8, display: 'flex', alignItems: 'center' }}>
+                          <span style={{ flex: 1 }}>{msg.role}: {memoryEdit.index === i ? (
+                            <input value={memoryEdit.text} onChange={e=>setMemoryEdit(m=>({...m,text:e.target.value}))} style={{ width: '80%' }} />
+                          ) : msg.text}</span>
+                          {memoryEdit.index === i ? (
+                            <>
+                              <button onClick={saveEditMemory} style={{ marginLeft: 4 }}>Save</button>
+                              <button onClick={cancelEditMemory} style={{ marginLeft: 4 }}>Cancel</button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={()=>startEditMemory(i,msg)} style={{ marginLeft: 4 }}>Edit</button>
+                              <button onClick={()=>deleteMemory(i)} style={{ marginLeft: 4 }}>Delete</button>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <input value={memoryEdit.index===null?memoryEdit.text:''} onChange={e=>setMemoryEdit(m=>({...m,text:e.target.value}))} placeholder="Add new memory..." style={{ width: '80%' }} />
+                      <select value={memoryEdit.role} onChange={e=>setMemoryEdit(m=>({...m,role:e.target.value}))} style={{ marginLeft: 4 }}>
+                        <option value="user">user</option>
+                        <option value="assistant">assistant</option>
+                      </select>
+                      <button onClick={addMemory} style={{ marginLeft: 4 }}>Add</button>
+                    </div>
+                    <button onClick={closeMemoryManager}>Close</button>
+                  </div>
+                </div>
+              )}
+              {chatLogs[currentContext].map((msg, i) => (
+                <div key={i} style={{
+                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  background: msg.role === 'user' ? '#007bff' : '#fff',
+                  color: msg.role === 'user' ? '#fff' : '#222',
+                  borderRadius: '18px',
+                  padding: '0.75rem 1.25rem',
+                  marginBottom: '0.5rem',
+                  maxWidth: '80%',
+                  boxShadow: msg.error ? '0 0 0 2px #ff4d4f' : '0 1px 4px rgba(0,0,0,0.04)'
+                }}>
+                  {msg.text}
+                </div>
+              ))}
+            </>
+          )
         )}
         <div ref={chatEndRef} />
         {isProcessing && (
