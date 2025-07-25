@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { API_KEYS } from '../lib/supabase'
-import { Mic, MicOff, Loader, Send, HelpCircle } from 'lucide-react'
+import { Mic, MicOff, Loader, Send, HelpCircle, Paperclip, Image, File, Link } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { TABLES } from '../lib/supabase'
 import { format } from 'date-fns'
@@ -48,6 +48,8 @@ const VoiceAssistant = () => {
   const [suggestedMemory, setSuggestedMemory] = useState(null)
   const [suggestion, setSuggestion] = useState(null)
   const [resourceSuggestions, setResourceSuggestions] = useState([])
+  const [attachments, setAttachments] = useState([])
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
@@ -153,13 +155,14 @@ const VoiceAssistant = () => {
   }, [messageCount, userId])
 
   // Save a message to Supabase
-  async function saveMessageToSupabase(context, role, text) {
+  async function saveMessageToSupabase(context, role, text, atts = []) {
     if (!userId) return
     await supabase.from('chat_logs').insert({
       user_id: userId,
       context,
       role,
-      text
+      text,
+      attachments: atts.length > 0 ? atts : null
     })
   }
 
@@ -254,12 +257,13 @@ const VoiceAssistant = () => {
   }
 
   async function handleSend(text) {
-    if (!text.trim()) return
+    if (!text.trim() && attachments.length === 0) return
     setChatLogs(logs => ({
       ...logs,
-      [currentContext]: [...logs[currentContext], { role: 'user', text }]
+      [currentContext]: [...logs[currentContext], { role: 'user', text, attachments: [...attachments] }]
     }))
-    saveMessageToSupabase(currentContext, 'user', text)
+    saveMessageToSupabase(currentContext, 'user', text, attachments)
+    setAttachments([])
     setMessageCount(c => c + 1)
     setIsProcessing(true)
     try {
@@ -490,6 +494,64 @@ const VoiceAssistant = () => {
       .match({ user_id: userId, context: currentContext, role: msg.role, text: msg.text })
   }
 
+  // File upload functions
+  async function uploadFile(file) {
+    if (!userId) return null
+    setUploading(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${userId}/${Date.now()}.${fileExt}`
+      const { data, error } = await supabase.storage
+        .from('chat-attachments')
+        .upload(fileName, file)
+      if (error) throw error
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-attachments')
+        .getPublicUrl(fileName)
+      return {
+        name: file.name,
+        url: publicUrl,
+        type: file.type,
+        size: file.size
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      return null
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handleFileUpload(event) {
+    const files = Array.from(event.target.files)
+    const uploaded = []
+    for (const file of files) {
+      const attachment = await uploadFile(file)
+      if (attachment) uploaded.push(attachment)
+    }
+    setAttachments(prev => [...prev, ...uploaded])
+    event.target.value = ''
+  }
+
+  // Attachment preview component
+  function AttachmentPreview({ attachment }) {
+    if (attachment.type.startsWith('image/')) {
+      return (
+        <div style={{ marginTop: 8 }}>
+          <img src={attachment.url} alt={attachment.name} style={{ maxWidth: 200, maxHeight: 150, borderRadius: 8 }} />
+          <div style={{ fontSize: 12, color: '#666' }}>{attachment.name}</div>
+        </div>
+      )
+    }
+    return (
+      <div style={{ marginTop: 8, padding: 8, background: '#f5f5f5', borderRadius: 8, display: 'flex', alignItems: 'center' }}>
+        <File size={16} style={{ marginRight: 8 }} />
+        <span style={{ flex: 1 }}>{attachment.name}</span>
+        <a href={attachment.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>Download</a>
+      </div>
+    )
+  }
+
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', height: '100vh', display: 'flex', flexDirection: 'column', background: '#f9f9fb' }}>
       {/* Context Tabs/Header */}
@@ -646,6 +708,9 @@ const VoiceAssistant = () => {
                   boxShadow: msg.error ? '0 0 0 2px #ff4d4f' : '0 1px 4px rgba(0,0,0,0.04)'
                 }}>
                   {msg.text}
+                  {msg.attachments && msg.attachments.map((att, j) => (
+                    <AttachmentPreview key={j} attachment={att} />
+                  ))}
                 </div>
               ))}
               {suggestion && (
@@ -675,6 +740,10 @@ const VoiceAssistant = () => {
         <button type="button" onClick={isListening ? stopListening : startListening} style={{ background: 'none', border: 'none', marginRight: 8, cursor: 'pointer' }} aria-label={isListening ? 'Stop listening' : 'Start listening'}>
           {isListening ? <MicOff color="#ff4d4f" /> : <Mic color="#007bff" />}
         </button>
+        <label style={{ marginRight: 8, cursor: 'pointer' }}>
+          <input type="file" multiple onChange={handleFileUpload} style={{ display: 'none' }} />
+          <Paperclip color="#007bff" />
+        </label>
         <input
           type="text"
           value={input}
@@ -709,10 +778,21 @@ const VoiceAssistant = () => {
           disabled={isProcessing}
           style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: 18, border: '1px solid #eee', fontSize: 16, outline: 'none', marginRight: 8 }}
         />
-        <button type="submit" disabled={isProcessing || !input.trim()} style={{ background: '#007bff', color: '#fff', border: 'none', borderRadius: 18, padding: '0.75rem 1.5rem', fontWeight: 600, cursor: isProcessing ? 'not-allowed' : 'pointer' }}>
+        <button type="submit" disabled={isProcessing || (!input.trim() && attachments.length === 0)} style={{ background: '#007bff', color: '#fff', border: 'none', borderRadius: 18, padding: '0.75rem 1.5rem', fontWeight: 600, cursor: isProcessing ? 'not-allowed' : 'pointer' }}>
           <Send size={18} />
         </button>
       </form>
+      {attachments.length > 0 && (
+        <div style={{ padding: '0 1rem 1rem', background: '#fff' }}>
+          <b>Attachments:</b>
+          {attachments.map((att, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
+              <span style={{ flex: 1 }}>{att.name}</span>
+              <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))} style={{ fontSize: 12 }}>Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
       <style>{`.spin { animation: spin 1s linear infinite; }`}</style>
     </div>
   )
