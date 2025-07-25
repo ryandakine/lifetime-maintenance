@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { API_KEYS } from '../lib/supabase'
 import { Mic, MicOff, Loader, Send, HelpCircle } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
 const CONTEXTS = [
   { key: 'general', label: 'General' },
@@ -10,6 +11,8 @@ const CONTEXTS = [
   { key: 'email', label: 'Email' },
   { key: 'files', label: 'Files' },
 ]
+
+const PROFILE_UPDATE_INTERVAL = 10 // messages
 
 const VoiceAssistant = () => {
   const [isListening, setIsListening] = useState(false)
@@ -30,6 +33,10 @@ const VoiceAssistant = () => {
   })
   const recognitionRef = useRef(null)
   const chatEndRef = useRef(null)
+  const [isLoadingLogs, setIsLoadingLogs] = useState(true)
+  const [userId, setUserId] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [messageCount, setMessageCount] = useState(0)
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
@@ -70,6 +77,112 @@ const VoiceAssistant = () => {
     return () => { recognition.stop() }
   }, [isSupported])
 
+  // Fetch user ID on mount
+  useEffect(() => {
+    const session = supabase.auth.getSession ? null : supabase.auth.session
+    if (supabase.auth.getSession) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setUserId(session?.user?.id || null)
+      })
+    } else {
+      setUserId(session?.user?.id || null)
+    }
+  }, [])
+
+  // Load chat logs from Supabase on mount or when userId changes
+  useEffect(() => {
+    if (!userId) return
+    setIsLoadingLogs(true)
+    const fetchLogs = async () => {
+      const { data, error } = await supabase
+        .from('chat_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .order('timestamp', { ascending: true })
+      if (error) {
+        setIsLoadingLogs(false)
+        return
+      }
+      // Group logs by context
+      const grouped = CONTEXTS.reduce((acc, ctx) => {
+        acc[ctx.key] = []
+        return acc
+      }, {})
+      data.forEach(row => {
+        if (grouped[row.context]) grouped[row.context].push({ role: row.role, text: row.text })
+      })
+      // Always greet in general if empty
+      if (grouped.general.length === 0) grouped.general.push({ role: 'assistant', text: 'Hi! I\'m your assistant. You can talk or type to me about tasks, shopping, emails, and more.' })
+      setChatLogs(grouped)
+      setIsLoadingLogs(false)
+    }
+    fetchLogs()
+  }, [userId])
+
+  // Fetch user profile on load
+  useEffect(() => {
+    if (!userId) return
+    const fetchProfile = async () => {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('profile_data')
+        .eq('user_id', userId)
+        .single()
+      if (!error && data) setProfile(data.profile_data)
+    }
+    fetchProfile()
+  }, [userId])
+
+  // Update profile after every PROFILE_UPDATE_INTERVAL messages
+  useEffect(() => {
+    if (!userId) return
+    if (messageCount > 0 && messageCount % PROFILE_UPDATE_INTERVAL === 0) {
+      updateUserProfile()
+    }
+  }, [messageCount, userId])
+
+  // Save a message to Supabase
+  async function saveMessageToSupabase(context, role, text) {
+    if (!userId) return
+    await supabase.from('chat_logs').insert({
+      user_id: userId,
+      context,
+      role,
+      text
+    })
+  }
+
+  // Utility: Analyze logs and update profile
+  async function updateUserProfile() {
+    // Simple learning: count actions, favorite context, most used words
+    const allLogs = Object.entries(chatLogs).flatMap(([context, msgs]) =>
+      msgs.map(m => ({ ...m, context }))
+    )
+    const wordCounts = {}
+    let favoriteContext = 'general'
+    const contextCounts = {}
+    allLogs.forEach(m => {
+      if (m.role === 'user') {
+        m.text.split(/\s+/).forEach(word => {
+          wordCounts[word] = (wordCounts[word] || 0) + 1
+        })
+        contextCounts[m.context] = (contextCounts[m.context] || 0) + 1
+      }
+    })
+    favoriteContext = Object.entries(contextCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'general'
+    const profileData = {
+      favoriteContext,
+      wordCounts,
+      lastUpdated: new Date().toISOString()
+    }
+    setProfile(profileData)
+    await supabase.from('user_profiles').upsert({
+      user_id: userId,
+      profile_data: profileData,
+      updated_at: new Date().toISOString()
+    })
+  }
+
   const startListening = () => {
     if (!isOnline) return showError('Offline, can\'t listen')
     if (!isSupported) return showError('Voice recognition not supported')
@@ -82,6 +195,7 @@ const VoiceAssistant = () => {
       ...logs,
       [currentContext]: [...logs[currentContext], { role: 'assistant', text: msg, error: true }]
     }))
+    saveMessageToSupabase(currentContext, 'assistant', msg)
   }
 
   function getContextFromAction(action) {
@@ -97,11 +211,12 @@ const VoiceAssistant = () => {
 
   async function handleSend(text) {
     if (!text.trim()) return
-    // Temporarily add user message to current context
     setChatLogs(logs => ({
       ...logs,
       [currentContext]: [...logs[currentContext], { role: 'user', text }]
     }))
+    saveMessageToSupabase(currentContext, 'user', text)
+    setMessageCount(c => c + 1)
     setIsProcessing(true)
     try {
       const anthropicApiKey = API_KEYS.ANTHROPIC
@@ -109,6 +224,7 @@ const VoiceAssistant = () => {
       if (!anthropicApiKey || anthropicApiKey === 'your-anthropic-key') {
         action = parseCommandFallback(text)
       } else {
+        const profilePrompt = profile ? `\n\nUser Profile: ${JSON.stringify(profile)}` : ''
         const response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -122,7 +238,7 @@ const VoiceAssistant = () => {
             messages: [
               {
                 role: 'user',
-                content: `Parse this voice or text command for a maintenance management app and determine the intended action.\n\nCommand: "${text}"\n\nAvailable Actions:\n1. Navigation: \"go to [page]\" → /tasks, /shopping, /email, /photos, /maintenance\n2. Task Management: \"add task [description]\"\n3. Email: \"send email [recipient] [subject]\"\n4. Shopping: \"add to shopping [items]\"\n5. Knowledge: \"search knowledge [query]\"\n6. Files: \"upload file\"\nIf unclear, ask a clarifying question.\nReturn as JSON.`
+                content: `Parse this voice or text command for a maintenance management app and determine the intended action.\n\nCommand: "${text}"${profilePrompt}\n\nAvailable Actions:\n1. Navigation: \"go to [page]\" → /tasks, /shopping, /email, /photos, /maintenance\n2. Task Management: \"add task [description]\"\n3. Email: \"send email [recipient] [subject]\"\n4. Shopping: \"add to shopping [items]\"\n5. Knowledge: \"search knowledge [query]\"\n6. Files: \"upload file\"\nIf unclear, ask a clarifying question.\nReturn as JSON.`
               }
             ]
           })
@@ -191,6 +307,7 @@ const VoiceAssistant = () => {
       ...logs,
       [context]: [...logs[context], { role: 'assistant', text: reply }]
     }))
+    saveMessageToSupabase(context, 'assistant', reply)
     setCurrentContext(context)
   }
 
@@ -229,20 +346,26 @@ const VoiceAssistant = () => {
         ))}
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '2rem 1rem 1rem 1rem', display: 'flex', flexDirection: 'column' }}>
-        {chatLogs[currentContext].map((msg, i) => (
-          <div key={i} style={{
-            alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-            background: msg.role === 'user' ? '#007bff' : '#fff',
-            color: msg.role === 'user' ? '#fff' : '#222',
-            borderRadius: '18px',
-            padding: '0.75rem 1.25rem',
-            marginBottom: '0.5rem',
-            maxWidth: '80%',
-            boxShadow: msg.error ? '0 0 0 2px #ff4d4f' : '0 1px 4px rgba(0,0,0,0.04)'
-          }}>
-            {msg.text}
+        {isLoadingLogs ? (
+          <div style={{ textAlign: 'center', color: '#888', marginTop: '2rem' }}>
+            <Loader size={32} className="spin" /> Loading conversation...
           </div>
-        ))}
+        ) : (
+          chatLogs[currentContext].map((msg, i) => (
+            <div key={i} style={{
+              alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+              background: msg.role === 'user' ? '#007bff' : '#fff',
+              color: msg.role === 'user' ? '#fff' : '#222',
+              borderRadius: '18px',
+              padding: '0.75rem 1.25rem',
+              marginBottom: '0.5rem',
+              maxWidth: '80%',
+              boxShadow: msg.error ? '0 0 0 2px #ff4d4f' : '0 1px 4px rgba(0,0,0,0.04)'
+            }}>
+              {msg.text}
+            </div>
+          ))
+        )}
         <div ref={chatEndRef} />
         {isProcessing && (
           <div style={{ alignSelf: 'flex-start', color: '#888', margin: '0.5rem 0' }}>
