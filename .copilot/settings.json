@@ -1,0 +1,40 @@
+{
+  "copilot": {
+    "enable": {
+      "*": true
+    },
+    "suggest": {
+      "enable": {
+        "*": true
+      }
+    },
+    "chat": {
+      "enable": {
+        "*": true
+      }
+    }
+  },
+  "github.copilot": {
+    "enable": {
+      "*": true
+    },
+    "suggest": {
+      "enable": {
+        "*": true
+      }
+    }
+  },
+  "github.copilot-chat": {
+    "enable": {
+      "*": true
+    }
+  },
+  "editor.inlineSuggest.enabled": true,
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": true,
+    "strings": true
+  },
+  "editor.acceptSuggestionOnCommitCharacter": true,
+  "editor.acceptSuggestionOnEnter": "on"
+} 
