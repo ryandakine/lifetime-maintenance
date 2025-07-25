@@ -2,15 +2,32 @@ import React, { useState, useEffect, useRef } from 'react'
 import { API_KEYS } from '../lib/supabase'
 import { Mic, MicOff, Loader, Send, HelpCircle } from 'lucide-react'
 
+const CONTEXTS = [
+  { key: 'general', label: 'General' },
+  { key: 'tasks', label: 'Tasks' },
+  { key: 'shopping', label: 'Shopping' },
+  { key: 'knowledge', label: 'Knowledge' },
+  { key: 'email', label: 'Email' },
+  { key: 'files', label: 'Files' },
+]
+
 const VoiceAssistant = () => {
   const [isListening, setIsListening] = useState(false)
   const [input, setInput] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [isSupported, setIsSupported] = useState(false)
   const [isOnline, setIsOnline] = useState(navigator.onLine)
-  const [chat, setChat] = useState([
-    { role: 'assistant', text: 'Hi! I\'m your assistant. You can talk or type to me about tasks, shopping, emails, and more.' }
-  ])
+  const [currentContext, setCurrentContext] = useState('general')
+  const [chatLogs, setChatLogs] = useState({
+    general: [
+      { role: 'assistant', text: 'Hi! I\'m your assistant. You can talk or type to me about tasks, shopping, emails, and more.' }
+    ],
+    tasks: [],
+    shopping: [],
+    knowledge: [],
+    email: [],
+    files: []
+  })
   const recognitionRef = useRef(null)
   const chatEndRef = useRef(null)
 
@@ -31,7 +48,7 @@ const VoiceAssistant = () => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [chat])
+  }, [chatLogs, currentContext])
 
   // Speech recognition setup
   useEffect(() => {
@@ -61,12 +78,30 @@ const VoiceAssistant = () => {
   const stopListening = () => recognitionRef.current?.stop()
 
   function showError(msg) {
-    setChat(c => [...c, { role: 'assistant', text: msg, error: true }])
+    setChatLogs(logs => ({
+      ...logs,
+      [currentContext]: [...logs[currentContext], { role: 'assistant', text: msg, error: true }]
+    }))
+  }
+
+  function getContextFromAction(action) {
+    switch (action?.action) {
+      case 'add_task': return 'tasks'
+      case 'add_shopping': return 'shopping'
+      case 'search_knowledge': return 'knowledge'
+      case 'send_email': return 'email'
+      case 'upload_file': return 'files'
+      default: return 'general'
+    }
   }
 
   async function handleSend(text) {
     if (!text.trim()) return
-    setChat(c => [...c, { role: 'user', text }])
+    // Temporarily add user message to current context
+    setChatLogs(logs => ({
+      ...logs,
+      [currentContext]: [...logs[currentContext], { role: 'user', text }]
+    }))
     setIsProcessing(true)
     try {
       const anthropicApiKey = API_KEYS.ANTHROPIC
@@ -93,7 +128,6 @@ const VoiceAssistant = () => {
           })
         })
         const data = await response.json()
-        // Try to parse the assistant's reply as JSON
         let parsed = null
         try {
           parsed = JSON.parse(data?.content?.[0]?.text || data?.content || '{}')
@@ -109,7 +143,6 @@ const VoiceAssistant = () => {
   }
 
   function parseCommandFallback(command) {
-    // Simple keyword-based fallback
     const cmd = command.toLowerCase()
     if (cmd.includes('task')) return { action: 'add_task', parameters: { task: command.replace(/add task/i, '').trim() } }
     if (cmd.includes('shopping')) return { action: 'add_shopping', parameters: { shopping_items: command.replace(/add to shopping/i, '').trim() } }
@@ -122,11 +155,15 @@ const VoiceAssistant = () => {
 
   async function handleAction(action, userText) {
     if (!action) return showError('No action detected.')
+    const context = getContextFromAction(action)
     if (action.action === 'clarify') {
-      setChat(c => [...c, { role: 'assistant', text: action.clarification || 'Can you clarify?' }])
+      setChatLogs(logs => ({
+        ...logs,
+        [context]: [...logs[context], { role: 'assistant', text: action.clarification || 'Can you clarify?' }]
+      }))
+      setCurrentContext(context)
       return
     }
-    // Simulate action execution and reply
     let reply = ''
     switch (action.action) {
       case 'add_task':
@@ -150,7 +187,11 @@ const VoiceAssistant = () => {
       default:
         reply = 'Action completed.'
     }
-    setChat(c => [...c, { role: 'assistant', text: reply }])
+    setChatLogs(logs => ({
+      ...logs,
+      [context]: [...logs[context], { role: 'assistant', text: reply }]
+    }))
+    setCurrentContext(context)
   }
 
   function handleInputKey(e) {
@@ -163,8 +204,32 @@ const VoiceAssistant = () => {
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', height: '100vh', display: 'flex', flexDirection: 'column', background: '#f9f9fb' }}>
+      {/* Context Tabs/Header */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #eee', background: '#fff', zIndex: 2 }}>
+        {CONTEXTS.map(ctx => (
+          <button
+            key={ctx.key}
+            onClick={() => setCurrentContext(ctx.key)}
+            style={{
+              flex: 1,
+              padding: '1rem',
+              background: currentContext === ctx.key ? '#f0f4ff' : 'transparent',
+              border: 'none',
+              borderBottom: currentContext === ctx.key ? '2px solid #007bff' : '2px solid transparent',
+              color: currentContext === ctx.key ? '#007bff' : '#888',
+              fontWeight: currentContext === ctx.key ? 700 : 500,
+              cursor: 'pointer',
+              fontSize: 16,
+              outline: 'none',
+              transition: 'background 0.2s, border-bottom 0.2s'
+            }}
+          >
+            {ctx.label}
+          </button>
+        ))}
+      </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '2rem 1rem 1rem 1rem', display: 'flex', flexDirection: 'column' }}>
-        {chat.map((msg, i) => (
+        {chatLogs[currentContext].map((msg, i) => (
           <div key={i} style={{
             alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
             background: msg.role === 'user' ? '#007bff' : '#fff',
