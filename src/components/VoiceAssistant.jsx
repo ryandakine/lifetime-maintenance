@@ -176,6 +176,85 @@ const OFFLINE_STORAGE = {
   }
 }
 
+// Standard set of building materials/tools
+const STANDARD_MATERIALS = [
+  { name: 'Adjustable wrench', inStock: true },
+  { name: 'Replacement aerator', inStock: false },
+  { name: 'Plumber’s tape', inStock: true },
+  { name: 'Pipe wrench', inStock: true },
+  { name: 'Bucket', inStock: true },
+  { name: 'Flashlight', inStock: true },
+  { name: 'Replacement faucet', inStock: false },
+  { name: 'Screwdriver', inStock: true },
+  { name: 'Pliers', inStock: true },
+  { name: 'Pipe', inStock: false },
+  { name: 'Shutoff valve', inStock: false },
+  { name: 'Cleaning cloth', inStock: true }
+]
+
+// Troubleshooting knowledge base for common issues
+const TROUBLESHOOT_GUIDES = {
+  'low water pressure': {
+    steps: [
+      'Check if other sinks have low pressure',
+      'Inspect the aerator for clogs',
+      'Check shutoff valves under the sink',
+      'Inspect supply lines for kinks or leaks',
+      'If unresolved, check building water pressure'
+    ],
+    materials: ['Adjustable wrench', 'Replacement aerator', 'Plumber’s tape']
+  },
+  'leaking faucet': {
+    steps: [
+      'Turn off water supply',
+      'Remove faucet handle',
+      'Inspect and replace worn washers or O-rings',
+      'Reassemble faucet and turn water back on',
+      'Check for leaks'
+    ],
+    materials: ['Adjustable wrench', 'Replacement faucet', 'Plumber’s tape', 'Screwdriver']
+  },
+  'clogged drain': {
+    steps: [
+      'Remove visible debris from drain',
+      'Use plunger to clear blockage',
+      'If needed, use a drain snake',
+      'Flush with hot water',
+      'Check for recurring issues'
+    ],
+    materials: ['Plunger', 'Drain snake', 'Bucket', 'Cleaning cloth']
+  },
+  'no hot water': {
+    steps: [
+      'Check water heater power/gas supply',
+      'Inspect thermostat settings',
+      'Check for leaks around heater',
+      'Flush water heater if needed',
+      'Call professional if unresolved'
+    ],
+    materials: ['Flashlight', 'Bucket', 'Pipe wrench']
+  }
+}
+
+// Helper to get troubleshooting info for a task
+function getTroubleshootingForTask(taskText) {
+  const lower = taskText.toLowerCase()
+  for (const key in TROUBLESHOOT_GUIDES) {
+    if (lower.includes(key)) {
+      return TROUBLESHOOT_GUIDES[key]
+    }
+  }
+  return null
+}
+
+// Helper to get material status
+function getMaterialStatus(materials) {
+  return materials.map(mat => {
+    const found = STANDARD_MATERIALS.find(m => m.name.toLowerCase() === mat.toLowerCase())
+    return { name: mat, inStock: found ? found.inStock : false }
+  })
+}
+
 const VoiceAssistant = () => {
   const [isListening, setIsListening] = useState(false)
   const [input, setInput] = useState('')
@@ -532,6 +611,19 @@ const VoiceAssistant = () => {
         case 'add_task':
           reply = `✅ Task added: ${action.parameters?.task || userText}`
           context = 'tasks'
+          // Smart troubleshooting
+          const troubleshoot = getTroubleshootingForTask(action.parameters?.task || userText)
+          if (troubleshoot) {
+            reply += `\n\n🔧 Troubleshooting Steps:`
+            troubleshoot.steps.forEach((step, idx) => {
+              reply += `\n${idx + 1}. ${step}`
+            })
+            const matStatus = getMaterialStatus(troubleshoot.materials)
+            reply += `\n\n🧰 Materials Needed:`
+            matStatus.forEach(mat => {
+              reply += `\n- ${mat.name} (${mat.inStock ? '✅ In stock' : '❌ Not in stock'})`
+            })
+          }
           break
         case 'add_shopping':
           reply = `🛒 Added to shopping: ${action.parameters?.shopping_items || userText}`
