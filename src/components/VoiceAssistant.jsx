@@ -43,6 +43,7 @@ const VoiceAssistant = () => {
   const [memoryEdit, setMemoryEdit] = useState({ index: null, text: '', role: 'user', pinned: false, tags: [] })
   const [searchTerm, setSearchTerm] = useState('')
   const [tagFilter, setTagFilter] = useState('')
+  const [suggestedMemory, setSuggestedMemory] = useState(null)
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
@@ -574,8 +575,10 @@ const VoiceAssistant = () => {
                 <div style={{ marginBottom: 12 }}>
                   <b>Pinned Memories:</b>
                   {chatLogs[currentContext].filter(m=>m.pinned).map((msg, i) => (
-                    <div key={i} style={{ background: '#fffbe6', borderRadius: 8, padding: '4px 10px', margin: '4px 0', fontSize: 14 }}>
-                      {msg.text} {msg.tags && msg.tags.length > 0 && <span style={{ color: '#888', fontSize: 12 }}>[{msg.tags.join(', ')}]</span>}
+                    <div key={i} style={{ background: '#fffbe6', borderRadius: 8, padding: '4px 10px', margin: '4px 0', fontSize: 14, cursor: 'pointer', border: '1px dashed #ffd700' }}
+                      title="Click to insert into chat"
+                      onClick={() => setInput(msg.text)}>
+                      <span style={{ fontWeight: 500, color: '#bfa100' }}>★</span> {msg.text} {msg.tags && msg.tags.length > 0 && <span style={{ color: '#888', fontSize: 12 }}>[{msg.tags.join(', ')}]</span>}
                     </div>
                   ))}
                 </div>
@@ -605,6 +608,12 @@ const VoiceAssistant = () => {
           </div>
         )}
       </div>
+      {suggestedMemory && (
+        <div style={{ background: '#e6f7ff', border: '1px solid #91d5ff', borderRadius: 8, padding: '8px 12px', margin: '8px 0', color: '#0050b3', fontSize: 15 }}>
+          <b>Suggested Memory:</b> {suggestedMemory.text} {suggestedMemory.tags && suggestedMemory.tags.length > 0 && <span style={{ color: '#888', fontSize: 12 }}>[{suggestedMemory.tags.join(', ')}]</span>}
+          <button style={{ marginLeft: 8, fontSize: 13 }} onClick={() => setInput(suggestedMemory.text)}>Insert</button>
+        </div>
+      )}
       <form style={{ display: 'flex', alignItems: 'center', padding: '1rem', background: '#fff', borderTop: '1px solid #eee' }} onSubmit={e => { e.preventDefault(); if (!isProcessing) handleSend(input); setInput('') }}>
         <button type="button" onClick={isListening ? stopListening : startListening} style={{ background: 'none', border: 'none', marginRight: 8, cursor: 'pointer' }} aria-label={isListening ? 'Stop listening' : 'Start listening'}>
           {isListening ? <MicOff color="#ff4d4f" /> : <Mic color="#007bff" />}
@@ -612,7 +621,16 @@ const VoiceAssistant = () => {
         <input
           type="text"
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={e => {
+            setInput(e.target.value)
+            // Suggest pinned memory if input matches tag or keyword
+            const pins = chatLogs[currentContext].filter(m => m.pinned)
+            const match = pins.find(m =>
+              (m.tags || []).some(tag => e.target.value.toLowerCase().includes(tag.toLowerCase())) ||
+              m.text.toLowerCase().includes(e.target.value.toLowerCase())
+            )
+            setSuggestedMemory(match || null)
+          }}
           onKeyDown={handleInputKey}
           placeholder={isListening ? 'Listening...' : 'Type a message...'}
           disabled={isProcessing}
