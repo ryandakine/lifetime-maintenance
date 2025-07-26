@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useLocalStorage } from './useLocalStorage'
 
 const themes = {
@@ -121,17 +121,21 @@ export const useTheme = () => {
     }
   }, [setThemePreference])
 
-  return {
-    theme: getCurrentTheme(),
-    colors: getThemeColors(),
-    themePreference,
-    systemTheme,
-    toggleTheme,
-    setTheme,
-    isDark: getCurrentTheme().name === 'dark',
-    isLight: getCurrentTheme().name === 'light',
-    isAuto: themePreference === 'auto'
-  }
+  // Memoize return object to prevent unnecessary re-renders
+  return useMemo(() => {
+    const currentTheme = getCurrentTheme()
+    return {
+      theme: currentTheme,
+      colors: getThemeColors(),
+      themePreference,
+      systemTheme,
+      toggleTheme,
+      setTheme,
+      isDark: currentTheme.name === 'dark',
+      isLight: currentTheme.name === 'light',
+      isAuto: themePreference === 'auto'
+    }
+  }, [getCurrentTheme, getThemeColors, themePreference, systemTheme, toggleTheme, setTheme])
 }
 
 // CSS Variables for theme colors

@@ -70,7 +70,7 @@ const uiSlice = createSlice({
     },
     setModal: (state, action) => {
       const { modal, isOpen } = action.payload
-      if (state.modals.hasOwnProperty(modal)) {
+      if (Object.prototype.hasOwnProperty.call(state.modals, modal)) {
         state.modals[modal] = isOpen
       }
     },
@@ -85,7 +85,7 @@ const uiSlice = createSlice({
     },
     setLoading: (state, action) => {
       const { key, isLoading } = action.payload
-      if (state.loading.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(state.loading, key)) {
         state.loading[key] = isLoading
       }
     },

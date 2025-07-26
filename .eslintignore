@@ -1,0 +1,15 @@
+dist/
+node_modules/
+*.min.js
+*.config.js
+vite.config.js
+test-*.js
+*.test.js
+*.spec.js
+scripts/
+workflows/
+database/
+docs/
+supabase/
+n8n-setup-config.js
+public/sw.js

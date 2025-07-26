@@ -5,7 +5,9 @@
       "Bash(git commit:*)",
       "Bash(npm run build:*)",
       "Bash(find:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run test:run:*)"
     ],
     "deny": []
   }

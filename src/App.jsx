@@ -1,21 +1,5 @@
-import React, { useState } from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { useSelector } from 'react-redux'
+import React, { useState, useMemo, useCallback, lazy, Suspense } from 'react'
 import ErrorBoundary from './components/ErrorBoundary'
-import Tasks from './components/Tasks'
-import Shopping from './components/Shopping'
-import Maintenance from './components/Maintenance'
-import OffDays from './components/OffDays'
-import Photos from './components/Photos'
-import Knowledge from './components/Knowledge'
-import Email from './components/Email'
-import SmartAssistant from './components/SmartAssistant'
-import GoalTracker from './components/GoalTracker'
-import WorkoutTracker from './components/WorkoutTracker'
-import TaskAutomation from './components/TaskAutomation'
-import GitHubIntegration from './components/GitHubIntegration'
-import FileUploader from './components/FileUploader'
-import VoiceAssistant from './components/VoiceAssistant'
 import LoadingStates from './components/LoadingStates'
 import Toast from './components/Toast'
 import { useTheme } from './hooks/useTheme'
@@ -23,68 +7,71 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useOnlineStatus } from './hooks/useOnlineStatus'
 import './App.css'
 
+// Lazy load components for better performance
+const Dashboard = lazy(() => import('./components/Dashboard'))
+const Tasks = lazy(() => import('./components/Tasks'))
+const Shopping = lazy(() => import('./components/Shopping'))
+const Maintenance = lazy(() => import('./components/Maintenance'))
+const Photos = lazy(() => import('./components/Photos'))
+const VoiceInput = lazy(() => import('./components/VoiceInput'))
+
 function App() {
-  const [activeTab, setActiveTab] = useState('tasks')
+  const [activeTab, setActiveTab] = useState('dashboard')
   const { theme, toggleTheme } = useTheme()
   const { isOnline, connectionQuality } = useOnlineStatus()
   
-  // Keyboard shortcuts
-  useKeyboardShortcuts({
+  // Memoized keyboard shortcuts to prevent unnecessary re-renders
+  const keyboardCallbacks = useMemo(() => ({
     onTabChange: setActiveTab,
     onThemeToggle: toggleTheme
-  })
+  }), [toggleTheme])
+  
+  useKeyboardShortcuts(keyboardCallbacks)
 
-  const tabs = [
+  // Memoize tabs to prevent recreation on every render
+  const tabs = useMemo(() => [
+    { id: 'dashboard', label: '📊 Dashboard', icon: '📊' },
     { id: 'tasks', label: '📋 Tasks', icon: '📋' },
     { id: 'shopping', label: '🛒 Shopping', icon: '🛒' },
     { id: 'maintenance', label: '🔧 Maintenance', icon: '🔧' },
-    { id: 'offdays', label: '📅 Off Days', icon: '📅' },
     { id: 'photos', label: '📸 Photos', icon: '📸' },
-    { id: 'knowledge', label: '🧠 Knowledge', icon: '🧠' },
-    { id: 'email', label: '📧 Email', icon: '📧' },
-    { id: 'smart-assistant', label: '🤖 Smart Assistant', icon: '🤖' },
-    { id: 'goals', label: '🎯 Goals', icon: '🎯' },
-    { id: 'workout', label: '💪 Workout', icon: '💪' },
-    { id: 'automation', label: '⚡ Automation', icon: '⚡' },
-    { id: 'github', label: '🐙 GitHub', icon: '🐙' },
-    { id: 'files', label: '📁 Files', icon: '📁' },
     { id: 'voice', label: '🎤 Voice', icon: '🎤' }
-  ]
+  ], [])
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'tasks':
-        return <Tasks />
-      case 'shopping':
-        return <Shopping />
-      case 'maintenance':
-        return <Maintenance />
-      case 'offdays':
-        return <OffDays />
-      case 'photos':
-        return <Photos />
-      case 'knowledge':
-        return <Knowledge />
-      case 'email':
-        return <Email />
-      case 'smart-assistant':
-        return <SmartAssistant />
-      case 'goals':
-        return <GoalTracker />
-      case 'workout':
-        return <WorkoutTracker />
-      case 'automation':
-        return <TaskAutomation />
-      case 'github':
-        return <GitHubIntegration />
-      case 'files':
-        return <FileUploader />
-      case 'voice':
-        return <VoiceAssistant />
-      default:
-        return <Tasks />
-    }
-  }
+  // Memoized render function with Suspense for lazy loading
+  const renderTabContent = useCallback(() => {
+    const LoadingFallback = () => (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    )
+
+    const content = (() => {
+      switch (activeTab) {
+        case 'dashboard':
+          return <Dashboard />
+        case 'tasks':
+          return <Tasks />
+        case 'shopping':
+          return <Shopping />
+        case 'maintenance':
+          return <Maintenance />
+        case 'photos':
+          return <Photos />
+        case 'voice':
+          return <VoiceInput />
+        default:
+          return <Dashboard />
+      }
+    })()
+
+    return (
+      <Suspense fallback={<LoadingFallback />}>
+        {content}
+      </Suspense>
+    )
+  }, [activeTab])
 
   return (
     <ErrorBoundary>
@@ -95,7 +82,7 @@ function App() {
         <header className="app-header">
           <div className="header-content">
             <h1 className="app-title">
-              🎯 Lifetime Maintenance App
+              🏋️ Lifetime Fitness Maintenance
             </h1>
             
             <div className="header-controls">
@@ -130,6 +117,8 @@ function App() {
                 className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
                 onClick={() => setActiveTab(tab.id)}
                 title={`${tab.label} (Ctrl+${tabs.indexOf(tab) + 1})`}
+                aria-pressed={activeTab === tab.id}
+                aria-label={`Switch to ${tab.label}`}
               >
                 <span className="tab-icon">{tab.icon}</span>
                 <span className="tab-label">{tab.label}</span>
@@ -149,12 +138,12 @@ function App() {
         <footer className="app-footer">
           <div className="footer-content">
             <p className="footer-text">
-              Lifetime Maintenance App - Built with React & Redux
+              Lifetime Fitness Maintenance - Powered by Workflows
             </p>
             <div className="footer-links">
-              <span className="footer-link">Version 1.0.0</span>
+              <span className="footer-link">Version 2.0.0</span>
               <span className="footer-link">•</span>
-              <span className="footer-link">Enhanced Voice Assistant</span>
+              <span className="footer-link">Workflow-Powered</span>
             </div>
           </div>
         </footer>

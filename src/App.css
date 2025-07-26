@@ -1,18 +1,36 @@
-/* Base styles */
+/* Modern CSS custom properties with theme support */
 :root {
+  /* Brand colors */
   --primary-color: #1a3d2f;
-  --secondary-color: #bfc1c2;
-  --background-color: #f5f6f7;
-  --white: #fff;
-  --black: #222;
-  --highlight: #e6f4ea;
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --error-color: #ef4444;
-  --border-color: #e9ecef;
-  --border-radius: 8px;
-  --shadow: 0 2px 8px rgba(0,0,0,0.1);
+  --secondary-color: #007BFF;
+  --accent-color: #4ade80;
+  
+  /* Base colors - will be overridden by theme system */
+  --background-color: var(--color-background, #f5f6f7);
+  --surface-color: var(--color-surface, #ffffff);
+  --text-color: var(--color-text, #1f2937);
+  --text-secondary: var(--color-text-secondary, #6b7280);
+  --border-color: var(--color-border, #e5e7eb);
+  --border-light: var(--color-border-light, #f3f4f6);
+  
+  /* Semantic colors */
+  --success-color: var(--color-success, #10b981);
+  --warning-color: var(--color-warning, #f59e0b);
+  --error-color: var(--color-error, #ef4444);
+  --info-color: var(--color-info, #3b82f6);
+  
+  /* Layout */
+  --border-radius: 12px;
+  --border-radius-sm: 8px;
+  --border-radius-lg: 16px;
+  --shadow: var(--color-shadow, 0 2px 8px rgba(0,0,0,0.1));
   --shadow-hover: 0 4px 12px rgba(0,0,0,0.15);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+  
+  /* Animation */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
 }
 
 * {
@@ -22,22 +40,37 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--background-color);
-  color: var(--black);
+  color: var(--text-color);
   line-height: 1.6;
   overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  
+  /* Performance improvements */
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
-/* Mobile-first responsive design */
-.App {
+/* Modern app layout with performance optimizations */
+.app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  line-height: 1.6;
+  overflow-x: hidden;
+  
+  /* Performance optimizations */
+  will-change: background-color, color;
+  contain: layout style;
 }
 
 /* Galaxy Fold 6 and foldable device support */
@@ -185,14 +218,173 @@ select {
   animation: spin 1s linear infinite;
 }
 
-/* Mobile navigation improvements */
-.tab-navigation {
+/* App header styles */
+.app-header {
+  background: var(--surface-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 1rem;
   position: sticky;
   top: 0;
   z-index: 100;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  background-color: rgba(26, 61, 47, 0.95);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.app-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-color);
+  margin: 0;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.connection-status.online {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--success-color);
+}
+
+.connection-status.offline {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--error-color);
+}
+
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-size: 1.25rem;
+}
+
+.theme-toggle:hover {
+  background-color: var(--border-light);
+  transform: scale(1.05);
+}
+
+/* Navigation improvements */
+.tab-navigation {
+  background: var(--surface-color);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: calc(var(--header-height, 80px));
+  z-index: 90;
+}
+
+.tab-container {
+  display: flex;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab-container::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  border-bottom: 3px solid transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 60px;
+}
+
+.tab-button:hover {
+  color: var(--text-color);
+  background-color: var(--border-light);
+}
+
+.tab-button.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  font-weight: 600;
+}
+
+.tab-icon {
+  font-size: 1.25rem;
+}
+
+.tab-label {
+  font-size: 0.875rem;
+}
+
+/* Main content area */
+.main-content {
+  flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  width: 100%;
+}
+
+/* Footer styles */
+.app-footer {
+  background: var(--surface-color);
+  border-top: 1px solid var(--border-color);
+  padding: 1rem;
+  margin-top: auto;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Loading container */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+  color: var(--text-secondary);
 }
 
 /* Mobile-optimized cards */
@@ -395,33 +587,17 @@ select {
   }
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background-color: #1a1a1a;
-    --white: #2d2d2d;
-    --black: #ffffff;
-    --border-color: #404040;
-    --secondary-color: #666;
-  }
-  
-  body {
-    background-color: var(--background-color);
-    color: var(--black);
-  }
-  
-  .card {
-    background-color: var(--white);
-    color: var(--black);
-  }
-  
-  .form-input,
-  .form-textarea,
-  .form-select {
-    background-color: var(--white);
-    color: var(--black);
-    border-color: var(--border-color);
-  }
+/* Theme integration - handled by useTheme hook */
+.theme-light {
+  /* Light theme handled by CSS custom properties */
+}
+
+.theme-dark {
+  /* Dark theme handled by CSS custom properties */
+}
+
+.theme-auto {
+  /* Auto theme handled by CSS custom properties */
 }
 
 /* Animations */

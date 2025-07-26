@@ -1,18 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit'
 import tasksReducer from './slices/tasksSlice'
 import shoppingReducer from './slices/shoppingSlice'
-import knowledgeReducer from './slices/knowledgeSlice'
-import emailReducer from './slices/emailSlice'
-import photosReducer from './slices/photosSlice'
 import uiReducer from './slices/uiSlice'
 
 export const store = configureStore({
   reducer: {
     tasks: tasksReducer,
     shopping: shoppingReducer,
-    knowledge: knowledgeReducer,
-    email: emailReducer,
-    photos: photosReducer,
     ui: uiReducer,
   },
   middleware: (getDefaultMiddleware) =>

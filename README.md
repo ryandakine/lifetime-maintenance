@@ -1,29 +1,29 @@
-# 🏋️ Lifetime Maintenance PWA
+# 🏋️ Lifetime Fitness Maintenance PWA
 
-A comprehensive, AI-powered maintenance management system designed specifically for Lifetime Fitness facilities. This Progressive Web App (PWA) provides intelligent task management, shopping lists, knowledge base, email automation, and photo documentation with voice-first interaction.
+A comprehensive, AI-powered maintenance management system designed specifically for Lifetime Fitness facilities. This Progressive Web App (PWA) provides intelligent task management, shopping lists, knowledge base, email automation, and photo documentation with voice-first interaction for fitness facility maintenance teams.
 
 ## ✨ Features
 
 ### 🎯 Core Functionality
-- **Smart Task Management**: AI-powered task parsing, categorization, and priority assignment
-- **Intelligent Shopping Lists**: Automatic item categorization, supplier integration, and smart reminders
-- **Knowledge Base**: Searchable maintenance procedures and documentation
-- **Email Automation**: AI-generated contextual email replies
-- **Photo Documentation**: Organized photo management with AI analysis
-- **Voice-First Interface**: Natural language processing for all interactions
+- **Smart Task Management**: AI-powered task parsing, categorization, and priority assignment for fitness equipment and facility maintenance
+- **Intelligent Shopping Lists**: Automatic item categorization, supplier integration, and smart reminders for maintenance supplies
+- **Knowledge Base**: Searchable maintenance procedures and documentation for fitness equipment
+- **Email Automation**: AI-generated contextual email replies for maintenance communications
+- **Photo Documentation**: Organized photo management with AI analysis for equipment and facility issues
+- **Voice-First Interface**: Natural language processing for hands-free maintenance operations
 
 ### 🚀 Advanced Features
-- **AI Integration**: Perplexity Pro API for intelligent suggestions and automation
-- **PWA Capabilities**: Offline support, app-like experience, push notifications
-- **Mobile Optimized**: Galaxy Fold 6 and foldable device support
-- **Real-time Sync**: Supabase backend with real-time updates
-- **Voice Commands**: Natural language processing for hands-free operation
+- **AI Integration**: Perplexity Pro API for intelligent maintenance suggestions and automation
+- **PWA Capabilities**: Offline support, app-like experience, push notifications for maintenance alerts
+- **Mobile Optimized**: Galaxy Fold 6 and foldable device support for on-the-go maintenance
+- **Real-time Sync**: Supabase backend with real-time updates for team coordination
+- **Voice Commands**: Natural language processing for hands-free maintenance operations
 
 ### 🎨 User Experience
-- **Modern UI/UX**: Lifetime Fitness branding with responsive design
-- **Accessibility**: WCAG AA compliant with screen reader support
-- **Performance**: Optimized bundle size with lazy loading
-- **Security**: Production-grade security with API key protection
+- **Modern UI/UX**: Lifetime Fitness branding with responsive design for maintenance workflows
+- **Accessibility**: WCAG AA compliant with screen reader support for inclusive maintenance teams
+- **Performance**: Optimized bundle size with lazy loading for fast maintenance operations
+- **Security**: Production-grade security with API key protection for facility data
 
 ## 🏗️ Architecture
 

@@ -1,7 +1,7 @@
 {
-  "short_name": "Lifetime Maintenance",
+  "short_name": "Lifetime Fitness Maintenance",
   "name": "Lifetime Fitness Maintenance Assistant",
-  "description": "AI-powered maintenance management system for Lifetime Fitness",
+  "description": "AI-powered maintenance management system for Lifetime Fitness facilities and equipment",
   "icons": [
     {
       "src": "favicon.ico",
@@ -24,6 +24,6 @@
   "theme_color": "#1a3d2f",
   "background_color": "#f5f6f7",
   "orientation": "portrait-primary",
-  "categories": ["productivity", "business"],
+  "categories": ["productivity", "business", "fitness", "maintenance"],
   "lang": "en-US"
 } 
