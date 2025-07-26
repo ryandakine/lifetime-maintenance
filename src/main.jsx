@@ -35,6 +35,14 @@ const App = () => {
   })
   const [appVersion, setAppVersion] = useState('1.0.0')
   const [lastUpdated, setLastUpdated] = useState(new Date().toISOString())
+  
+  // Enhanced task fields
+  const [taskReplacedDate, setTaskReplacedDate] = useState('')
+  const [taskDueDate, setTaskDueDate] = useState('')
+  const [taskDescription, setTaskDescription] = useState('')
+  const [taskImage, setTaskImage] = useState(null)
+  const [showSolutionModal, setShowSolutionModal] = useState(false)
+  const [selectedTaskForSolution, setSelectedTaskForSolution] = useState(null)
 
   // Initialize speech recognition on component mount
   useEffect(() => {
@@ -273,12 +281,23 @@ const App = () => {
         completed: false,
         priority: selectedPriority,
         createdAt: new Date().toISOString(),
-        category: 'general'
+        category: 'general',
+        // Enhanced maintenance fields
+        replacedDate: taskReplacedDate,
+        dueDate: taskDueDate,
+        description: taskDescription,
+        image: taskImage,
+        aiSolution: null // Will be generated when solution button is clicked
       }
       console.log('Adding new task:', newTaskObj)
       setTasks(prev => [...prev, newTaskObj])
       setNewTask('')
       setSelectedPriority('medium')
+      // Clear enhanced fields
+      setTaskReplacedDate('')
+      setTaskDueDate('')
+      setTaskDescription('')
+      setTaskImage(null)
     }
   }
 
@@ -577,6 +596,57 @@ const App = () => {
     const diffTime = Math.abs(now - created)
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays
+  }
+
+  // AI Solution Generation
+  const generateAISolution = async (task) => {
+    try {
+      setIsLoading(true)
+      
+      // Create a comprehensive prompt for the AI
+      const prompt = `
+        Maintenance Task Analysis:
+        
+        Task: ${task.text}
+        Description: ${task.description || 'No description provided'}
+        Priority: ${task.priority}
+        Category: ${task.category}
+        Replaced Date: ${task.replacedDate || 'Not specified'}
+        Due Date: ${task.dueDate || 'Not specified'}
+        
+        Please provide a comprehensive maintenance solution including:
+        1. Troubleshooting steps
+        2. Tools needed
+        3. Materials needed
+        4. Safety precautions
+        5. Estimated time to complete
+        6. Difficulty level
+      `
+      
+      // Simulate AI response (replace with actual AI API call)
+      const aiResponse = await simulateAIResponse(prompt)
+      
+      // Update the task with the AI solution
+      setTasks(prev => prev.map(t => 
+        t.id === task.id 
+          ? { ...t, aiSolution: aiResponse }
+          : t
+      ))
+      
+      setShowSolutionModal(false)
+      setSelectedTaskForSolution(null)
+      
+    } catch (error) {
+      console.error('Error generating AI solution:', error)
+      alert('Error generating AI solution. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const openSolutionModal = (task) => {
+    setSelectedTaskForSolution(task)
+    setShowSolutionModal(true)
   }
 
   const exportData = () => {
@@ -963,35 +1033,146 @@ const App = () => {
             )}
           </div>
           
-          {/* Add Task */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '2rem' }}>
-            <input
-              type="text"
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              placeholder="Add a new task..."
-              style={{
-                flex: 1,
-                padding: '10px',
-                border: '2px solid #e2e8f0',
-                borderRadius: '6px',
-                fontSize: '1rem'
-              }}
-              onKeyPress={(e) => e.key === 'Enter' && addTask()}
-            />
-            <button
-              onClick={addTask}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: '#1a3d2f',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer'
-              }}
-            >
-              Add
-            </button>
+          {/* Enhanced Maintenance Task Form */}
+          <div style={{ 
+            backgroundColor: currentTheme.cardBg, 
+            padding: '1.5rem', 
+            borderRadius: '8px', 
+            marginBottom: '2rem',
+            boxShadow: currentTheme.shadow,
+            border: `1px solid ${currentTheme.borderColor}`
+          }}>
+            <h3 style={{ color: currentTheme.textColor, marginBottom: '1rem' }}>🔧 Add Maintenance Task</h3>
+            
+            {/* Task Name */}
+            <div style={{ marginBottom: '1rem' }}>
+              <input
+                type="text"
+                value={newTask}
+                onChange={(e) => setNewTask(e.target.value)}
+                placeholder="Task name (e.g., Replace HVAC filter)"
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: `2px solid ${currentTheme.borderColor}`,
+                  borderRadius: '6px',
+                  fontSize: '1rem',
+                  backgroundColor: currentTheme.cardBg,
+                  color: currentTheme.textColor
+                }}
+                onKeyPress={(e) => e.key === 'Enter' && addTask()}
+              />
+            </div>
+
+            {/* Date Fields */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: currentTheme.textColor, fontSize: '0.9rem' }}>
+                  📅 Last Replaced Date
+                </label>
+                <input
+                  type="date"
+                  value={taskReplacedDate}
+                  onChange={(e) => setTaskReplacedDate(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: `2px solid ${currentTheme.borderColor}`,
+                    borderRadius: '6px',
+                    backgroundColor: currentTheme.cardBg,
+                    color: currentTheme.textColor
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: currentTheme.textColor, fontSize: '0.9rem' }}>
+                  ⏰ Due Date
+                </label>
+                <input
+                  type="date"
+                  value={taskDueDate}
+                  onChange={(e) => setTaskDueDate(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: `2px solid ${currentTheme.borderColor}`,
+                    borderRadius: '6px',
+                    backgroundColor: currentTheme.cardBg,
+                    color: currentTheme.textColor
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Description */}
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: currentTheme.textColor, fontSize: '0.9rem' }}>
+                📝 Description
+              </label>
+              <textarea
+                value={taskDescription}
+                onChange={(e) => setTaskDescription(e.target.value)}
+                placeholder="Describe the maintenance task, problem, or equipment details..."
+                style={{
+                  width: '100%',
+                  minHeight: '80px',
+                  padding: '10px',
+                  border: `2px solid ${currentTheme.borderColor}`,
+                  borderRadius: '6px',
+                  fontSize: '1rem',
+                  resize: 'vertical',
+                  backgroundColor: currentTheme.cardBg,
+                  color: currentTheme.textColor
+                }}
+              />
+            </div>
+
+            {/* Priority Selection */}
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: currentTheme.textColor, fontSize: '0.9rem' }}>
+                🚨 Priority
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {['low', 'medium', 'high', 'critical'].map(priority => (
+                  <button
+                    key={priority}
+                    onClick={() => setSelectedPriority(priority)}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: selectedPriority === priority ? getPriorityColor(priority) : currentTheme.cardBg,
+                      color: selectedPriority === priority ? 'white' : currentTheme.textColor,
+                      border: `2px solid ${getPriorityColor(priority)}`,
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      textTransform: 'capitalize'
+                    }}
+                  >
+                    {getPriorityIcon(priority)} {priority}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Add Button */}
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={addTask}
+                disabled={!newTask.trim()}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: newTask.trim() ? currentTheme.buttonBg : '#cbd5e0',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: newTask.trim() ? 'pointer' : 'not-allowed',
+                  fontSize: '1rem',
+                  fontWeight: 'bold'
+                }}
+              >
+                🔧 Add Maintenance Task
+              </button>
+            </div>
           </div>
 
           {/* Voice Input */}
@@ -1086,41 +1267,115 @@ const App = () => {
             ) : (
               tasks.map(task => (
                 <div key={task.id} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '12px',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '6px',
-                  marginBottom: '8px',
-                  background: task.completed ? '#f7fafc' : 'white'
+                  padding: '16px',
+                  border: `1px solid ${currentTheme.borderColor}`,
+                  borderRadius: '8px',
+                  marginBottom: '12px',
+                  background: task.completed ? '#f7fafc' : currentTheme.cardBg,
+                  boxShadow: currentTheme.shadow
                 }}>
-                  <input
-                    type="checkbox"
-                    checked={task.completed}
-                    onChange={() => toggleTask(task.id)}
-                    style={{ marginRight: '12px' }}
-                  />
-                  <span style={{
-                    flex: 1,
-                    textDecoration: task.completed ? 'line-through' : 'none',
-                    color: task.completed ? '#718096' : '#2d3748'
-                  }}>
-                    {task.text}
-                  </span>
-                  <button
-                    onClick={() => deleteTask(task.id)}
-                    style={{
-                      padding: '4px 8px',
-                      backgroundColor: '#e53e3e',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '0.8rem'
-                    }}
-                  >
-                    Delete
-                  </button>
+                  {/* Task Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={task.completed}
+                      onChange={() => toggleTask(task.id)}
+                      style={{ marginRight: '12px' }}
+                    />
+                    <span style={{
+                      flex: 1,
+                      textDecoration: task.completed ? 'line-through' : 'none',
+                      color: task.completed ? '#718096' : currentTheme.textColor,
+                      fontSize: '1.1rem',
+                      fontWeight: 'bold'
+                    }}>
+                      {task.text}
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {/* Priority Badge */}
+                      <span style={{
+                        padding: '4px 8px',
+                        backgroundColor: getPriorityColor(task.priority || 'medium'),
+                        color: 'white',
+                        borderRadius: '4px',
+                        fontSize: '0.8rem',
+                        fontWeight: 'bold'
+                      }}>
+                        {getPriorityIcon(task.priority || 'medium')} {task.priority || 'medium'}
+                      </span>
+                      
+                      {/* Solution Button */}
+                      <button
+                        onClick={() => openSolutionModal(task)}
+                        style={{
+                          padding: '4px 8px',
+                          backgroundColor: '#3182ce',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem'
+                        }}
+                        title="Get AI-powered solution"
+                      >
+                        🤖 Solution
+                      </button>
+                      
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => deleteTask(task.id)}
+                        style={{
+                          padding: '4px 8px',
+                          backgroundColor: '#e53e3e',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem'
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Task Details */}
+                  <div style={{ marginLeft: '24px', fontSize: '0.9rem', color: currentTheme.textColor }}>
+                    {/* Dates */}
+                    {(task.replacedDate || task.dueDate) && (
+                      <div style={{ display: 'flex', gap: '16px', marginBottom: '8px' }}>
+                        {task.replacedDate && (
+                          <span>📅 Replaced: {new Date(task.replacedDate).toLocaleDateString()}</span>
+                        )}
+                        {task.dueDate && (
+                          <span>⏰ Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Description */}
+                    {task.description && (
+                      <div style={{ marginBottom: '8px' }}>
+                        <strong>📝 Description:</strong> {task.description}
+                      </div>
+                    )}
+                    
+                    {/* AI Solution (if available) */}
+                    {task.aiSolution && (
+                      <div style={{ 
+                        marginTop: '8px', 
+                        padding: '8px', 
+                        backgroundColor: '#f0fff4', 
+                        border: '1px solid #68d391',
+                        borderRadius: '4px'
+                      }}>
+                        <strong>🤖 AI Solution:</strong>
+                        <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.85rem' }}>
+                          {task.aiSolution}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))
             )}
@@ -1745,6 +2000,119 @@ const App = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* AI Solution Modal */}
+      {showSolutionModal && selectedTaskForSolution && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: currentTheme.cardBg,
+            padding: '2rem',
+            borderRadius: '12px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)',
+            border: `1px solid ${currentTheme.borderColor}`
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ color: currentTheme.textColor, margin: 0 }}>
+                🤖 AI Maintenance Solution
+              </h2>
+              <button
+                onClick={() => {
+                  setShowSolutionModal(false)
+                  setSelectedTaskForSolution(null)
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: currentTheme.textColor
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Task Info */}
+            <div style={{ 
+              backgroundColor: '#f7fafc', 
+              padding: '1rem', 
+              borderRadius: '8px', 
+              marginBottom: '1.5rem',
+              border: '1px solid #e2e8f0'
+            }}>
+              <h3 style={{ margin: '0 0 0.5rem 0', color: currentTheme.textColor }}>
+                {selectedTaskForSolution.text}
+              </h3>
+              {selectedTaskForSolution.description && (
+                <p style={{ margin: '0.5rem 0', color: currentTheme.textColor }}>
+                  <strong>Description:</strong> {selectedTaskForSolution.description}
+                </p>
+              )}
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                <span style={{ 
+                  padding: '4px 8px', 
+                  backgroundColor: getPriorityColor(selectedTaskForSolution.priority || 'medium'),
+                  color: 'white',
+                  borderRadius: '4px',
+                  fontSize: '0.8rem'
+                }}>
+                  {getPriorityIcon(selectedTaskForSolution.priority || 'medium')} {selectedTaskForSolution.priority || 'medium'}
+                </span>
+                {selectedTaskForSolution.dueDate && (
+                  <span style={{ color: currentTheme.textColor, fontSize: '0.9rem' }}>
+                    ⏰ Due: {new Date(selectedTaskForSolution.dueDate).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Generate Solution Button */}
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <button
+                onClick={() => generateAISolution(selectedTaskForSolution)}
+                disabled={isLoading}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: isLoading ? '#cbd5e0' : '#3182ce',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: 'bold'
+                }}
+              >
+                {isLoading ? '🤖 Generating Solution...' : '🤖 Generate AI Solution'}
+              </button>
+            </div>
+
+            {/* Loading State */}
+            {isLoading && (
+              <div style={{ textAlign: 'center', padding: '2rem' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🤖</div>
+                <p style={{ color: currentTheme.textColor }}>
+                  AI is analyzing your maintenance task and generating a comprehensive solution...
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
