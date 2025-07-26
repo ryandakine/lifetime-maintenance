@@ -1,0 +1,85 @@
+{
+  "name": "Lifetime Maintenance AI Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lifetime-ai-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "lifetime-ai-agent-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// AI Decision Engine for Lifetime Maintenance PWA\nconst input = $input.first().json;\nconst taskDescription = input.input || input.task || '';\nconst context = input.context || 'general';\n\n// Analyze the task and determine the best action\nlet action = 'clarify';\nlet parameters = {};\nlet reasoning = '';\nlet confidence = 0.5;\n\n// Task analysis logic\nif (taskDescription.toLowerCase().includes('component') || taskDescription.toLowerCase().includes('react')) {\n  action = 'code_generation';\n  parameters = {\n    type: 'component',\n    description: taskDescription,\n    framework: 'react',\n    file: 'src/components/' + (taskDescription.match(/for\\s+(\\w+)/i)?.[1] || 'NewComponent') + '.jsx'\n  };\n  reasoning = 'Detected React component creation request';\n  confidence = 0.9;\n} else if (taskDescription.toLowerCase().includes('test') || taskDescription.toLowerCase().includes('testing')) {\n  action = 'testing';\n  parameters = {\n    type: 'unit_tests',\n    description: taskDescription,\n    command: 'npm run test'\n  };\n  reasoning = 'Detected testing request';\n  confidence = 0.8;\n} else if (taskDescription.toLowerCase().includes('build') || taskDescription.toLowerCase().includes('deploy')) {\n  action = 'deployment';\n  parameters = {\n    type: 'build_and_deploy',\n    description: taskDescription,\n    command: 'npm run build && npm run gh:deploy'\n  };\n  reasoning = 'Detected deployment request';\n  confidence = 0.85;\n} else if (taskDescription.toLowerCase().includes('optimize') || taskDescription.toLowerCase().includes('performance')) {\n  action = 'optimization';\n  parameters = {\n    type: 'performance_optimization',\n    description: taskDescription,\n    commands: ['npm run build', 'npm run test:coverage']\n  };\n  reasoning = 'Detected performance optimization request';\n  confidence = 0.8;\n} else if (taskDescription.toLowerCase().includes('fix') || taskDescription.toLowerCase().includes('error')) {\n  action = 'debugging';\n  parameters = {\n    type: 'error_fix',\n    description: taskDescription,\n    commands: ['npm run lint', 'npm run test']\n  };\n  reasoning = 'Detected debugging/error fixing request';\n  confidence = 0.75;\n} else {\n  action = 'clarify';\n  parameters = {\n    clarification: 'Please provide more details about what you want to accomplish. I can help with:\\n- Creating React components\\n- Running tests\\n- Building and deploying\\n- Performance optimization\\n- Debugging and error fixing'\n  };\n  reasoning = 'Task description unclear, need clarification';\n  confidence = 0.3;\n}\n\n// Return structured response\nreturn {\n  action,\n  parameters,\n  reasoning,\n  confidence,\n  timestamp: new Date().toISOString(),\n  originalInput: taskDescription,\n  context\n};"
+      },
+      "id": "ai-decision-engine",
+      "name": "AI Decision Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Task Executor for Lifetime Maintenance PWA\nconst { execSync } = require('child_process');\nconst fs = require('fs');\nconst path = require('path');\n\nconst input = $input.first().json;\nconst action = input.action;\nconst params = input.parameters || {};\n\nlet result = { success: false, output: '', error: '', task: action };\n\nconsole.log(`🤖 Executing task: ${action}`);\nconsole.log(`📋 Parameters:`, params);\n\ntry {\n  switch (action) {\n    case 'code_generation':\n      result = await generateCode(params);\n      break;\n    case 'testing':\n      result = await runTests(params);\n      break;\n    case 'deployment':\n      result = await deployApp(params);\n      break;\n    case 'optimization':\n      result = await optimizePerformance(params);\n      break;\n    case 'debugging':\n      result = await debugIssue(params);\n      break;\n    case 'clarify':\n      result = {\n        success: true,\n        output: params.clarification || 'Please provide more details about your request.',\n        task: 'clarification'\n      };\n      break;\n    default:\n      result.error = 'Unknown action: ' + action;\n  }\n} catch (error) {\n  result.error = error.message;\n  console.error(`❌ Task failed: ${error.message}`);\n}\n\n// Add learning data\nconst learningData = {\n  timestamp: new Date().toISOString(),\n  action: action,\n  parameters: params,\n  result: result,\n  input: input.originalInput,\n  context: input.context\n};\n\n// Save to learning database\nconst dataDir = path.join(__dirname, '../data');\nif (!fs.existsSync(dataDir)) {\n  fs.mkdirSync(dataDir, { recursive: true });\n}\n\nfs.appendFileSync(\n  path.join(dataDir, 'ai-learning.jsonl'),\n  JSON.stringify(learningData) + '\\n'\n);\n\nconsole.log(`✅ Task completed: ${result.success ? 'SUCCESS' : 'FAILED'}`);\nreturn { ...input, result, learningData };\n\n// Helper functions\nasync function generateCode(params) {\n  const { type, description, framework, file } = params;\n  \n  if (type === 'component') {\n    const componentName = path.basename(file, '.jsx');\n    const componentCode = `import React, { useState, useEffect } from 'react';\nimport './${componentName}.css';\n\nconst ${componentName} = ({ /* props */ }) => {\n  const [state, setState] = useState(null);\n  \n  useEffect(() => {\n    // Component initialization\n  }, []);\n  \n  return (\n    <div className=\"${componentName.toLowerCase()}-container\">\n      <h2>${componentName}</h2>\n      {/* Component content based on: ${description} */}\n    </div>\n  );\n};\n\nexport default ${componentName};`;\n    \n    // Write component file\n    fs.writeFileSync(file, componentCode);\n    \n    // Create CSS file\n    const cssFile = file.replace('.jsx', '.css');\n    const cssCode = `.${componentName.toLowerCase()}-container {\n  padding: 1rem;\n  border: 1px solid #e9ecef;\n  border-radius: 8px;\n  background-color: white;\n}`;\n    fs.writeFileSync(cssFile, cssCode);\n    \n    return {\n      success: true,\n      output: `✅ Generated ${componentName} component:\\n- File: ${file}\\n- CSS: ${cssFile}\\n- Description: ${description}`,\n      files: [file, cssFile]\n    };\n  }\n  \n  return {\n    success: false,\n    error: 'Unsupported code generation type: ' + type\n  };\n}\n\nasync function runTests(params) {\n  const { type, command } = params;\n  \n  try {\n    const output = execSync(command, { encoding: 'utf8', cwd: process.cwd() });\n    return {\n      success: true,\n      output: `✅ Tests completed successfully:\\n${output}`,\n      command: command\n    };\n  } catch (error) {\n    return {\n      success: false,\n      error: `❌ Tests failed:\\n${error.message}`,\n      command: command\n    };\n  }\n}\n\nasync function deployApp(params) {\n  const { type, command } = params;\n  \n  try {\n    const output = execSync(command, { encoding: 'utf8', cwd: process.cwd() });\n    return {\n      success: true,\n      output: `✅ Deployment completed successfully:\\n${output}`,\n      command: command\n    };\n  } catch (error) {\n    return {\n      success: false,\n      error: `❌ Deployment failed:\\n${error.message}`,\n      command: command\n    };\n  }\n}\n\nasync function optimizePerformance(params) {\n  const { type, commands } = params;\n  \n  try {\n    let output = '';\n    for (const command of commands) {\n      output += `\\nRunning: ${command}\\n`;\n      output += execSync(command, { encoding: 'utf8', cwd: process.cwd() });\n    }\n    \n    return {\n      success: true,\n      output: `✅ Performance optimization completed:\\n${output}`,\n      commands: commands\n    };\n  } catch (error) {\n    return {\n      success: false,\n      error: `❌ Performance optimization failed:\\n${error.message}`,\n      commands: commands\n    };\n  }\n}\n\nasync function debugIssue(params) {\n  const { type, commands } = params;\n  \n  try {\n    let output = '';\n    for (const command of commands) {\n      output += `\\nRunning: ${command}\\n`;\n      output += execSync(command, { encoding: 'utf8', cwd: process.cwd() });\n    }\n    \n    return {\n      success: true,\n      output: `✅ Debugging completed:\\n${output}`,\n      commands: commands\n    };\n  } catch (error) {\n    return {\n      success: false,\n      error: `❌ Debugging failed:\\n${error.message}`,\n      commands: commands\n    };\n  }\n}"
+      },
+      "id": "task-executor",
+      "name": "Task Executor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Learning Engine for Lifetime Maintenance AI Agent\nconst fs = require('fs');\nconst path = require('path');\n\nconst input = $input.first().json;\nconst learningData = input.learningData;\n\n// Analyze patterns and outcomes\nconst patterns = analyzePatterns(learningData);\nconst recommendations = generateRecommendations(patterns);\n\n// Update AI model with new insights\nupdateAIModel(patterns, recommendations);\n\nconsole.log('🧠 Learning engine processed:', patterns);\n\nreturn {\n  ...input,\n  patterns,\n  recommendations,\n  learningApplied: true,\n  timestamp: new Date().toISOString()\n};\n\nfunction analyzePatterns(data) {\n  // Analyze success patterns, common errors, optimal parameters\n  return {\n    successRate: data.result?.success ? 1 : 0,\n    action: data.action,\n    context: data.context,\n    timestamp: data.timestamp\n  };\n}\n\nfunction generateRecommendations(patterns) {\n  // Generate recommendations for future actions\n  return {\n    preferredActions: patterns.successRate > 0.8 ? 'continue' : 'adjust',\n    confidence: patterns.successRate,\n    suggestion: patterns.successRate > 0.8 ? \n      'This action pattern is working well, continue using it.' : \n      'Consider adjusting the approach for better results.'\n  };\n}\n\nfunction updateAIModel(patterns, recommendations) {\n  // Update the AI model with new insights\n  const modelUpdate = {\n    timestamp: new Date().toISOString(),\n    patterns,\n    recommendations\n  };\n  \n  const dataDir = path.join(__dirname, '../data');\n  if (!fs.existsSync(dataDir)) {\n    fs.mkdirSync(dataDir, { recursive: true });\n  }\n  \n  fs.appendFileSync(\n    path.join(dataDir, 'ai-model-updates.jsonl'),\n    JSON.stringify(modelUpdate) + '\\n'\n  );\n}"
+      },
+      "id": "learning-engine",
+      "name": "Learning Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "response",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [["AI Decision Engine"]]
+    },
+    "AI Decision Engine": {
+      "main": [["Task Executor"]]
+    },
+    "Task Executor": {
+      "main": [["Learning Engine"]]
+    },
+    "Learning Engine": {
+      "main": [["Response"]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "lifetime-maintenance-ai-agent",
+  "tags": ["lifetime-maintenance", "ai-agent", "automation"]
+} 

@@ -20,6 +20,7 @@
     "ai:stop": "node scripts/n8n-ai-agent.js stop",
     "ai:status": "node scripts/n8n-ai-agent.js status",
     "ai:trigger": "node scripts/n8n-ai-agent.js trigger",
+    "ai:webhook": "node scripts/trigger-ai-agent.js",
     "dev:auto": "node scripts/dev-automation.js start",
     "dev:stop": "node scripts/dev-automation.js stop",
     "dev:status": "node scripts/dev-automation.js status",
