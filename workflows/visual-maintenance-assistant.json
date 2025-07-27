@@ -1,0 +1,258 @@
+{
+  "name": "Visual Maintenance Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "maintenance-photo",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "photo-upload-webhook",
+      "name": "Photo Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "maintenance-photo-upload"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Photo Upload Processor\nconst input = $input.first().json;\nconst photoData = input.body || input;\n\n// Extract photo data\nconst photo = photoData.photo || photoData.image;\nconst equipmentLocation = photoData.location || 'Unknown';\nconst reportedIssue = photoData.issue || 'General inspection';\nconst urgency = photoData.urgency || 'normal';\n\n// Validate photo data\nif (!photo) {\n  throw new Error('No photo data provided');\n}\n\n// Prepare for AI analysis\nconst analysisRequest = {\n  photo: photo,\n  location: equipmentLocation,\n  issue: reportedIssue,\n  urgency: urgency,\n  timestamp: new Date().toISOString(),\n  requestId: `maintenance_${Date.now()}`\n};\n\nreturn [{\n  json: analysisRequest\n}];"
+      },
+      "id": "photo-processor",
+      "name": "Photo Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.perplexity.ai/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.PERPLEXITY_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama-3.1-sonar-large-128k-online"
+            },
+            {
+              "name": "messages",
+              "value": "=[\n  {\n    \"role\": \"user\",\n    \"content\": [\n      {\n        \"type\": \"text\",\n        \"text\": \"Analyze this gym equipment photo for maintenance purposes. Identify:\\n\\n1. Equipment type and model\\n2. Visible damage or wear\\n3. Required maintenance actions\\n4. Parts that may need replacement\\n5. Safety concerns\\n6. Estimated repair time\\n7. Tools needed\\n\\nLocation: {{ $json.location }}\\nReported Issue: {{ $json.issue }}\\nUrgency: {{ $json.urgency }}\\n\\nReturn detailed JSON analysis with specific recommendations.\"\n      },\n      {\n        \"type\": \"image_url\",\n        \"image_url\": \"{{ $json.photo }}\"\n      }\n    ]\n  }\n]"
+            },
+            {
+              "name": "max_tokens",
+              "value": "2000"
+            },
+            {
+              "name": "temperature",
+              "value": "0.3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "perplexity-vision-analysis",
+      "name": "Perplexity Vision Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// AI Analysis Processor\nconst input = $input.first().json;\nconst perplexityResponse = input.data;\nconst originalRequest = input.originalData;\n\n// Extract analysis from Perplexity response\nlet analysis = {};\ntry {\n  const content = perplexityResponse.choices[0].message.content;\n  // Try to parse JSON from the response\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    analysis = JSON.parse(jsonMatch[0]);\n  } else {\n    // Fallback: extract key information from text\n    analysis = {\n      equipment_type: content.match(/equipment[\\s\\-]*type[\\s\\-]*:?\\s*([^\\n]+)/i)?.[1]?.trim() || 'Unknown',\n      damage_assessment: content.match(/damage[\\s\\-]*assessment[\\s\\-]*:?\\s*([^\\n]+)/i)?.[1]?.trim() || 'No visible damage',\n      required_parts: content.match(/parts[\\s\\-]*needed[\\s\\-]*:?\\s*([^\\n]+)/i)?.[1]?.trim() || 'None identified',\n      tools_needed: content.match(/tools[\\s\\-]*needed[\\s\\-]*:?\\s*([^\\n]+)/i)?.[1]?.trim() || 'Standard tools',\n      time_estimate: content.match(/time[\\s\\-]*estimate[\\s\\-]*:?\\s*([^\\n]+)/i)?.[1]?.trim() || '1-2 hours',\n      safety_concerns: content.match(/safety[\\s\\-]*concerns[\\s\\-]*:?\\s*([^\\n]+)/i)?.[1]?.trim() || 'None identified',\n      raw_analysis: content\n    };\n  }\n} catch (error) {\n  analysis = {\n    error: 'Failed to parse AI analysis',\n    raw_response: perplexityResponse,\n    equipment_type: 'Unknown',\n    damage_assessment: 'Analysis failed',\n    required_parts: 'Unable to determine',\n    tools_needed: 'Standard tools',\n    time_estimate: '2-4 hours',\n    safety_concerns: 'Manual inspection required'\n  };\n}\n\n// Combine with original request data\nconst maintenanceJob = {\n  id: originalRequest.requestId,\n  timestamp: originalRequest.timestamp,\n  location: originalRequest.location,\n  reported_issue: originalRequest.issue,\n  urgency: originalRequest.urgency,\n  photo_url: originalRequest.photo,\n  ai_analysis: analysis,\n  status: 'analyzed',\n  created_at: new Date().toISOString()\n};\n\nreturn [{\n  json: maintenanceJob\n}];"
+      },
+      "id": "analysis-processor",
+      "name": "Analysis Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parts Lookup Processor\nconst input = $input.first().json;\nconst maintenanceJob = input;\nconst analysis = maintenanceJob.ai_analysis;\n\n// Extract parts information\nconst requiredParts = analysis.required_parts || [];\nconst equipmentType = analysis.equipment_type || 'Unknown';\n\n// Generate Grainger search queries\nconst searchQueries = [];\n\nif (typeof requiredParts === 'string') {\n  // Parse parts from text\n  const partsList = requiredParts.split(/[,;\\n]/).map(part => part.trim()).filter(part => part.length > 0);\n  searchQueries.push(...partsList);\n} else if (Array.isArray(requiredParts)) {\n  searchQueries.push(...requiredParts);\n}\n\n// Add equipment-specific searches\nif (equipmentType.toLowerCase().includes('treadmill')) {\n  searchQueries.push('treadmill belt', 'treadmill motor', 'treadmill deck');\n} else if (equipmentType.toLowerCase().includes('elliptical')) {\n  searchQueries.push('elliptical belt', 'elliptical bearing', 'elliptical pedal');\n} else if (equipmentType.toLowerCase().includes('bike')) {\n  searchQueries.push('exercise bike seat', 'exercise bike pedal', 'exercise bike belt');\n}\n\n// Create parts lookup data\nconst partsLookup = {\n  maintenance_job_id: maintenanceJob.id,\n  equipment_type: equipmentType,\n  search_queries: searchQueries,\n  grainger_parts: [],\n  total_estimated_cost: 0,\n  availability_status: 'pending'\n};\n\nreturn [{\n  json: {\n    ...maintenanceJob,\n    parts_lookup: partsLookup\n  }\n}];"
+      },
+      "id": "parts-lookup-processor",
+      "name": "Parts Lookup Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://www.grainger.com/search?searchQuery={{ $json.parts_lookup.search_queries[0] }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "grainger-search",
+      "name": "Grainger Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Grainger Results Processor\nconst input = $input.first().json;\nconst maintenanceJob = input;\nconst graingerResponse = input.data;\n\n// Parse Grainger search results (simplified)\n// In production, you'd use a proper web scraping service or Grainger API\nconst mockParts = [\n  {\n    part_number: 'GR123456',\n    description: 'Treadmill Belt Replacement',\n    price: 89.99,\n    availability: 'In Stock',\n    delivery_time: '2-3 business days'\n  },\n  {\n    part_number: 'GR789012',\n    description: 'Exercise Equipment Bearing Set',\n    price: 24.99,\n    availability: 'In Stock',\n    delivery_time: '1-2 business days'\n  }\n];\n\n// Calculate total cost\nconst totalCost = mockParts.reduce((sum, part) => sum + part.price, 0);\n\n// Update parts lookup\nconst updatedPartsLookup = {\n  ...maintenanceJob.parts_lookup,\n  grainger_parts: mockParts,\n  total_estimated_cost: totalCost,\n  availability_status: 'available'\n};\n\n// Create order summary\nconst orderSummary = {\n  maintenance_job_id: maintenanceJob.id,\n  equipment_type: maintenanceJob.ai_analysis.equipment_type,\n  location: maintenanceJob.location,\n  urgency: maintenanceJob.urgency,\n  parts_required: mockParts.length,\n  total_cost: totalCost,\n  estimated_repair_time: maintenanceJob.ai_analysis.time_estimate,\n  safety_concerns: maintenanceJob.ai_analysis.safety_concerns,\n  tools_needed: maintenanceJob.ai_analysis.tools_needed,\n  order_status: 'ready_to_generate'\n};\n\nreturn [{\n  json: {\n    ...maintenanceJob,\n    parts_lookup: updatedPartsLookup,\n    order_summary: orderSummary\n  }\n}];"
+      },
+      "id": "grainger-processor",
+      "name": "Grainger Results Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Order Generation Processor\nconst input = $input.first().json;\nconst maintenanceJob = input;\nconst orderSummary = maintenanceJob.order_summary;\n\n// Generate purchase order\nconst purchaseOrder = {\n  po_number: `PO-${Date.now()}`,\n  vendor: 'Grainger Industrial Supply',\n  maintenance_job_id: maintenanceJob.id,\n  equipment_location: maintenanceJob.location,\n  urgency_level: maintenanceJob.urgency,\n  items: maintenanceJob.parts_lookup.grainger_parts.map(part => ({\n    part_number: part.part_number,\n    description: part.description,\n    quantity: 1,\n    unit_price: part.price,\n    total_price: part.price\n  })),\n  subtotal: orderSummary.total_cost,\n  tax: orderSummary.total_cost * 0.08, // 8% tax\n  total: orderSummary.total_cost * 1.08,\n  delivery_address: 'Lifetime Fitness - Maintenance Department',\n  special_instructions: `Urgency: ${orderSummary.urgency}. Equipment: ${orderSummary.equipment_type}. Safety concerns: ${orderSummary.safety_concerns}`,\n  created_at: new Date().toISOString()\n};\n\n// Create work order update\nconst workOrderUpdate = {\n  maintenance_job_id: maintenanceJob.id,\n  status: 'parts_ordered',\n  estimated_completion: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days\n  assigned_technician: 'TBD',\n  priority: maintenanceJob.urgency === 'high' ? 'High' : 'Normal',\n  notes: `AI Analysis: ${maintenanceJob.ai_analysis.damage_assessment}. Tools needed: ${maintenanceJob.ai_analysis.tools_needed}. Time estimate: ${maintenanceJob.ai_analysis.time_estimate}`\n};\n\nreturn [{\n  json: {\n    ...maintenanceJob,\n    purchase_order: purchaseOrder,\n    work_order_update: workOrderUpdate,\n    status: 'order_generated'\n  }\n}];"
+      },
+      "id": "order-generator",
+      "name": "Order Generator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "response",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    }
+  ],
+  "connections": {
+    "Photo Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "Photo Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Photo Processor": {
+      "main": [
+        [
+          {
+            "node": "Perplexity Vision Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perplexity Vision Analysis": {
+      "main": [
+        [
+          {
+            "node": "Analysis Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analysis Processor": {
+      "main": [
+        [
+          {
+            "node": "Parts Lookup Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parts Lookup Processor": {
+      "main": [
+        [
+          {
+            "node": "Grainger Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grainger Search": {
+      "main": [
+        [
+          {
+            "node": "Grainger Results Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grainger Results Processor": {
+      "main": [
+        [
+          {
+            "node": "Order Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Order Generator": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "visual-maintenance-assistant"
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "maintenance",
+      "name": "maintenance"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+} 

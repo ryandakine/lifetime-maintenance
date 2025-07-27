@@ -12,6 +12,7 @@ const Dashboard = lazy(() => import('./components/Dashboard'))
 const Tasks = lazy(() => import('./components/Tasks'))
 const Shopping = lazy(() => import('./components/Shopping'))
 const Maintenance = lazy(() => import('./components/Maintenance'))
+const VisualMaintenance = lazy(() => import('./components/VisualMaintenance'))
 const Photos = lazy(() => import('./components/Photos'))
 const VoiceInput = lazy(() => import('./components/VoiceInput'))
 
@@ -34,7 +35,8 @@ function App() {
     { id: 'tasks', label: '📋 Tasks', icon: '📋' },
     { id: 'shopping', label: '🛒 Shopping', icon: '🛒' },
     { id: 'maintenance', label: '🔧 Maintenance', icon: '🔧' },
-    { id: 'photos', label: '📸 Photos', icon: '📸' },
+    { id: 'visual-maintenance', label: '📸 Visual AI', icon: '📸' },
+    { id: 'photos', label: '📷 Photos', icon: '📷' },
     { id: 'voice', label: '🎤 Voice', icon: '🎤' }
   ], [])
 
@@ -57,6 +59,8 @@ function App() {
           return <Shopping />
         case 'maintenance':
           return <Maintenance />
+        case 'visual-maintenance':
+          return <VisualMaintenance />
         case 'photos':
           return <Photos />
         case 'voice':
