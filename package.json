@@ -35,7 +35,8 @@
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "gh:deploy": "gh pages deploy dist --add --push",
     "gh:create-issue": "gh issue create --title \"Feature Request\" --body \"New feature request\"",
-    "gh:create-pr": "gh pr create --title \"Feature: \" --body \"Implements new feature\""
+    "gh:create-pr": "gh pr create --title \"Feature: \" --body \"Implements new feature\"",
+    "start:hybrid": "node start-hybrid-system.js"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.8.2",
