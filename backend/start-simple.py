@@ -1,17 +1,23 @@
 #!/usr/bin/env py
 """
-Simplified Startup script for Lifetime Fitness Maintenance FastAPI Backend
+Simplified Startup script for Lifetime Fitness Maintenance Flask Backend
 """
 
-import uvicorn
 import os
 import sys
+from pathlib import Path
 
 # Add the app directory to Python path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+backend_dir = Path(__file__).parent
+app_dir = backend_dir / "app"
+sys.path.insert(0, str(backend_dir))
+sys.path.insert(0, str(app_dir))
+
+# Import Flask app
+from app.main_flask import app
 
 if __name__ == "__main__":
-    print("🚀 Starting Lifetime Fitness Maintenance API (Simplified)...")
+    print("🚀 Starting Lifetime Fitness Maintenance API (Flask)...")
     print("📍 API will be available at: http://localhost:8000")
     print("📚 API Documentation at: http://localhost:8000/docs")
     print("🔍 Health check at: http://localhost:8000/health")
@@ -25,10 +31,15 @@ if __name__ == "__main__":
     print(f"🔍 Health check at: http://localhost:{port}/health")
     print()
     
-    uvicorn.run(
-        "app.main-simple:app",
-        host="0.0.0.0",
-        port=port,
-        reload=True,
-        log_level="info"
-    ) 
+    try:
+        app.run(
+            host="0.0.0.0",
+            port=port,
+            debug=True,
+            use_reloader=True
+        )
+    except KeyboardInterrupt:
+        print("\n🛑 Server stopped by user")
+    except Exception as e:
+        print(f"❌ Failed to start server: {e}")
+        sys.exit(1) 

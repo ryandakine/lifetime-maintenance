@@ -1,208 +1,302 @@
-- **Verbose Logging Requirements:**
-  - **All functions must include detailed logging** at entry, exit, and error points
-  - **Log levels must be properly categorized** (debug, info, warn, error, fatal)
-  - **Include contextual information** in all log messages (function name, parameters, timestamps)
-  - **Log all API calls, database operations, and external service interactions**
-
-- **JavaScript/TypeScript Logging Standards:**
-  ```javascript
-  // ✅ DO: Comprehensive logging
-  const logger = {
-    debug: (msg, data) => console.log(`[DEBUG] ${new Date().toISOString()} - ${msg}`, data),
-    info: (msg, data) => console.log(`[INFO] ${new Date().toISOString()} - ${msg}`, data),
-    warn: (msg, data) => console.warn(`[WARN] ${new Date().toISOString()} - ${msg}`, data),
-    error: (msg, error) => console.error(`[ERROR] ${new Date().toISOString()} - ${msg}`, error)
-  };
-
-  async function processTask(taskId) {
-    logger.info(`Starting task processing`, { taskId, timestamp: new Date().toISOString() });
-    
-    try {
-      logger.debug(`Fetching task data`, { taskId });
-      const task = await fetchTask(taskId);
-      logger.info(`Task data retrieved`, { taskId, status: task.status });
-      
-      // Process task...
-      logger.info(`Task processing completed`, { taskId, result: 'success' });
-      return result;
-    } catch (error) {
-      logger.error(`Task processing failed`, { taskId, error: error.message, stack: error.stack });
-      throw error;
-    }
-  }
-  
-  // ❌ DON'T: Minimal or no logging
-  async function processTask(taskId) {
-    const task = await fetchTask(taskId);
-    // Process without logging
-    return result;
-  }
-  ```
-
-- **Python Logging Standards:**
-  ```python
-  # ✅ DO: Proper Python logging setup
-  import logging
-  import datetime
-  
-  # Configure logging
-  logging.basicConfig(
-      level=logging.DEBUG,
-      format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-      handlers=[
-          logging.FileHandler('app.log'),
-          logging.StreamHandler()
-      ]
-  )
-  
-  logger = logging.getLogger(__name__)
-  
-  def process_maintenance_task(task_id: str):
-      logger.info(f"Starting maintenance task processing", extra={
-          'task_id': task_id,
-          'timestamp': datetime.datetime.now().isoformat()
-      })
-      
-      try:
-          logger.debug(f"Fetching task data for task_id: {task_id}")
-          task = fetch_task(task_id)
-          logger.info(f"Task data retrieved successfully", extra={
-              'task_id': task_id,
-              'status': task.status
-          })
-          
-          # Process task...
-          logger.info(f"Task processing completed successfully", extra={
-              'task_id': task_id,
-              'result': 'success'
-          })
-          return result
-      except Exception as e:
-          logger.error(f"Task processing failed", extra={
-              'task_id': task_id,
-              'error': str(e),
-              'exception_type': type(e).__name__
-          }, exc_info=True)
-          raise
-  
-  # ❌ DON'T: Basic print statements or no logging
-  def process_maintenance_task(task_id: str):
-      task = fetch_task(task_id)
-      # Process without proper logging
-      return result
-  ```
-
-- **API Endpoint Logging:**
-  ```javascript
-  // ✅ DO: Log all API interactions
-  app.get('/api/tasks/:id', async (req, res) => {
-    const { id } = req.params;
-    logger.info(`API request received`, {
-      method: 'GET',
-      endpoint: '/api/tasks/:id',
-      taskId: id,
-      userAgent: req.get('User-Agent'),
-      ip: req.ip,
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const task = await getTask(id);
-      logger.info(`API request successful`, {
-        method: 'GET',
-        endpoint: '/api/tasks/:id',
-        taskId: id,
-        statusCode: 200,
-        responseTime: Date.now() - startTime
-      });
-      res.json(task);
-    } catch (error) {
-      logger.error(`API request failed`, {
-        method: 'GET',
-        endpoint: '/api/tasks/:id',
-        taskId: id,
-        error: error.message,
-        statusCode: 500
-      });
-      res.status(500).json({ error: error.message });
-    }
-  });
-  ```
-
-- **Database Operation Logging:**
-  ```javascript
-  // ✅ DO: Log all database operations
-  async function createTask(taskData) {
-    logger.info(`Database operation started`, {
-      operation: 'CREATE',
-      table: 'tasks',
-      data: taskData,
-      timestamp: new Date().toISOString()
-    });
-    
-    try {
-      const result = await db.query(
-        'INSERT INTO tasks (title, description, status) VALUES (?, ?, ?)',
-        [taskData.title, taskData.description, taskData.status]
-      );
-      
-      logger.info(`Database operation successful`, {
-        operation: 'CREATE',
-        table: 'tasks',
-        taskId: result.insertId,
-        rowsAffected: result.affectedRows
-      });
-      
-      return result;
-    } catch (error) {
-      logger.error(`Database operation failed`, {
-        operation: 'CREATE',
-        table: 'tasks',
-        error: error.message,
-        sql: 'INSERT INTO tasks...'
-      });
-      throw error;
-    }
-  }
-  ```
-
-- **Error Handling with Verbose Logging:**
-  ```javascript
-  // ✅ DO: Comprehensive error logging
-  process.on('uncaughtException', (error) => {
-    logger.fatal(`Uncaught Exception`, {
-      error: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString(),
-      processId: process.pid,
-      memoryUsage: process.memoryUsage()
-    });
-    process.exit(1);
-  });
-  
-  process.on('unhandledRejection', (reason, promise) => {
-    logger.error(`Unhandled Rejection`, {
-      reason: reason,
-      promise: promise,
-      timestamp: new Date().toISOString(),
-      processId: process.pid
-    });
-  });
-  ```
-
-- **Logging Configuration Requirements:**
-  - **Environment-based log levels** (DEBUG for development, INFO for production)
-  - **Structured logging** with JSON format for production
-  - **Log rotation** to prevent disk space issues
-  - **Sensitive data masking** (passwords, tokens, personal information)
-  - **Performance metrics** logging (response times, memory usage)
-
-- **Monitoring and Alerting:**
-  - **Log aggregation** for centralized monitoring
-  - **Error rate tracking** and alerting
-  - **Performance bottleneck identification** through logging
-  - **User behavior analytics** through request logging
-description:
-globs:
-alwaysApply: false
 ---
+description: Comprehensive verbose logging requirements for all code in the Lifetime Fitness Maintenance System
+globs: "**/*.{js,jsx,ts,tsx,py}"
+alwaysApply: true
+---
+
+# Verbose Logging Standards
+
+**All code must implement comprehensive logging** to ensure observability, debugging capabilities, and operational monitoring across the Lifetime Fitness Maintenance System.
+
+## **Core Logging Requirements**
+
+### **1. Function Entry/Exit Logging**
+- **Every function must log at entry and exit**
+- **Include function name, parameters, and return values**
+- **Log execution time for performance monitoring**
+
+```javascript
+// ✅ DO: Comprehensive function logging
+function processMaintenanceTask(taskId, priority) {
+  logger.info('processMaintenanceTask:entry', { taskId, priority, timestamp: new Date().toISOString() });
+  
+  try {
+    const result = performTask(taskId);
+    logger.info('processMaintenanceTask:success', { taskId, result, executionTime: Date.now() - startTime });
+    return result;
+  } catch (error) {
+    logger.error('processMaintenanceTask:error', { taskId, error: error.message, stack: error.stack });
+    throw error;
+  }
+}
+
+// ❌ DON'T: Silent functions
+function processMaintenanceTask(taskId, priority) {
+  return performTask(taskId); // No logging
+}
+```
+
+### **2. API Call Logging**
+- **Log all HTTP requests and responses**
+- **Include request method, URL, headers, body, and response status**
+- **Log response time and error details**
+
+```javascript
+// ✅ DO: API call logging
+async function fetchMaintenanceTasks() {
+  logger.info('api:fetchMaintenanceTasks:request', { 
+    method: 'GET', 
+    url: '/api/tasks',
+    timestamp: new Date().toISOString() 
+  });
+  
+  try {
+    const response = await fetch('/api/tasks');
+    logger.info('api:fetchMaintenanceTasks:response', { 
+      status: response.status, 
+      responseTime: Date.now() - startTime,
+      dataSize: response.headers.get('content-length') 
+    });
+    return response.json();
+  } catch (error) {
+    logger.error('api:fetchMaintenanceTasks:error', { error: error.message });
+    throw error;
+  }
+}
+```
+
+### **3. Database Operation Logging**
+- **Log all database queries and results**
+- **Include query parameters, execution time, and row counts**
+- **Log database connection events and errors**
+
+```javascript
+// ✅ DO: Database operation logging
+async function getTasksByEquipment(equipmentId) {
+  logger.info('db:getTasksByEquipment:query', { 
+    equipmentId, 
+    query: 'SELECT * FROM tasks WHERE equipment_id = ?',
+    timestamp: new Date().toISOString() 
+  });
+  
+  try {
+    const tasks = await db.query('SELECT * FROM tasks WHERE equipment_id = ?', [equipmentId]);
+    logger.info('db:getTasksByEquipment:success', { 
+      equipmentId, 
+      rowCount: tasks.length, 
+      executionTime: Date.now() - startTime 
+    });
+    return tasks;
+  } catch (error) {
+    logger.error('db:getTasksByEquipment:error', { equipmentId, error: error.message });
+    throw error;
+  }
+}
+```
+
+### **4. Error Handling Logging**
+- **Log all errors with full context**
+- **Include stack traces, error codes, and user context**
+- **Categorize errors by severity (warn, error, fatal)**
+
+```javascript
+// ✅ DO: Comprehensive error logging
+try {
+  await processPhotoUpload(photoData);
+} catch (error) {
+  logger.error('photo:upload:error', {
+    errorType: error.name,
+    message: error.message,
+    stack: error.stack,
+    photoData: { size: photoData.size, type: photoData.type },
+    userId: currentUser.id,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Re-throw for higher-level handling
+  throw error;
+}
+```
+
+## **Log Levels and Usage**
+
+### **DEBUG** - Detailed diagnostic information
+```javascript
+logger.debug('component:state:update', { 
+  component: 'TaskList', 
+  prevState: prevState, 
+  newState: newState 
+});
+```
+
+### **INFO** - General operational information
+```javascript
+logger.info('user:action:taskCreate', { 
+  userId: user.id, 
+  taskTitle: task.title, 
+  priority: task.priority 
+});
+```
+
+### **WARN** - Warning conditions
+```javascript
+logger.warn('api:rateLimit:approaching', { 
+  endpoint: '/api/tasks', 
+  currentUsage: 95, 
+  limit: 100 
+});
+```
+
+### **ERROR** - Error conditions
+```javascript
+logger.error('db:connection:failed', { 
+  database: 'maintenance', 
+  error: error.message, 
+  retryAttempt: 3 
+});
+```
+
+### **FATAL** - Critical system failures
+```javascript
+logger.fatal('system:startup:failed', { 
+  component: 'Database', 
+  error: error.message, 
+  systemState: 'unrecoverable' 
+});
+```
+
+## **Structured Logging Format**
+
+### **JavaScript/TypeScript Format**
+```javascript
+{
+  level: 'info',
+  timestamp: '2024-01-15T10:30:00.000Z',
+  component: 'maintenance',
+  action: 'taskCreate',
+  userId: 'user123',
+  taskId: 'task456',
+  metadata: {
+    priority: 'high',
+    equipmentId: 'equip789',
+    executionTime: 150
+  }
+}
+```
+
+### **Python Format**
+```python
+{
+  "level": "info",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "component": "maintenance",
+  "action": "task_create",
+  "user_id": "user123",
+  "task_id": "task456",
+  "metadata": {
+    "priority": "high",
+    "equipment_id": "equip789",
+    "execution_time": 0.15
+  }
+}
+```
+
+## **Implementation Requirements**
+
+### **Frontend (React/JavaScript)**
+- Use `src/lib/logger.js` for all logging
+- Log component lifecycle events (mount, update, unmount)
+- Log user interactions and state changes
+- Log API calls and responses
+- Log performance metrics
+
+### **Backend (Python/FastAPI/Flask)**
+- Use `backend/app/core/logging.py` for all logging
+- Log request/response cycles
+- Log database operations
+- Log AI service interactions
+- Log system events (startup, shutdown, health checks)
+
+### **Configuration**
+- Set log level based on environment (DEBUG for development, INFO for production)
+- Configure log output (console, file, external service)
+- Implement log rotation and retention policies
+- Mask sensitive data in logs (passwords, API keys, personal information)
+
+## **Logging Best Practices**
+
+### **Context-Rich Logging**
+```javascript
+// ✅ DO: Include relevant context
+logger.info('task:status:updated', {
+  taskId: task.id,
+  oldStatus: task.status,
+  newStatus: 'completed',
+  updatedBy: user.id,
+  equipmentId: task.equipmentId,
+  completionTime: Date.now() - task.startTime
+});
+
+// ❌ DON'T: Minimal context
+logger.info('Task updated'); // Too vague
+```
+
+### **Performance Logging**
+```javascript
+// ✅ DO: Log performance metrics
+const startTime = Date.now();
+const result = await expensiveOperation();
+logger.info('operation:performance', {
+  operation: 'photoAnalysis',
+  executionTime: Date.now() - startTime,
+  resultSize: result.length,
+  memoryUsage: process.memoryUsage()
+});
+```
+
+### **Security Logging**
+```javascript
+// ✅ DO: Log security events
+logger.warn('security:login:failed', {
+  username: 'user@example.com',
+  ipAddress: req.ip,
+  userAgent: req.headers['user-agent'],
+  failureReason: 'invalid_password',
+  attemptCount: 3
+});
+```
+
+## **Monitoring and Alerting**
+
+### **Key Metrics to Log**
+- API response times and error rates
+- Database query performance
+- User action frequency and patterns
+- System resource usage
+- Error frequency and types
+- AI service response times and accuracy
+
+### **Alert Thresholds**
+- Error rate > 5% for any endpoint
+- Response time > 2 seconds for critical operations
+- Database connection failures
+- AI service unavailability
+- System resource usage > 80%
+
+## **Compliance and Privacy**
+
+### **Data Protection**
+- Never log passwords, API keys, or personal information
+- Mask sensitive data in logs (e.g., email addresses, phone numbers)
+- Implement log retention policies
+- Ensure GDPR compliance for user data in logs
+
+### **Audit Trail**
+- Log all administrative actions
+- Track data access and modifications
+- Maintain user action history
+- Enable forensic analysis capabilities
+
+---
+
+**This verbose logging system ensures complete observability, enables effective debugging, and provides operational insights for the Lifetime Fitness Maintenance System.**

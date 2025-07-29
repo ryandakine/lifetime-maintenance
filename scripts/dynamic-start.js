@@ -37,7 +37,7 @@ async function findPorts() {
 function startVite(port) {
   console.log(`🌐 Starting Vite dev server on port ${port}...`);
   
-  const vite = spawn('npm', ['run', 'dev'], {
+  const vite = spawn('npm', ['run', 'dev', '--', '--port', port.toString()], {
     cwd: process.cwd(),
     stdio: 'inherit',
     env: {
@@ -86,11 +86,11 @@ function startNodeAPI(port) {
   return api;
 }
 
-// Function to start FastAPI backend
-function startFastAPI(port) {
-  console.log(`🐍 Starting FastAPI backend on port ${port}...`);
+// Function to start Flask backend
+function startFlask(port) {
+  console.log(`🐍 Starting Flask backend on port ${port}...`);
   
-  const fastapi = spawn('py', ['start-simple.py'], {
+  const flask = spawn('py', ['start-flask.py'], {
     cwd: path.join(process.cwd(), 'backend'),
     stdio: 'inherit',
     env: {
@@ -99,16 +99,16 @@ function startFastAPI(port) {
     }
   });
 
-  fastapi.on('error', (err) => {
-    console.error('❌ Failed to start FastAPI:', err.message);
+  flask.on('error', (err) => {
+    console.error('❌ Failed to start Flask:', err.message);
   });
 
-  fastapi.on('close', (code) => {
-    console.log(`🛑 FastAPI server stopped with code: ${code}`);
+  flask.on('close', (code) => {
+    console.log(`🛑 Flask server stopped with code: ${code}`);
   });
 
-  processes.push({ name: 'FastAPI', process: fastapi });
-  return fastapi;
+  processes.push({ name: 'Flask', process: flask });
+  return flask;
 }
 
 // Function to create environment file with port configuration
@@ -134,7 +134,7 @@ function displayUrls() {
   console.log('\n🎯 Service URLs:');
   console.log(`📱 Frontend (Vite): http://localhost:${portConfig.vite}`);
   console.log(`🔧 Node.js API: http://localhost:${portConfig.api}`);
-  console.log(`🐍 FastAPI Backend: http://localhost:${portConfig.backend}`);
+  console.log(`🐍 Flask Backend: http://localhost:${portConfig.backend}`);
   console.log(`📚 API Docs: http://localhost:${portConfig.backend}/docs`);
   console.log(`🔍 Health Check: http://localhost:${portConfig.api}/health`);
   console.log();
@@ -180,8 +180,8 @@ async function startAllServices() {
     // Start services with delays to avoid conflicts
     console.log('🚀 Starting all services...\n');
     
-    // Start FastAPI first (takes longer to start)
-    startFastAPI(portConfig.backend);
+    // Start Flask first (takes longer to start)
+    startFlask(portConfig.backend);
     
     // Wait a bit, then start Node.js API
     setTimeout(() => {
