@@ -32,6 +32,7 @@ const Photos = () => {
   console.log('Rendering Photos')
   const [photos, setPhotos] = useState([])
   const [tasks, setTasks] = useState([])
+  const [equipment, setEquipment] = useState([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
   const [isOnline, setIsOnline] = useState(navigator.onLine)
@@ -69,6 +70,14 @@ const Photos = () => {
   const [filteredPhotos, setFilteredPhotos] = useState([])
   const [showAnalytics, setShowAnalytics] = useState(false)
 
+  // Mobile enhancements state
+  const [offlinePhotos, setOfflinePhotos] = useState([])
+  const [isOffline, setIsOffline] = useState(!navigator.onLine)
+  const [annotationMode, setAnnotationMode] = useState(false)
+  const [annotations, setAnnotations] = useState([])
+  const [currentAnnotation, setCurrentAnnotation] = useState(null)
+  const [annotationCanvas, setAnnotationCanvas] = useState(null)
+
   // Check camera availability on mount
   useEffect(() => {
     checkCameraAvailability()
@@ -76,8 +85,15 @@ const Photos = () => {
 
   // Check online status
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true)
-    const handleOffline = () => setIsOnline(false)
+    const handleOnline = () => {
+      setIsOnline(true)
+      setIsOffline(false)
+      syncOfflinePhotos()
+    }
+    const handleOffline = () => {
+      setIsOnline(false)
+      setIsOffline(true)
+    }
 
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
@@ -88,10 +104,16 @@ const Photos = () => {
     }
   }, [])
 
+  // Load offline photos from localStorage
+  useEffect(() => {
+    loadOfflinePhotos()
+  }, [])
+
   // Load photos and tasks on component mount
   useEffect(() => {
     loadPhotos()
     loadTasks()
+    loadEquipment()
   }, [])
 
   // Cleanup camera stream on unmount
@@ -247,6 +269,13 @@ const Photos = () => {
     try {
       setPhotoUpload(prev => ({ ...prev, loading: true }))
       
+      // Check if offline and save locally if needed
+      if (isOffline) {
+        await saveOfflinePhoto(file, photoUpload.purpose)
+        setPhotoUpload(prev => ({ ...prev, loading: false }))
+        return
+      }
+      
       // Upload to Supabase Storage
       const fileName = `project-photos/${Date.now()}_${file.name}`
       const { data, error } = await supabase.storage
@@ -278,7 +307,15 @@ const Photos = () => {
       
     } catch (error) {
       console.error('Error processing photo:', error)
-      showMessage('error', 'Failed to process photo')
+      
+      // If online upload fails, save offline
+      if (!isOffline) {
+        console.log('Upload failed, saving offline...')
+        await saveOfflinePhoto(file, photoUpload.purpose)
+      } else {
+        showMessage('error', 'Failed to process photo')
+      }
+      
       setPhotoUpload(prev => ({ ...prev, loading: false }))
     }
   }
@@ -315,6 +352,22 @@ const Photos = () => {
       setTasks(data || [])
     } catch (error) {
       console.error('Error loading tasks:', error)
+    }
+  }
+
+  const loadEquipment = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('equipment')
+        .select('*')
+        .eq('user_id', 'current-user')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setEquipment(data || [])
+      console.log('Equipment loaded:', data?.length || 0)
+    } catch (error) {
+      console.error('Error loading equipment:', error)
     }
   }
 
@@ -776,6 +829,9 @@ Please provide your analysis in the following JSON format:
         console.error('Error saving enhanced analysis:', saveError)
       }
 
+      // Auto-generate maintenance tasks from analysis
+      await generateTasksFromAnalysis(enhancedAnalysis, photoUrl)
+
       console.log('Enhanced AI analysis completed:', enhancedAnalysis)
       return enhancedAnalysis
 
@@ -783,6 +839,289 @@ Please provide your analysis in the following JSON format:
       console.error('Error in enhanced AI analysis:', error)
       throw error
     }
+  }
+
+  // Workflow Automation - Auto-generate Tasks from Photo Analysis
+  const generateTasksFromAnalysis = async (analysis, photoUrl) => {
+    try {
+      console.log('🔄 Starting automated task generation from photo analysis')
+      
+      if (!analysis || !analysis.damage || !analysis.analysis) {
+        console.warn('Insufficient analysis data for task generation')
+        return
+      }
+
+      const generatedTasks = []
+      const timestamp = new Date().toISOString()
+
+      // Find or create equipment record
+      let equipmentRecord = equipment.find(e => 
+        e.name.toLowerCase().includes(analysis.equipment.type.toLowerCase()) ||
+        e.type.toLowerCase().includes(analysis.equipment.type.toLowerCase())
+      )
+
+      if (!equipmentRecord) {
+        // Create new equipment record
+        const { data: newEquipment, error: equipmentError } = await supabase
+          .from('equipment')
+          .insert({
+            name: `${analysis.equipment.brand || 'Unknown'} ${analysis.equipment.type}`,
+            type: analysis.equipment.type,
+            brand: analysis.equipment.brand || 'Unknown',
+            model: analysis.equipment.model || 'Unknown',
+            category: analysis.equipment.category || 'Unknown',
+            status: 'active',
+            last_maintenance: null,
+            photo_url: photoUrl,
+            ai_detected: true,
+            created_at: timestamp
+          })
+          .select()
+          .single()
+
+        if (!equipmentError && newEquipment) {
+          equipmentRecord = newEquipment
+          console.log('Created new equipment record:', newEquipment)
+          // Reload equipment list
+          await loadEquipment()
+        }
+      }
+
+      // Generate tasks based on damage severity
+      if (analysis.damage.severity === 'CRITICAL') {
+        const criticalTask = {
+          task_list: `URGENT: ${analysis.equipment.type} - ${analysis.analysis.mainIssue}`,
+          description: `Critical safety issue detected: ${analysis.analysis.description}`,
+          priority: 'high',
+          status: 'pending',
+          due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Due in 24 hours
+          equipment_id: equipmentRecord?.id || analysis.equipment.type,
+          photo_url: photoUrl,
+          ai_generated: true,
+          severity: 'CRITICAL',
+          immediate_actions: analysis.analysis.immediateActions,
+          created_at: timestamp
+        }
+        generatedTasks.push(criticalTask)
+      }
+
+      // Generate tasks based on damage types
+      if (analysis.damage.types && analysis.damage.types.length > 0) {
+        analysis.damage.types.forEach(damageType => {
+          const task = {
+            task_list: `Repair ${analysis.equipment.type} - ${damageType}`,
+            description: `Address ${damageType} on ${analysis.equipment.type}. ${analysis.analysis.description}`,
+            priority: analysis.damage.severity === 'HIGH' ? 'high' : 'medium',
+            status: 'pending',
+            due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Due in 7 days
+            equipment_id: equipmentRecord?.id || analysis.equipment.type,
+            photo_url: photoUrl,
+            ai_generated: true,
+            severity: analysis.damage.severity,
+            damage_type: damageType,
+            affected_components: analysis.damage.components,
+            created_at: timestamp
+          }
+          generatedTasks.push(task)
+        })
+      }
+
+      // Generate tasks based on immediate actions
+      if (analysis.analysis.immediateActions && analysis.analysis.immediateActions.length > 0) {
+        analysis.analysis.immediateActions.forEach(action => {
+          const task = {
+            task_list: `Immediate Action: ${action}`,
+            description: `Perform immediate action: ${action}. Equipment: ${analysis.equipment.type}`,
+            priority: 'high',
+            status: 'pending',
+            due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // Due in 2 days
+            equipment_id: equipmentRecord?.id || analysis.equipment.type,
+            photo_url: photoUrl,
+            ai_generated: true,
+            action_type: 'immediate',
+            created_at: timestamp
+          }
+          generatedTasks.push(task)
+        })
+      }
+
+      // Generate maintenance schedule task
+      if (analysis.analysis.maintenancePriority !== 'LOW') {
+        const maintenanceTask = {
+          task_list: `Schedule Maintenance: ${analysis.equipment.type}`,
+          description: `Schedule maintenance for ${analysis.equipment.type} based on AI analysis. Priority: ${analysis.analysis.maintenancePriority}`,
+          priority: analysis.analysis.maintenancePriority === 'HIGH' ? 'high' : 'medium',
+          status: 'pending',
+          due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // Due in 14 days
+          equipment_id: equipmentRecord?.id || analysis.equipment.type,
+          photo_url: photoUrl,
+          ai_generated: true,
+          maintenance_type: 'scheduled',
+          repair_estimate: analysis.analysis.repairEstimate,
+          created_at: timestamp
+        }
+        generatedTasks.push(maintenanceTask)
+      }
+
+      // Save generated tasks to database
+      if (generatedTasks.length > 0) {
+        const { data: savedTasks, error: taskError } = await supabase
+          .from('tasks')
+          .insert(generatedTasks)
+          .select()
+
+        if (taskError) {
+          console.error('Error saving generated tasks:', taskError)
+        } else {
+          console.log(`✅ Successfully generated ${generatedTasks.length} tasks from photo analysis`)
+          showMessage('success', `Generated ${generatedTasks.length} maintenance tasks from analysis`)
+          
+          // Reload tasks list
+          await loadTasks()
+        }
+      }
+
+      return generatedTasks
+
+    } catch (error) {
+      console.error('Error generating tasks from analysis:', error)
+      showMessage('error', 'Failed to generate tasks from analysis')
+    }
+  }
+
+  // Mobile Enhancements - Offline Photo Management
+  const loadOfflinePhotos = () => {
+    try {
+      const stored = localStorage.getItem('offlinePhotos')
+      if (stored) {
+        const photos = JSON.parse(stored)
+        setOfflinePhotos(photos)
+        console.log(`Loaded ${photos.length} offline photos`)
+      }
+    } catch (error) {
+      console.error('Error loading offline photos:', error)
+    }
+  }
+
+  const saveOfflinePhoto = async (file, purpose = 'clarification') => {
+    try {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const offlinePhoto = {
+          id: `offline_${Date.now()}`,
+          file: e.target.result,
+          name: file.name,
+          purpose,
+          created_at: new Date().toISOString(),
+          status: 'pending_upload',
+          annotations: []
+        }
+
+        const updatedPhotos = [...offlinePhotos, offlinePhoto]
+        setOfflinePhotos(updatedPhotos)
+        localStorage.setItem('offlinePhotos', JSON.stringify(updatedPhotos))
+        
+        console.log('Photo saved offline:', offlinePhoto.id)
+        showMessage('success', 'Photo saved offline - will upload when online')
+      }
+      reader.readAsDataURL(file)
+    } catch (error) {
+      console.error('Error saving offline photo:', error)
+      showMessage('error', 'Failed to save photo offline')
+    }
+  }
+
+  const syncOfflinePhotos = async () => {
+    if (offlinePhotos.length === 0) return
+
+    console.log(`🔄 Syncing ${offlinePhotos.length} offline photos...`)
+    
+    for (const offlinePhoto of offlinePhotos) {
+      try {
+        // Convert base64 back to file
+        const response = await fetch(offlinePhoto.file)
+        const blob = await response.blob()
+        const file = new File([blob], offlinePhoto.name, { type: 'image/jpeg' })
+
+        // Upload to Supabase
+        const fileName = `project-photos/${Date.now()}_${offlinePhoto.name}`
+        const { data, error } = await supabase.storage
+          .from('photos')
+          .upload(fileName, file)
+
+        if (error) throw error
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('photos')
+          .getPublicUrl(fileName)
+
+        // Analyze photo
+        if (offlinePhoto.purpose === 'enhanced_analysis') {
+          await analyzePhotoWithEnhancedAI(publicUrl, 'file')
+        } else {
+          await analyzePhotoWithGrok(publicUrl, 'file', offlinePhoto.purpose)
+        }
+
+        console.log(`✅ Synced offline photo: ${offlinePhoto.id}`)
+      } catch (error) {
+        console.error(`❌ Failed to sync offline photo ${offlinePhoto.id}:`, error)
+      }
+    }
+
+    // Clear offline photos after successful sync
+    setOfflinePhotos([])
+    localStorage.removeItem('offlinePhotos')
+    showMessage('success', 'All offline photos synced successfully')
+  }
+
+  // Mobile Enhancements - Annotation Tools
+  const startAnnotationMode = () => {
+    setAnnotationMode(true)
+    showMessage('info', 'Annotation mode enabled - tap to add annotations')
+  }
+
+  const stopAnnotationMode = () => {
+    setAnnotationMode(false)
+    setCurrentAnnotation(null)
+    showMessage('info', 'Annotation mode disabled')
+  }
+
+  const addAnnotation = (x, y, text) => {
+    const annotation = {
+      id: `annotation_${Date.now()}`,
+      x,
+      y,
+      text,
+      timestamp: new Date().toISOString()
+    }
+
+    setAnnotations(prev => [...prev, annotation])
+    setCurrentAnnotation(null)
+    
+    console.log('Annotation added:', annotation)
+  }
+
+  const removeAnnotation = (annotationId) => {
+    setAnnotations(prev => prev.filter(a => a.id !== annotationId))
+  }
+
+  const saveAnnotations = () => {
+    if (annotations.length === 0) return
+
+    const annotationData = {
+      photoId: photoUpload.photoUrl,
+      annotations,
+      timestamp: new Date().toISOString()
+    }
+
+    // Save to localStorage for offline access
+    const stored = localStorage.getItem('photoAnnotations') || '{}'
+    const allAnnotations = JSON.parse(stored)
+    allAnnotations[photoUpload.photoUrl] = annotationData
+    localStorage.setItem('photoAnnotations', JSON.stringify(allAnnotations))
+
+    showMessage('success', `Saved ${annotations.length} annotations`)
+    setAnnotations([])
   }
 
   const deletePhoto = async (photoId) => {
