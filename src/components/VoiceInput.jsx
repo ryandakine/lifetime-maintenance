@@ -3,10 +3,13 @@ import './VoiceInput.css'
 
 const VoiceInput = () => {
   const [isListening, setIsListening] = useState(false)
-  const [transcript, setTranscript] = useState('')
+  const [conversationHistory, setConversationHistory] = useState([])
+  const [currentTranscript, setCurrentTranscript] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [workflowResults, setWorkflowResults] = useState([])
+  const [conversationId, setConversationId] = useState(null)
   const recognitionRef = useRef(null)
+  const accumulatedTextRef = useRef('')
 
   useEffect(() => {
     // Initialize speech recognition
@@ -14,19 +17,23 @@ const VoiceInput = () => {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
       recognitionRef.current = new SpeechRecognition()
       
-      recognitionRef.current.continuous = true
+      recognitionRef.current.continuous = false // Set to false for better control
       recognitionRef.current.interimResults = true
       recognitionRef.current.lang = 'en-US'
       
       recognitionRef.current.onstart = () => {
         setIsListening(true)
+        // Generate new conversation ID if starting fresh
+        if (!conversationId) {
+          setConversationId(Date.now().toString())
+        }
       }
       
       recognitionRef.current.onresult = (event) => {
         let finalTranscript = ''
         let interimTranscript = ''
         
-        for (let i = event.resultIndex; i < event.results.length; i++) {
+        for (let i = 0; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript
           if (event.results[i].isFinal) {
             finalTranscript += transcript
@@ -35,7 +42,14 @@ const VoiceInput = () => {
           }
         }
         
-        setTranscript(finalTranscript + interimTranscript)
+        // Update the accumulated text
+        if (finalTranscript) {
+          accumulatedTextRef.current += (accumulatedTextRef.current ? ' ' : '') + finalTranscript
+          setCurrentTranscript(accumulatedTextRef.current)
+        } else if (interimTranscript) {
+          // Show accumulated text + current interim
+          setCurrentTranscript(accumulatedTextRef.current + (accumulatedTextRef.current ? ' ' : '') + interimTranscript)
+        }
       }
       
       recognitionRef.current.onerror = (event) => {
@@ -45,6 +59,7 @@ const VoiceInput = () => {
       
       recognitionRef.current.onend = () => {
         setIsListening(false)
+        // Keep the accumulated text visible
       }
     }
     
@@ -53,7 +68,18 @@ const VoiceInput = () => {
         recognitionRef.current.stop()
       }
     }
-  }, [])
+  }, [conversationId])
+
+  const addToConversation = (text) => {
+    if (text.trim()) {
+      setConversationHistory(prev => [...prev, {
+        id: Date.now(),
+        text: text.trim(),
+        timestamp: new Date().toISOString(),
+        type: 'user'
+      }])
+    }
+  }
 
   const startListening = () => {
     if (recognitionRef.current) {
@@ -67,17 +93,27 @@ const VoiceInput = () => {
     }
   }
 
-  const clearTranscript = () => {
-    setTranscript('')
+  const startNewConversation = () => {
+    setConversationHistory([])
+    setCurrentTranscript('')
+    setConversationId(null)
+    setWorkflowResults([])
+    accumulatedTextRef.current = ''
   }
 
-  const cleanTranscript = () => {
-    // Remove common speech artifacts
-    let cleaned = transcript
-      .replace(/\b(um|uh|er|ah|like|you know)\b/gi, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-    setTranscript(cleaned)
+  const clearCurrentTranscript = () => {
+    setCurrentTranscript('')
+    accumulatedTextRef.current = ''
+  }
+
+  const cleanConversation = () => {
+    setConversationHistory(prev => prev.map(item => ({
+      ...item,
+      text: item.text
+        .replace(/\b(um|uh|er|ah|like|you know)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+    })))
   }
 
   const triggerWorkflow = async (workflowType, data) => {
@@ -114,38 +150,47 @@ const VoiceInput = () => {
   }
 
   const processVoiceCommand = async () => {
-    if (!transcript.trim()) return
+    // Get the current transcript (what's in the text box)
+    const currentText = currentTranscript.trim()
+    if (!currentText) return
 
-    const command = transcript.toLowerCase()
+    // Add current text to conversation history
+    addToConversation(currentText)
+    
+    // Clear the current transcript after processing
+    setCurrentTranscript('')
+    accumulatedTextRef.current = ''
+
+    const command = currentText.toLowerCase()
     
     // Simple command parsing
     if (command.includes('email') || command.includes('send')) {
       await triggerWorkflow('email-automation', {
-        topic: transcript,
+        topic: currentText,
         recipient: 'team@lifetimefitness.com',
         urgency: 'normal'
       })
     } else if (command.includes('task') || command.includes('add task')) {
       await triggerWorkflow('task-processing', {
-        description: transcript,
+        description: currentText,
         priority: 'medium',
         source: 'voice'
       })
     } else if (command.includes('shopping') || command.includes('buy')) {
       await triggerWorkflow('shopping-processing', {
-        item: transcript,
+        item: currentText,
         quantity: 1,
         urgency: 'medium'
       })
     } else if (command.includes('photo') || command.includes('picture')) {
       await triggerWorkflow('photo-analysis', {
-        description: transcript,
+        description: currentText,
         category: 'equipment-maintenance'
       })
     } else {
       // Default to AI assistant
       await triggerWorkflow('ai-assistant', {
-        message: transcript,
+        message: currentText,
         context: 'voice-command'
       })
     }
@@ -154,8 +199,8 @@ const VoiceInput = () => {
   return (
     <div className="voice-input">
       <div className="voice-header">
-        <h2>🎤 Voice Commands</h2>
-        <p>Use your voice to control maintenance workflows</p>
+        <h2>🎤 Voice Input</h2>
+        <p>Speak your maintenance tasks and commands</p>
       </div>
 
       {/* Voice Controls */}
@@ -171,18 +216,26 @@ const VoiceInput = () => {
           
           <button
             className="voice-button secondary"
-            onClick={clearTranscript}
-            disabled={!transcript || isProcessing}
+            onClick={startNewConversation}
+            disabled={isProcessing}
           >
-            🗑️ Clear
+            🆕 New Conversation
           </button>
           
           <button
             className="voice-button secondary"
-            onClick={cleanTranscript}
-            disabled={!transcript || isProcessing}
+            onClick={clearCurrentTranscript}
+            disabled={!currentTranscript || isProcessing}
           >
-            🧹 Clean
+            🗑️ Clear Text
+          </button>
+          
+          <button
+            className="voice-button secondary"
+            onClick={cleanConversation}
+            disabled={conversationHistory.length === 0 || isProcessing}
+          >
+            🧹 Clean All
           </button>
         </div>
 
@@ -193,15 +246,22 @@ const VoiceInput = () => {
         </div>
       </div>
 
-      {/* Transcript Display */}
-      <div className="transcript-section">
-        <h3>📝 Transcript</h3>
-        <div className="transcript-display">
-          {transcript ? (
-            <p className="transcript-text">{transcript}</p>
+      {/* Current Text Box */}
+      <div className="current-text-section">
+        <h3>📝 Your Text</h3>
+        <div className="current-text-display">
+          {currentTranscript ? (
+            <div className="current-text-content">
+              <p className="current-text">{currentTranscript}</p>
+              <div className="text-actions">
+                <span className="text-status">
+                  {isListening ? '🎤 Speaking...' : '📝 Ready to send'}
+                </span>
+              </div>
+            </div>
           ) : (
-            <p className="transcript-placeholder">
-              Start speaking to see your transcript here...
+            <p className="current-text-placeholder">
+              Start speaking to see your text here...
             </p>
           )}
         </div>
@@ -212,35 +272,61 @@ const VoiceInput = () => {
         <button
           className="process-button"
           onClick={processVoiceCommand}
-          disabled={!transcript.trim() || isProcessing}
+          disabled={!currentTranscript.trim() || isProcessing}
         >
-          {isProcessing ? '🔄 Processing...' : '🚀 Process Command'}
+          {isProcessing ? '🔄 Processing...' : '🚀 Send Text'}
         </button>
+      </div>
+
+      {/* Conversation Display */}
+      <div className="conversation-section">
+        <h3>💬 Conversation History</h3>
+        <div className="conversation-display">
+          {conversationHistory.length === 0 ? (
+            <p className="conversation-placeholder">
+              No messages sent yet. Speak and click "Send Text" to start your conversation...
+            </p>
+          ) : (
+            <div className="conversation-content">
+              {/* Show conversation history */}
+              {conversationHistory.map((item, index) => (
+                <div key={item.id} className="conversation-item">
+                  <div className="conversation-bubble">
+                    <p className="conversation-text">{item.text}</p>
+                    <span className="conversation-time">
+                      {new Date(item.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Voice Commands Help */}
       <div className="commands-help">
-        <h3>💡 Voice Commands</h3>
+        <h3>💡 How It Works</h3>
         <div className="commands-grid">
           <div className="command-item">
-            <span className="command-example">"Send email about equipment maintenance"</span>
-            <span className="command-description">Triggers email automation</span>
+            <span className="command-example">🎤 Click "Start Listening"</span>
+            <span className="command-description">Begin speaking</span>
           </div>
           <div className="command-item">
-            <span className="command-example">"Add task to check treadmill"</span>
-            <span className="command-description">Creates a new task</span>
+            <span className="command-example">⏸️ Pause talking</span>
+            <span className="command-description">Click "Stop" - text stays visible</span>
           </div>
           <div className="command-item">
-            <span className="command-example">"Buy treadmill belt"</span>
-            <span className="command-description">Adds to shopping list</span>
+            <span className="command-example">🎤 Resume talking</span>
+            <span className="command-description">Click "Start Listening" - adds to existing text</span>
           </div>
           <div className="command-item">
-            <span className="command-example">"Take photo of equipment damage"</span>
-            <span className="command-description">Triggers photo analysis</span>
+            <span className="command-example">🚀 Send when ready</span>
+            <span className="command-description">Click "Send Text" to process</span>
           </div>
           <div className="command-item">
-            <span className="command-example">"What maintenance tasks are due today?"</span>
-            <span className="command-description">AI assistant query</span>
+            <span className="command-example">🆕 New topic</span>
+            <span className="command-description">Click "New Conversation" to start fresh</span>
           </div>
         </div>
       </div>

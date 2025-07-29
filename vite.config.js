@@ -43,7 +43,7 @@ export default defineConfig({
   },
   server: {
     host: true,
-    port: 5174,
+    port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 5174,
   },
   build: {
     outDir: 'dist',

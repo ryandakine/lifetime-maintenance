@@ -1,0 +1,159 @@
+# Lifetime Fitness Maintenance PWA - Product Requirements Document
+
+## Overview
+A comprehensive, AI-powered maintenance management system designed specifically for Lifetime Fitness facilities. This Progressive Web App (PWA) provides intelligent task management, photo documentation, voice input, and AI analysis for fitness facility maintenance teams. The system is designed for personal use by maintenance staff and their small teams.
+
+## Core Features
+
+### 1. Smart Task Management
+- **AI-powered task parsing** and categorization for fitness equipment and facility maintenance
+- **Priority assignment** based on equipment criticality and maintenance schedules
+- **Task tracking** with status updates and completion logging
+- **Date-based task creation** with automatic tracking of days since creation
+
+### 2. Photo Documentation & AI Analysis
+- **Photo capture and upload** for equipment issues and maintenance documentation
+- **AI analysis** of photos to suggest maintenance actions and identify problems
+- **Organized photo management** with categorization and search capabilities
+- **Visual maintenance tracking** with before/after comparisons
+
+### 3. Voice-First Interface
+- **Natural language processing** for hands-free maintenance operations
+- **Voice input** for task creation and status updates
+- **Voice commands** for navigation and system control
+- **Mobile-optimized** voice interface for on-the-go use
+
+### 4. Shopping Lists & Inventory
+- **Automatic item categorization** for maintenance supplies
+- **Smart reminders** for parts and supplies needed
+- **Priority-based shopping lists** with critical items highlighted
+- **Integration with maintenance tasks** to track required parts
+
+### 5. Knowledge Base
+- **Searchable maintenance procedures** for fitness equipment
+- **Equipment-specific documentation** and troubleshooting guides
+- **AI-powered suggestions** based on equipment type and issues
+- **Maintenance history** and best practices tracking
+
+## User Experience
+
+### User Personas
+- **Primary**: Maintenance technicians at Lifetime Fitness facilities
+- **Secondary**: Maintenance supervisors and facility managers
+- **Scope**: Personal use and small team collaboration (2-3 people)
+
+### Key User Flows
+1. **Issue Reporting**: Photo capture → AI analysis → Task creation → Priority assignment
+2. **Task Management**: Voice input → Task creation → Status tracking → Completion logging
+3. **Maintenance Planning**: Equipment inspection → Photo documentation → Parts ordering → Task scheduling
+4. **Knowledge Access**: Equipment lookup → Procedure search → AI suggestions → Implementation
+
+### UI/UX Considerations
+- **Mobile-first design** optimized for Galaxy Fold 6 and foldable devices
+- **PWA capabilities** for offline support and app-like experience
+- **Voice-first interaction** for hands-free operation during maintenance work
+- **Lifetime Fitness branding** with responsive design for maintenance workflows
+
+## Technical Architecture
+
+### Frontend Stack
+- **React 18** with modern hooks and concurrent features
+- **Redux Toolkit** for centralized state management
+- **Vite** for fast build tool with hot module replacement
+- **PWA** with service worker and web app manifest
+- **Voice input** with Web Speech API integration
+
+### Backend & Services
+- **Node.js/Express** backend with REST APIs
+- **Perplexity Pro API** for AI-powered analysis and suggestions
+- **Claude API** for natural language processing and task management
+- **SQLite database** for local data storage
+- **File upload** system for photo documentation
+
+### AI Integration
+- **Photo analysis** using Perplexity Pro for equipment diagnosis
+- **Voice processing** using Claude for natural language understanding
+- **Task categorization** and priority assignment using AI
+- **Maintenance suggestions** based on equipment type and issues
+
+## Development Roadmap
+
+### Phase 1: MVP Foundation (Weeks 1-2)
+- **Environment Setup**: Node.js/Express backend, React frontend, database setup
+- **Core Task Management**: Basic task creation, editing, and status tracking
+- **Photo Upload**: Basic photo capture and storage functionality
+- **Voice Input**: Basic voice-to-text functionality for task creation
+
+### Phase 2: AI Integration (Weeks 3-4)
+- **Photo Analysis**: AI-powered equipment diagnosis from photos
+- **Voice Processing**: Advanced voice commands and natural language understanding
+- **Task Intelligence**: AI-powered task categorization and priority assignment
+- **Knowledge Base**: Basic searchable maintenance procedures
+
+### Phase 3: Advanced Features (Weeks 5-6)
+- **Shopping Lists**: Automatic item categorization and priority-based lists
+- **Advanced UI**: Mobile optimization and PWA features
+- **Real-time Updates**: WebSocket integration for live updates
+- **Offline Support**: Service worker for offline functionality
+
+### Phase 4: Polish & Deployment (Weeks 7-8)
+- **Performance Optimization**: Bundle optimization and lazy loading
+- **Testing & Bug Fixes**: Comprehensive testing and issue resolution
+- **Deployment**: Production deployment and monitoring setup
+- **Documentation**: User guides and maintenance procedures
+
+## Logical Dependency Chain
+
+### Foundation First
+1. **Backend API** - Core REST endpoints for tasks, photos, and data
+2. **Database Schema** - SQLite setup with proper data models
+3. **Basic Frontend** - React app with core components and routing
+
+### Quick Win Features
+4. **Task Management** - Basic CRUD operations for maintenance tasks
+5. **Photo Upload** - Simple photo capture and storage
+6. **Voice Input** - Basic voice-to-text for task creation
+
+### AI Enhancement
+7. **Photo Analysis** - AI integration for equipment diagnosis
+8. **Voice Processing** - Advanced voice commands and NLP
+9. **Task Intelligence** - AI-powered categorization and suggestions
+
+### Advanced Features
+10. **Shopping Lists** - Inventory management and parts tracking
+11. **Knowledge Base** - Searchable maintenance procedures
+12. **PWA Features** - Offline support and mobile optimization
+
+## Risks and Mitigations
+
+### Technical Challenges
+- **AI API Costs**: Use efficient prompting and caching to minimize API calls
+- **Voice Recognition Accuracy**: Implement fallback to text input for critical operations
+- **Photo Analysis Reliability**: Provide manual override options for AI suggestions
+
+### MVP Scope Management
+- **Feature Creep**: Focus on core maintenance workflow first
+- **Complexity**: Start with simple task management, add AI features incrementally
+- **Performance**: Optimize for mobile devices and offline usage
+
+### Resource Constraints
+- **Development Time**: Prioritize features based on immediate value
+- **API Costs**: Implement usage monitoring and optimization
+- **Maintenance**: Design for easy updates and minimal ongoing maintenance
+
+## Success Metrics
+
+### User Adoption
+- **Daily Active Users**: Track usage by maintenance staff
+- **Task Completion Rate**: Monitor task creation and completion
+- **Photo Upload Frequency**: Measure photo documentation usage
+
+### System Performance
+- **Response Time**: API response times under 2 seconds
+- **Offline Functionality**: Core features work without internet
+- **Voice Recognition Accuracy**: >90% accuracy for common commands
+
+### Business Value
+- **Maintenance Efficiency**: Reduced time to identify and fix issues
+- **Documentation Quality**: Improved photo documentation and tracking
+- **Team Collaboration**: Better communication and task coordination 

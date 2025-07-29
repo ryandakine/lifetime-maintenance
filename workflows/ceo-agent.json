@@ -1,0 +1,200 @@
+{
+  "name": "CEO Agent - Main Coordinator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ceo-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ceo-webhook",
+      "name": "CEO Agent Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "ceo-agent-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// CEO Agent - Natural Language Processor\nconst input = $input.first().json;\nconst { message, context, user_id } = input;\n\n// Load agent memory\nconst agentMemory = $('agent_memory') || {\n  conversation_history: [],\n  task_history: [],\n  decisions_made: [],\n  user_preferences: {},\n  context: {\n    current_focus: null,\n    active_tasks: [],\n    pending_decisions: []\n  }\n};\n\n// Add to conversation history\nagentMemory.conversation_history.push({\n  timestamp: new Date().toISOString(),\n  user_message: message,\n  context: context\n});\n\n// Analyze user intent\nconst intent = analyzeIntent(message);\nconst priority = determinePriority(message, context);\nconst department = routeToDepartment(intent);\n\n// Update context\nagentMemory.context.current_focus = intent.topic;\nagentMemory.context.pending_decisions.push({\n  id: `decision_${Date.now()}`,\n  intent: intent,\n  priority: priority,\n  department: department,\n  timestamp: new Date().toISOString()\n});\n\n// Store updated memory\n$('agent_memory', agentMemory);\n\n// Function to analyze user intent\nfunction analyzeIntent(message) {\n  const lowerMessage = message.toLowerCase();\n  \n  // Equipment-related intents\n  if (lowerMessage.includes('treadmill') || lowerMessage.includes('equipment') || lowerMessage.includes('machine')) {\n    return {\n      type: 'equipment_maintenance',\n      topic: 'equipment_issue',\n      urgency: lowerMessage.includes('broken') || lowerMessage.includes('not working') ? 'high' : 'normal',\n      action: 'analyze_equipment'\n    };\n  }\n  \n  // Task-related intents\n  if (lowerMessage.includes('task') || lowerMessage.includes('todo') || lowerMessage.includes('schedule')) {\n    return {\n      type: 'task_management',\n      topic: 'task_creation',\n      urgency: 'normal',\n      action: 'create_task'\n    };\n  }\n  \n  // Shopping/parts intents\n  if (lowerMessage.includes('parts') || lowerMessage.includes('order') || lowerMessage.includes('buy')) {\n    return {\n      type: 'shopping',\n      topic: 'parts_ordering',\n      urgency: 'normal',\n      action: 'order_parts'\n    };\n  }\n  \n  // Status/overview intents\n  if (lowerMessage.includes('status') || lowerMessage.includes('how') || lowerMessage.includes('what')) {\n    return {\n      type: 'status_report',\n      topic: 'system_status',\n      urgency: 'low',\n      action: 'get_status'\n    };\n  }\n  \n  // Default to general inquiry\n  return {\n    type: 'general_inquiry',\n    topic: 'user_request',\n    urgency: 'normal',\n    action: 'process_request'\n  };\n}\n\n// Function to determine priority\nfunction determinePriority(message, context) {\n  const lowerMessage = message.toLowerCase();\n  \n  if (lowerMessage.includes('urgent') || lowerMessage.includes('emergency') || lowerMessage.includes('broken')) {\n    return 'critical';\n  }\n  \n  if (lowerMessage.includes('important') || lowerMessage.includes('asap')) {\n    return 'high';\n  }\n  \n  if (lowerMessage.includes('when you can') || lowerMessage.includes('no rush')) {\n    return 'low';\n  }\n  \n  return 'normal';\n}\n\n// Function to route to appropriate department\nfunction routeToDepartment(intent) {\n  switch (intent.type) {\n    case 'equipment_maintenance':\n      return 'maintenance';\n    case 'task_management':\n      return 'operations';\n    case 'shopping':\n      return 'operations';\n    case 'status_report':\n      return 'ceo';\n    default:\n      return 'ceo';\n  }\n}\n\nreturn [{\n  json: {\n    original_message: message,\n    intent: intent,\n    priority: priority,\n    department: department,\n    agent_memory: agentMemory,\n    timestamp: new Date().toISOString(),\n    user_id: user_id || 'default_user'\n  }\n}];"
+      },
+      "id": "ceo-nlp-processor",
+      "name": "CEO NLP Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "department-routing",
+              "leftValue": "={{ $json.department }}",
+              "rightValue": "maintenance",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "department-router",
+      "name": "Department Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.perplexity.ai/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.PERPLEXITY_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama-3.1-sonar-small-128k-online"
+            },
+            {
+              "name": "messages",
+              "value": "=[\n  {\n    \"role\": \"system\",\n    \"content\": \"You are the CEO Agent for Lifetime Fitness Maintenance. You coordinate between different departments and make strategic decisions. You have access to:\\n\\n- Equipment Agent: Analyzes equipment photos and identifies issues\\n- Repair Agent: Creates repair plans and estimates\\n- Task Agent: Manages maintenance tasks and scheduling\\n- Shopping Agent: Handles parts ordering and inventory\\n\\nYour role is to:\\n1. Understand user requests\\n2. Delegate to appropriate agents\\n3. Coordinate responses\\n4. Make strategic decisions\\n5. Maintain system-wide context\\n\\nAlways be professional, proactive, and helpful.\"\n  },\n  {\n    \"role\": \"user\",\n    \"content\": \"User Request: {{ $json.original_message }}\\n\\nIntent: {{ $json.intent.type }}\\nTopic: {{ $json.intent.topic }}\\nPriority: {{ $json.priority }}\\nDepartment: {{ $json.department }}\\n\\nPlease provide a CEO-level response and action plan.\"\n  }\n]"
+            },
+            {
+              "name": "max_tokens",
+              "value": "1000"
+            },
+            {
+              "name": "temperature",
+              "value": "0.3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ceo-ai-response",
+      "name": "CEO AI Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// CEO Response Processor\nconst input = $input.first().json;\nconst aiResponse = input.data;\nconst originalData = input.originalData;\n\n// Extract AI response\nlet ceoResponse = '';\nif (aiResponse && aiResponse.choices && aiResponse.choices[0]) {\n  ceoResponse = aiResponse.choices[0].message.content;\n} else {\n  ceoResponse = 'I understand your request. Let me coordinate with the appropriate department.';\n}\n\n// Determine next actions based on department\nlet nextActions = [];\nlet webhookCalls = [];\n\nswitch (originalData.department) {\n  case 'maintenance':\n    if (originalData.intent.type === 'equipment_maintenance') {\n      nextActions.push('Delegating to Equipment Agent for analysis');\n      webhookCalls.push({\n        url: '{{ $env.EQUIPMENT_AGENT_WEBHOOK }}',\n        data: {\n          message: originalData.original_message,\n          intent: originalData.intent,\n          priority: originalData.priority\n        }\n      });\n    }\n    break;\n    \n  case 'operations':\n    if (originalData.intent.type === 'task_management') {\n      nextActions.push('Delegating to Task Agent for task creation');\n      webhookCalls.push({\n        url: '{{ $env.TASK_AGENT_WEBHOOK }}',\n        data: {\n          message: originalData.original_message,\n          intent: originalData.intent,\n          priority: originalData.priority\n        }\n      });\n    } else if (originalData.intent.type === 'shopping') {\n      nextActions.push('Delegating to Shopping Agent for parts ordering');\n      webhookCalls.push({\n        url: '{{ $env.SHOPPING_AGENT_WEBHOOK }}',\n        data: {\n          message: originalData.original_message,\n          intent: originalData.intent,\n          priority: originalData.priority\n        }\n      });\n    }\n    break;\n    \n  default:\n    nextActions.push('Processing request directly');\n}\n\n// Update agent memory with response\nconst agentMemory = originalData.agent_memory;\nagentMemory.conversation_history.push({\n  timestamp: new Date().toISOString(),\n  ceo_response: ceoResponse,\n  next_actions: nextActions\n});\n\n// Store updated memory\n$('agent_memory', agentMemory);\n\nreturn [{\n  json: {\n    ceo_response: ceoResponse,\n    next_actions: nextActions,\n    webhook_calls: webhookCalls,\n    original_request: originalData.original_message,\n    intent: originalData.intent,\n    priority: originalData.priority,\n    department: originalData.department,\n    timestamp: new Date().toISOString(),\n    agent_memory: agentMemory\n  }\n}];"
+      },
+      "id": "ceo-response-processor",
+      "name": "CEO Response Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"ceo_response\": \"{{ $json.ceo_response }}\",\n  \"next_actions\": {{ JSON.stringify($json.next_actions) }},\n  \"webhook_calls\": {{ JSON.stringify($json.webhook_calls) }},\n  \"original_request\": \"{{ $json.original_request }}\",\n  \"intent\": {{ JSON.stringify($json.intent) }},\n  \"priority\": \"{{ $json.priority }}\",\n  \"department\": \"{{ $json.department }}\",\n  \"timestamp\": \"{{ $json.timestamp }}\"\n}",
+        "options": {}
+      },
+      "id": "ceo-response",
+      "name": "CEO Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "CEO Agent Webhook": {
+      "main": [
+        [
+          {
+            "node": "CEO NLP Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CEO NLP Processor": {
+      "main": [
+        [
+          {
+            "node": "Department Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Department Router": {
+      "main": [
+        [
+          {
+            "node": "CEO AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CEO AI Response": {
+      "main": [
+        [
+          {
+            "node": "CEO Response Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CEO Response Processor": {
+      "main": [
+        [
+          {
+            "node": "CEO Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "ceo-agent",
+      "name": "CEO Agent"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+} 

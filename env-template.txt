@@ -1,0 +1,22 @@
+# React App Environment Variables for n8n Integration
+# Copy this to .env file and replace with your actual values
+
+VITE_APP_TITLE=Lifetime Fitness Maintenance
+VITE_APP_VERSION=2.0.0
+
+# n8n Webhook URLs (Replace with your actual webhook URLs from n8n)
+REACT_APP_EMAIL_WEBHOOK_URL=https://your-n8n-instance.com/webhook/email-automation
+REACT_APP_MAINTENANCE_WEBHOOK_URL=https://your-n8n-instance.com/webhook/maintenance-photo
+REACT_APP_VOICE_WEBHOOK_URL=https://your-n8n-instance.com/webhook/voice-commands
+
+# AI Service Configuration
+REACT_APP_PERPLEXITY_API_KEY=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
+
+# Development Settings
+VITE_DEV_MODE=true
+VITE_ENABLE_LOGGING=true
+
+# Instructions:
+# 1. Copy this content to a new .env file
+# 2. Replace the webhook URLs with your actual n8n webhook URLs
+# 3. The React app will use these URLs to communicate with n8n workflows 

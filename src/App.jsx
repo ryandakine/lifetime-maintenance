@@ -9,6 +9,7 @@ import './App.css'
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import('./components/Dashboard'))
+const PersonalMaintenanceDashboard = lazy(() => import('./components/PersonalMaintenanceDashboard'))
 const Tasks = lazy(() => import('./components/Tasks'))
 const Shopping = lazy(() => import('./components/Shopping'))
 const Maintenance = lazy(() => import('./components/Maintenance'))
@@ -32,6 +33,7 @@ function App() {
   // Memoize tabs to prevent recreation on every render
   const tabs = useMemo(() => [
     { id: 'dashboard', label: '📊 Dashboard', icon: '📊' },
+    { id: 'personal-dashboard', label: '👤 Your Dashboard', icon: '👤' },
     { id: 'tasks', label: '📋 Tasks', icon: '📋' },
     { id: 'shopping', label: '🛒 Shopping', icon: '🛒' },
     { id: 'maintenance', label: '🔧 Maintenance', icon: '🔧' },
@@ -53,6 +55,8 @@ function App() {
       switch (activeTab) {
         case 'dashboard':
           return <Dashboard />
+        case 'personal-dashboard':
+          return <PersonalMaintenanceDashboard />
         case 'tasks':
           return <Tasks />
         case 'shopping':

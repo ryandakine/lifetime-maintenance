@@ -1,0 +1,127 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Setup Development Environment",
+        "description": "Initialize the project repository and configure the development environment with React 18, Vite, Redux Toolkit for frontend and Node.js/Express for backend.",
+        "details": "1. Create a new GitHub repository for the project\n2. Setup frontend:\n   - Initialize with `npm create vite@latest client -- --template react-ts`\n   - Install dependencies: `npm install react-redux @reduxjs/toolkit`\n   - Configure PWA: `npm install vite-plugin-pwa`\n   - Setup basic folder structure (components, pages, store, services)\n3. Setup backend:\n   - Initialize with `npm init -y`\n   - Install dependencies: `npm install express cors dotenv sqlite3 multer`\n   - Create basic server.js file with Express configuration\n   - Setup folder structure (routes, controllers, models, middleware)\n4. Configure ESLint and Prettier for code quality\n5. Setup basic CI/CD pipeline for testing and deployment",
+        "testStrategy": "1. Verify all dependencies install correctly\n2. Ensure frontend dev server starts without errors\n3. Ensure backend server starts without errors\n4. Test basic connectivity between frontend and backend\n5. Verify ESLint and Prettier configurations work correctly",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Database Schema Design and Implementation",
+        "description": "Design and implement SQLite database schema for the application, including tables for tasks, photos, inventory items, and knowledge base entries.",
+        "details": "1. Create SQLite database file\n2. Design and implement the following tables:\n   - `tasks` table:\n     - id (PRIMARY KEY)\n     - title\n     - description\n     - status (pending, in-progress, completed)\n     - priority (low, medium, high)\n     - category\n     - creation_date\n     - completion_date\n     - equipment_id (FOREIGN KEY)\n   - `photos` table:\n     - id (PRIMARY KEY)\n     - task_id (FOREIGN KEY)\n     - file_path\n     - description\n     - upload_date\n     - ai_analysis (JSON)\n   - `inventory_items` table:\n     - id (PRIMARY KEY)\n     - name\n     - category\n     - quantity\n     - priority\n     - task_id (FOREIGN KEY, nullable)\n   - `knowledge_base` table:\n     - id (PRIMARY KEY)\n     - title\n     - content\n     - equipment_type\n     - tags (JSON)\n3. Create migration scripts for schema creation\n4. Implement data access layer with prepared statements\n5. Create seed data for testing",
+        "testStrategy": "1. Run migration scripts to verify schema creation\n2. Insert test data into each table\n3. Perform CRUD operations on each table\n4. Test foreign key constraints\n5. Verify data integrity with complex queries\n6. Test with sample maintenance scenarios",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Implement Core REST API Endpoints",
+        "description": "Develop comprehensive REST API endpoints for the maintenance system, supporting CRUD operations for tasks, photos, equipment, and knowledge base entries, with file upload capabilities and AI service integration.",
+        "details": "1. Setup API router structure:\n   - Create separate route files for each resource (tasks, photos, equipment, knowledge base)\n   - Implement middleware for authentication, error handling, and request validation\n\n2. Implement Task endpoints:\n   - GET /api/tasks - List all tasks with filtering and pagination\n   - GET /api/tasks/:id - Get single task details\n   - POST /api/tasks - Create new task\n   - PUT /api/tasks/:id - Update task\n   - DELETE /api/tasks/:id - Delete task\n   - GET /api/tasks/stats - Get task statistics\n\n3. Implement Photo endpoints:\n   - GET /api/photos - List all photos with filtering\n   - GET /api/photos/:id - Get single photo details\n   - POST /api/photos - Upload new photo with multer middleware\n   - PUT /api/photos/:id - Update photo metadata\n   - DELETE /api/photos/:id - Delete photo\n   - GET /api/tasks/:id/photos - Get photos for specific task\n\n4. Implement Equipment endpoints:\n   - GET /api/equipment - List all equipment items\n   - GET /api/equipment/:id - Get equipment details\n   - POST /api/equipment - Add new equipment\n   - PUT /api/equipment/:id - Update equipment\n   - DELETE /api/equipment/:id - Delete equipment\n   - GET /api/equipment/:id/tasks - Get tasks for specific equipment\n\n5. Implement Knowledge Base endpoints:\n   - GET /api/kb - List knowledge base entries\n   - GET /api/kb/:id - Get knowledge base entry\n   - POST /api/kb - Create knowledge base entry\n   - PUT /api/kb/:id - Update knowledge base entry\n   - DELETE /api/kb/:id - Delete knowledge base entry\n   - GET /api/kb/search - Search knowledge base\n\n6. Implement file upload functionality:\n   - Configure multer for handling multipart/form-data\n   - Setup file storage strategy (local disk with proper paths)\n   - Implement file validation (size, type, etc.)\n   - Create utility functions for file management\n\n7. Implement AI service integration:\n   - Create middleware for routing uploaded photos to AI analysis\n   - Implement API client for external AI service\n   - Add endpoints for triggering AI analysis on existing photos\n   - Implement webhook handler for receiving AI analysis results\n\n8. Add comprehensive error handling:\n   - Implement consistent error response format\n   - Handle validation errors, database errors, and file operation errors\n   - Add logging for API requests and errors\n\n9. Implement request validation:\n   - Add schema validation for all request bodies\n   - Validate query parameters and URL parameters\n   - Implement data sanitization",
+        "testStrategy": "1. Unit Testing:\n   - Write unit tests for each controller function\n   - Test validation logic and error handling\n   - Mock database interactions for isolated testing\n\n2. Integration Testing:\n   - Test each endpoint with actual database connections\n   - Verify correct HTTP status codes for success and error cases\n   - Test file upload functionality with sample images\n   - Verify foreign key relationships are maintained\n\n3. API Documentation Testing:\n   - Generate and verify OpenAPI/Swagger documentation\n   - Ensure all endpoints are properly documented\n   - Test example requests in documentation\n\n4. Performance Testing:\n   - Test API endpoints with high volume of requests\n   - Measure and optimize response times\n   - Test pagination with large datasets\n\n5. Security Testing:\n   - Test for common API vulnerabilities (injection, XSS)\n   - Verify proper input validation and sanitization\n   - Test file upload security (prevent malicious files)\n\n6. Specific Endpoint Testing:\n   - For each CRUD endpoint, test:\n     - Valid input produces correct result\n     - Invalid input returns appropriate error\n     - Authorization rules are enforced\n   - For file uploads:\n     - Test various file types and sizes\n     - Verify file storage and retrieval\n   - For AI integration:\n     - Test successful API calls to AI service\n     - Test error handling for AI service failures\n     - Verify webhook processing\n\n7. End-to-End Testing:\n   - Create test scenarios that use multiple endpoints\n   - Test complete workflows (create task, add photo, analyze)\n   - Verify data consistency across related resources",
+        "status": "done",
+        "dependencies": [
+          1,
+          2
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Implement Photo Documentation & AI Analysis Feature",
+        "description": "Develop a comprehensive photo documentation system with capture, upload, AI analysis using Perplexity Pro API, and organized photo management with categorization functionality.",
+        "details": "1. Frontend Implementation:\n   - Create a PhotoCapture component using the Web Camera API\n   - Implement photo preview and retake functionality\n   - Design an upload interface with drag-and-drop support\n   - Build a photo gallery component with filtering and sorting options\n   - Implement photo categorization UI with tag management\n\n2. Backend Implementation:\n   - Extend the photos API endpoints:\n     - POST /api/photos/upload - Handle photo uploads with multer\n     - GET /api/photos - Retrieve photos with filtering options\n     - PUT /api/photos/:id/categorize - Update photo categories\n     - DELETE /api/photos/:id - Remove photos\n   - Implement secure file storage with proper naming conventions\n   - Create database operations for photo metadata management\n\n3. AI Analysis Integration:\n   - Set up Perplexity Pro API authentication\n   - Implement image analysis service:\n     - Extract equipment identification\n     - Detect maintenance issues\n     - Recognize components and parts\n   - Store analysis results in the photos table (ai_analysis JSON field)\n   - Create a background job for processing uploaded images\n\n4. Photo Management System:\n   - Implement automatic categorization based on AI analysis\n   - Create a tagging system for manual categorization\n   - Build search functionality by equipment type, issue, or component\n   - Implement photo association with maintenance tasks\n   - Add export/share functionality for documentation purposes\n\n5. Mobile Responsiveness:\n   - Ensure camera functionality works on mobile devices\n   - Optimize photo gallery for touch interfaces\n   - Implement offline photo capture with sync when online",
+        "testStrategy": "1. Unit Testing:\n   - Test PhotoCapture component with mock camera data\n   - Verify upload functionality with different file types and sizes\n   - Test AI analysis service with various image samples\n   - Validate photo categorization logic\n   - Verify database operations for photo management\n\n2. Integration Testing:\n   - Test end-to-end photo capture, upload, and analysis workflow\n   - Verify correct storage of photos and metadata in the database\n   - Test AI analysis results against expected outcomes\n   - Validate photo association with maintenance tasks\n   - Test search and filtering functionality\n\n3. Performance Testing:\n   - Measure upload times for various image sizes\n   - Test AI analysis processing time\n   - Evaluate gallery loading performance with large numbers of photos\n   - Test mobile performance on different devices\n\n4. User Acceptance Testing:\n   - Verify intuitive photo capture experience\n   - Test photo management workflow in real-world scenarios\n   - Validate AI analysis accuracy and usefulness\n   - Test categorization and search functionality with maintenance staff\n\n5. Security Testing:\n   - Verify secure storage of photos\n   - Test access controls for photo viewing and management\n   - Validate input sanitization for photo metadata",
+        "status": "in-progress",
+        "dependencies": [
+          1,
+          2,
+          3
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "🔍 Enhanced AI Analysis - Equipment Recognition & Damage Detection",
+            "description": "Implement advanced AI analysis capabilities for equipment recognition and damage detection in photos",
+            "details": "1. Equipment Recognition System:\n   - Integrate computer vision models for equipment type identification\n   - Train/configure models to recognize fitness equipment (treadmills, ellipticals, weight machines, etc.)\n   - Implement confidence scoring for equipment identification\n   - Add equipment brand/model detection capabilities\n\n2. Damage Detection & Assessment:\n   - Implement damage detection algorithms (cracks, rust, wear, loose parts)\n   - Create severity assessment system (low, medium, high, critical)\n   - Add component-specific detection (belts, motors, bearings, cables)\n   - Implement before/after comparison analysis\n\n3. Technical Implementation:\n   - Extend existing AI analysis service with new models\n   - Add image preprocessing for better analysis accuracy\n   - Implement batch processing for multiple photos\n   - Create analysis result storage and retrieval system\n\n4. Integration Points:\n   - Connect with equipment database for validation\n   - Link analysis results to maintenance tasks\n   - Generate automated alerts for critical issues\n   - Store analysis metadata in photos table",
+            "testStrategy": "- Test with various equipment types and conditions\n- Validate damage detection accuracy\n- Performance testing with large photo sets\n- Integration testing with existing photo system",
+            "status": "pending",
+            "priority": "high"
+          },
+          {
+            "id": 2,
+            "title": "📊 Analytics Dashboard - Visual Analytics for Photo Data",
+            "description": "Create comprehensive visual analytics dashboard for photo data and maintenance insights",
+            "details": "1. Dashboard Components:\n   - Photo analytics overview with key metrics\n   - Equipment health tracking visualizations\n   - Maintenance trend analysis charts\n   - Photo usage and storage analytics\n   - AI analysis accuracy metrics\n\n2. Data Visualization Features:\n   - Interactive charts and graphs using Chart.js or D3.js\n   - Real-time data updates and live dashboards\n   - Filterable analytics by date range, equipment type, location\n   - Export capabilities for reports and presentations\n   - Customizable dashboard layouts\n\n3. Analytics Metrics:\n   - Total photos captured and analyzed\n   - Equipment condition trends over time\n   - Most common maintenance issues detected\n   - AI analysis confidence scores\n   - Photo storage usage and optimization\n\n4. Technical Implementation:\n   - Create analytics API endpoints for data aggregation\n   - Implement caching for performance optimization\n   - Add real-time data streaming capabilities\n   - Create responsive dashboard components\n   - Implement data export functionality",
+            "testStrategy": "- Test dashboard performance with large datasets\n- Validate chart accuracy and data representation\n- Test real-time updates and data streaming\n- Verify export functionality and report generation",
+            "status": "pending",
+            "priority": "medium"
+          },
+          {
+            "id": 3,
+            "title": "🔄 Workflow Automation - Auto-generate Tasks from Photo Analysis",
+            "description": "Implement automated workflow system that generates maintenance tasks based on photo analysis results",
+            "details": "1. Task Generation Engine:\n   - Create rules engine for automatic task creation\n   - Implement severity-based task prioritization\n   - Add equipment-specific maintenance schedules\n   - Create recurring task generation for preventive maintenance\n\n2. Workflow Triggers:\n   - Photo analysis results trigger task creation\n   - Equipment condition thresholds trigger alerts\n   - Time-based maintenance reminders\n   - Integration with equipment lifecycle data\n   - External system triggers (vendor alerts, warranty expirations)\n\n3. Task Management Integration:\n   - Auto-assign tasks to appropriate technicians\n   - Generate task descriptions from photo analysis\n   - Create task dependencies and sequences\n   - Implement task escalation for critical issues\n   - Add task completion tracking and verification\n\n4. Notification System:\n   - Email/SMS alerts for new tasks\n   - Push notifications for urgent maintenance\n   - Dashboard alerts and notifications\n   - Integration with calendar systems\n   - Escalation notifications for overdue tasks",
+            "testStrategy": "- Test task generation accuracy and relevance\n- Validate workflow triggers and automation logic\n- Test notification delivery and user response\n- Verify task assignment and escalation logic",
+            "status": "pending",
+            "priority": "high"
+          },
+          {
+            "id": 4,
+            "title": "📱 Mobile Enhancements - Offline Capture & Annotation Tools",
+            "description": "Add advanced mobile features including offline photo capture and annotation tools",
+            "details": "1. Offline Capabilities:\n   - Implement offline photo capture and storage\n   - Add sync functionality when connection is restored\n   - Create offline task management\n   - Implement offline AI analysis queue\n   - Add conflict resolution for offline changes\n\n2. Photo Annotation Tools:\n   - Drawing tools for marking issues on photos\n   - Text annotation and labeling capabilities\n   - Arrow and shape tools for highlighting problems\n   - Color-coded annotation system\n   - Annotation export and sharing\n\n3. Mobile Optimization:\n   - Touch-friendly interface design\n   - Gesture-based photo navigation\n   - Optimized image compression for mobile\n   - Battery-efficient photo processing\n   - Mobile-specific camera controls\n\n4. Advanced Mobile Features:\n   - GPS location tagging for photos\n   - Barcode/QR code scanning for equipment\n   - Voice-to-text descriptions\n   - Batch photo operations\n   - Mobile-specific photo filters and enhancements",
+            "testStrategy": "- Test offline functionality and data sync\n- Validate annotation tools on various mobile devices\n- Test performance and battery usage\n- Verify mobile-specific features work correctly",
+            "status": "pending",
+            "priority": "medium"
+          },
+          {
+            "id": 5,
+            "title": "🔗 System Integration - Connect Photos to Equipment Database",
+            "description": "Integrate photo system with equipment database for comprehensive maintenance tracking",
+            "details": "1. Equipment Database Integration:\n   - Link photos to equipment records\n   - Create equipment photo galleries\n   - Implement equipment condition tracking\n   - Add equipment maintenance history with photos\n   - Create equipment lifecycle photo documentation\n\n2. Data Relationships:\n   - Establish photo-equipment relationships\n   - Create photo-task-equipment associations\n   - Implement photo-based equipment health scoring\n   - Add equipment photo analytics\n   - Create equipment photo export capabilities\n\n3. Advanced Integration Features:\n   - Equipment photo search and filtering\n   - Photo-based equipment identification\n   - Equipment photo comparison tools\n   - Photo-based equipment documentation\n   - Integration with vendor equipment databases\n\n4. Reporting and Analytics:\n   - Equipment-specific photo reports\n   - Photo-based equipment condition reports\n   - Equipment maintenance photo timelines\n   - Photo-based equipment performance analytics\n   - Equipment photo compliance reporting",
+            "testStrategy": "- Test equipment-photo relationship integrity\n- Validate photo-based equipment identification\n- Test reporting and analytics accuracy\n- Verify integration with external equipment databases",
+            "status": "pending",
+            "priority": "medium"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Implement Voice-First Interface",
+        "description": "Develop a comprehensive voice-first interface that enables hands-free operation through voice input, natural language processing via Claude API, voice commands for navigation, and a mobile-optimized interface.",
+        "details": "1. Frontend Voice Input Implementation:\n   - Integrate Web Speech API for voice recognition\n   - Create VoiceInput component with microphone activation UI\n   - Implement continuous listening mode for hands-free operation\n   - Add visual feedback during voice recording and processing\n   - Design fallback mechanisms for environments without voice support\n\n2. Claude API Integration for NLP:\n   - Set up Claude API client in the backend services\n   - Create middleware to process voice input text\n   - Implement intent recognition to categorize commands\n   - Design prompt templates for different voice command contexts\n   - Add context awareness to maintain conversation state\n\n3. Voice Command Navigation:\n   - Define a comprehensive set of voice commands for app navigation\n   - Implement command handlers for each navigation action\n   - Create a command registry to map voice intents to actions\n   - Add voice command help/tutorial for user onboarding\n   - Implement confirmation for destructive actions\n\n4. Mobile Optimization:\n   - Ensure responsive design for voice interface components\n   - Optimize microphone access and permissions on mobile devices\n   - Implement battery-efficient background listening\n   - Add haptic feedback for voice command recognition\n   - Design for varying mobile network conditions\n\n5. Voice Interface for Task Management:\n   - Enable creating, updating, and completing tasks via voice\n   - Implement natural language parsing for task attributes\n   - Add voice commands for photo documentation\n   - Create voice-guided workflows for common maintenance tasks\n   - Support querying task status and details by voice\n\n6. Accessibility Considerations:\n   - Ensure voice interface complies with WCAG guidelines\n   - Implement alternative input methods alongside voice\n   - Add configurable voice feedback settings\n   - Test with screen readers and assistive technologies\n   - Support multiple languages for voice recognition",
+        "testStrategy": "1. Unit Testing:\n   - Test VoiceInput component with mocked Web Speech API\n   - Verify Claude API client with sample voice transcripts\n   - Test command registry with various input patterns\n   - Validate intent recognition with edge case phrases\n   - Verify voice command handlers execute correct actions\n\n2. Integration Testing:\n   - Test end-to-end voice command workflows\n   - Verify Claude API integration with real API calls\n   - Test voice navigation across different app sections\n   - Validate task creation and management via voice commands\n   - Test voice interface with background noise conditions\n\n3. Mobile Device Testing:\n   - Test on various mobile devices and OS versions\n   - Verify performance with different microphone qualities\n   - Test in low-connectivity scenarios\n   - Measure battery impact during extended voice usage\n   - Verify functionality with mobile browser permissions\n\n4. Accessibility Testing:\n   - Conduct WCAG compliance audit\n   - Test with screen readers and voice control software\n   - Verify operation without visual feedback\n   - Test with users having different speech patterns/accents\n   - Validate alternative input methods work alongside voice\n\n5. User Experience Testing:\n   - Conduct usability studies with maintenance technicians\n   - Measure task completion rates using voice vs. traditional input\n   - Gather feedback on voice command natural language patterns\n   - Test in simulated maintenance environments with background noise\n   - Evaluate voice recognition accuracy across different users",
+        "status": "pending",
+        "dependencies": [
+          1,
+          2,
+          3
+        ],
+        "priority": "medium",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "created": "2025-01-28T21:30:00.000Z",
+      "lastUpdated": "2025-01-28T21:30:00.000Z",
+      "description": "Tasks for master context",
+      "updated": "2025-07-28T22:44:48.698Z"
+    }
+  }
+}

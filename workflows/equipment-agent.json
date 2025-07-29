@@ -1,0 +1,200 @@
+{
+  "name": "Equipment Agent - Photo Analysis Specialist",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "equipment-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "equipment-webhook",
+      "name": "Equipment Agent Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "equipment-agent-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Equipment Agent - Request Processor\nconst input = $input.first().json;\nconst { message, photo, location, issue, intent, priority } = input;\n\n// Load equipment agent memory\nconst equipmentMemory = $('equipment_memory') || {\n  analysis_history: [],\n  equipment_database: {},\n  common_issues: {},\n  successful_repairs: [],\n  context: {\n    current_analysis: null,\n    pending_analyses: []\n  }\n};\n\n// Add to analysis history\nconst analysisRequest = {\n  id: `analysis_${Date.now()}`,\n  timestamp: new Date().toISOString(),\n  message: message,\n  photo: photo,\n  location: location,\n  reported_issue: issue,\n  intent: intent,\n  priority: priority,\n  status: 'processing'\n};\n\nequipmentMemory.analysis_history.push(analysisRequest);\nequipmentMemory.context.current_analysis = analysisRequest.id;\n\n// Store updated memory\n$('equipment_memory', equipmentMemory);\n\n// Determine analysis type\nlet analysisType = 'photo_analysis';\nif (!photo && message) {\n  analysisType = 'text_analysis';\n} else if (photo && message) {\n  analysisType = 'combined_analysis';\n}\n\n// Extract equipment type from message or photo\nlet equipmentType = 'unknown';\nif (message) {\n  const lowerMessage = message.toLowerCase();\n  if (lowerMessage.includes('treadmill')) equipmentType = 'treadmill';\n  else if (lowerMessage.includes('elliptical')) equipmentType = 'elliptical';\n  else if (lowerMessage.includes('bike') || lowerMessage.includes('cycle')) equipmentType = 'exercise_bike';\n  else if (lowerMessage.includes('weight') || lowerMessage.includes('machine')) equipmentType = 'weight_machine';\n  else if (lowerMessage.includes('cardio')) equipmentType = 'cardio_equipment';\n}\n\nreturn [{\n  json: {\n    analysis_request: analysisRequest,\n    analysis_type: analysisType,\n    equipment_type: equipmentType,\n    photo_data: photo,\n    location: location,\n    reported_issue: issue,\n    intent: intent,\n    priority: priority,\n    equipment_memory: equipmentMemory,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "equipment-processor",
+      "name": "Equipment Request Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "photo-analysis-check",
+              "leftValue": "={{ $json.analysis_type }}",
+              "rightValue": "photo_analysis",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "analysis-type-router",
+      "name": "Analysis Type Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.perplexity.ai/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.PERPLEXITY_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama-3.1-sonar-large-128k-online"
+            },
+            {
+              "name": "messages",
+              "value": "=[\n  {\n    \"role\": \"system\",\n    \"content\": \"You are the Equipment Agent for Lifetime Fitness Maintenance. You specialize in analyzing gym equipment photos and identifying maintenance issues.\\n\\nYour expertise includes:\\n- Treadmills, ellipticals, exercise bikes, weight machines\\n- Common wear patterns and failure points\\n- Safety concerns and immediate risks\\n- Parts identification and replacement needs\\n- Maintenance recommendations\\n\\nAnalyze the equipment photo and provide:\\n1. Equipment type and model identification\\n2. Visible damage or wear assessment\\n3. Safety concerns (if any)\\n4. Required maintenance actions\\n5. Parts that may need replacement\\n6. Estimated repair time and cost\\n7. Tools needed for repair\\n8. Priority level (critical/high/normal/low)\\n\\nBe specific, professional, and actionable.\"\n  },\n  {\n    \"role\": \"user\",\n    \"content\": [\n      {\n        \"type\": \"text\",\n        \"text\": \"Analyze this gym equipment photo:\\n\\nLocation: {{ $json.location }}\\nReported Issue: {{ $json.reported_issue }}\\nEquipment Type: {{ $json.equipment_type }}\\nPriority: {{ $json.priority }}\\n\\nPlease provide a detailed analysis with specific recommendations.\"\n      },\n      {\n        \"type\": \"image_url\",\n        \"image_url\": \"{{ $json.photo_data }}\"\n      }\n    ]\n  }\n]"
+            },
+            {
+              "name": "max_tokens",
+              "value": "2000"
+            },
+            {
+              "name": "temperature",
+              "value": "0.2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "equipment-ai-analysis",
+      "name": "Equipment AI Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Equipment Analysis Processor\nconst input = $input.first().json;\nconst aiResponse = input.data;\nconst originalData = input.originalData;\n\n// Extract AI analysis\nlet analysis = {};\ntry {\n  const content = aiResponse.choices[0].message.content;\n  \n  // Try to parse structured response\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    analysis = JSON.parse(jsonMatch[0]);\n  } else {\n    // Extract key information from text\n    analysis = {\n      equipment_type: extractFromText(content, 'equipment type', 'Unknown'),\n      damage_assessment: extractFromText(content, 'damage|wear|issue', 'No visible damage'),\n      safety_concerns: extractFromText(content, 'safety|risk|danger', 'None identified'),\n      required_actions: extractFromText(content, 'maintenance|repair|action', 'Inspection recommended'),\n      parts_needed: extractFromText(content, 'parts|replacement|component', 'None identified'),\n      tools_needed: extractFromText(content, 'tools|equipment needed', 'Standard tools'),\n      time_estimate: extractFromText(content, 'time|duration|hours', '1-2 hours'),\n      cost_estimate: extractFromText(content, 'cost|price|estimate', 'TBD'),\n      priority: extractFromText(content, 'priority|urgency', 'normal'),\n      raw_analysis: content\n    };\n  }\n} catch (error) {\n  analysis = {\n    error: 'Failed to parse AI analysis',\n    equipment_type: originalData.equipment_type,\n    damage_assessment: 'Analysis failed - manual inspection required',\n    safety_concerns: 'Manual inspection required',\n    required_actions: 'Schedule technician visit',\n    parts_needed: 'Unable to determine',\n    tools_needed: 'Standard tools',\n    time_estimate: '2-4 hours',\n    cost_estimate: 'TBD',\n    priority: originalData.priority || 'normal',\n    raw_analysis: aiResponse\n  };\n}\n\n// Helper function to extract information from text\nfunction extractFromText(text, pattern, defaultValue) {\n  const regex = new RegExp(`${pattern}[\\s\\-]*:?\\s*([^\\n]+)`, 'i');\n  const match = text.match(regex);\n  return match ? match[1].trim() : defaultValue;\n}\n\n// Create maintenance recommendation\nconst maintenanceRecommendation = {\n  id: `rec_${Date.now()}`,\n  equipment_type: analysis.equipment_type,\n  location: originalData.location,\n  issue: originalData.reported_issue,\n  analysis: analysis,\n  priority: analysis.priority,\n  estimated_cost: analysis.cost_estimate,\n  estimated_time: analysis.time_estimate,\n  required_parts: analysis.parts_needed,\n  tools_needed: analysis.tools_needed,\n  safety_concerns: analysis.safety_concerns,\n  status: 'analyzed',\n  timestamp: new Date().toISOString()\n};\n\n// Update equipment memory\nconst equipmentMemory = originalData.equipment_memory;\nequipmentMemory.analysis_history.push({\n  ...originalData.analysis_request,\n  status: 'completed',\n  analysis: analysis,\n  recommendation: maintenanceRecommendation\n});\n\n// Store updated memory\n$('equipment_memory', equipmentMemory);\n\nreturn [{\n  json: {\n    equipment_analysis: analysis,\n    maintenance_recommendation: maintenanceRecommendation,\n    original_request: originalData.analysis_request,\n    equipment_memory: equipmentMemory,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "equipment-analysis-processor",
+      "name": "Equipment Analysis Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"equipment_analysis\": {{ JSON.stringify($json.equipment_analysis) }},\n  \"maintenance_recommendation\": {{ JSON.stringify($json.maintenance_recommendation) }},\n  \"original_request\": {{ JSON.stringify($json.original_request) }},\n  \"equipment_memory\": {{ JSON.stringify($json.equipment_memory) }},\n  \"timestamp\": \"{{ $json.timestamp }}\"\n}",
+        "options": {}
+      },
+      "id": "equipment-response",
+      "name": "Equipment Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Equipment Agent Webhook": {
+      "main": [
+        [
+          {
+            "node": "Equipment Request Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Equipment Request Processor": {
+      "main": [
+        [
+          {
+            "node": "Analysis Type Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analysis Type Router": {
+      "main": [
+        [
+          {
+            "node": "Equipment AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Equipment AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Equipment Analysis Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Equipment Analysis Processor": {
+      "main": [
+        [
+          {
+            "node": "Equipment Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "equipment-agent",
+      "name": "Equipment Agent"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+} 

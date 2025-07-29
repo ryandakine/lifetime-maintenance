@@ -17,10 +17,18 @@ if __name__ == "__main__":
     print("🔍 Health check at: http://localhost:8000/health")
     print()
     
+    # Get port from environment variable or use default
+    port = int(os.getenv('PORT', 8000))
+    
+    print(f"📍 API will be available at: http://localhost:{port}")
+    print(f"📚 API Documentation at: http://localhost:{port}/docs")
+    print(f"🔍 Health check at: http://localhost:{port}/health")
+    print()
+    
     uvicorn.run(
         "app.main-simple:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=True,
         log_level="info"
     ) 

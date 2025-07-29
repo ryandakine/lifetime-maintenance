@@ -38,17 +38,32 @@
     "gh:create-pr": "gh pr create --title \"Feature: \" --body \"Implements new feature\"",
     "start:hybrid": "node start-hybrid-system.js",
     "backend": "node start-fastapi.js",
-    "backend:simple": "cd backend && python start-simple.py"
+    "backend:simple": "cd backend && python start-simple.py",
+    "start:dynamic": "node scripts/dynamic-start.js",
+    "start:ports": "node scripts/port-finder.js",
+    "ports:status": "node scripts/port-status.js",
+    "dev:dynamic": "node scripts/dynamic-start.js --frontend",
+    "api:dynamic": "node scripts/dynamic-start.js --api",
+    "backend:dynamic": "node scripts/dynamic-start.js --backend",
+    "taskmaster": "node scripts/taskmaster-ai.js",
+    "taskmaster:status": "node scripts/taskmaster-ai.js status",
+    "taskmaster:next": "node scripts/taskmaster-ai.js next",
+    "taskmaster:report": "node scripts/taskmaster-ai.js report"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.8.2",
     "@supabase/supabase-js": "^2.38.4",
+    "chart.js": "^4.5.0",
     "date-fns": "^2.30.0",
+    "fabric": "^6.7.1",
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",
+    "react-camera-pro": "^1.4.0",
+    "react-chartjs-2": "^5.3.0",
     "react-dom": "^18.2.0",
     "react-redux": "^9.2.0",
-    "react-router-dom": "^6.8.1"
+    "react-router-dom": "^6.8.1",
+    "task-master-ai": "^0.22.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
