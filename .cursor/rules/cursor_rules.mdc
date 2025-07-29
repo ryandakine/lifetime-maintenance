@@ -50,4 +50,12 @@ alwaysApply: true
   - Keep descriptions concise
   - Include both DO and DON'T examples
   - Reference actual code over theoretical examples
-  - Use consistent formatting across rules 
+  - Use consistent formatting across rules
+  - **Always implement verbose logging** following [verbose_logging.mdc](mdc:.cursor/rules/verbose_logging.mdc) standards
+
+- **Logging Requirements:**
+  - **All code must include comprehensive logging** as specified in [verbose_logging.mdc](mdc:.cursor/rules/verbose_logging.mdc)
+  - **No function should execute without appropriate log entries** at entry, exit, and error points
+  - **Log levels must be properly categorized** (debug, info, warn, error, fatal)
+  - **Include contextual information** in all log messages (function name, parameters, timestamps)
+  - **Log all API calls, database operations, and external service interactions** 

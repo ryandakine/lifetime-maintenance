@@ -1,0 +1,208 @@
+- **Verbose Logging Requirements:**
+  - **All functions must include detailed logging** at entry, exit, and error points
+  - **Log levels must be properly categorized** (debug, info, warn, error, fatal)
+  - **Include contextual information** in all log messages (function name, parameters, timestamps)
+  - **Log all API calls, database operations, and external service interactions**
+
+- **JavaScript/TypeScript Logging Standards:**
+  ```javascript
+  // ✅ DO: Comprehensive logging
+  const logger = {
+    debug: (msg, data) => console.log(`[DEBUG] ${new Date().toISOString()} - ${msg}`, data),
+    info: (msg, data) => console.log(`[INFO] ${new Date().toISOString()} - ${msg}`, data),
+    warn: (msg, data) => console.warn(`[WARN] ${new Date().toISOString()} - ${msg}`, data),
+    error: (msg, error) => console.error(`[ERROR] ${new Date().toISOString()} - ${msg}`, error)
+  };
+
+  async function processTask(taskId) {
+    logger.info(`Starting task processing`, { taskId, timestamp: new Date().toISOString() });
+    
+    try {
+      logger.debug(`Fetching task data`, { taskId });
+      const task = await fetchTask(taskId);
+      logger.info(`Task data retrieved`, { taskId, status: task.status });
+      
+      // Process task...
+      logger.info(`Task processing completed`, { taskId, result: 'success' });
+      return result;
+    } catch (error) {
+      logger.error(`Task processing failed`, { taskId, error: error.message, stack: error.stack });
+      throw error;
+    }
+  }
+  
+  // ❌ DON'T: Minimal or no logging
+  async function processTask(taskId) {
+    const task = await fetchTask(taskId);
+    // Process without logging
+    return result;
+  }
+  ```
+
+- **Python Logging Standards:**
+  ```python
+  # ✅ DO: Proper Python logging setup
+  import logging
+  import datetime
+  
+  # Configure logging
+  logging.basicConfig(
+      level=logging.DEBUG,
+      format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+      handlers=[
+          logging.FileHandler('app.log'),
+          logging.StreamHandler()
+      ]
+  )
+  
+  logger = logging.getLogger(__name__)
+  
+  def process_maintenance_task(task_id: str):
+      logger.info(f"Starting maintenance task processing", extra={
+          'task_id': task_id,
+          'timestamp': datetime.datetime.now().isoformat()
+      })
+      
+      try:
+          logger.debug(f"Fetching task data for task_id: {task_id}")
+          task = fetch_task(task_id)
+          logger.info(f"Task data retrieved successfully", extra={
+              'task_id': task_id,
+              'status': task.status
+          })
+          
+          # Process task...
+          logger.info(f"Task processing completed successfully", extra={
+              'task_id': task_id,
+              'result': 'success'
+          })
+          return result
+      except Exception as e:
+          logger.error(f"Task processing failed", extra={
+              'task_id': task_id,
+              'error': str(e),
+              'exception_type': type(e).__name__
+          }, exc_info=True)
+          raise
+  
+  # ❌ DON'T: Basic print statements or no logging
+  def process_maintenance_task(task_id: str):
+      task = fetch_task(task_id)
+      # Process without proper logging
+      return result
+  ```
+
+- **API Endpoint Logging:**
+  ```javascript
+  // ✅ DO: Log all API interactions
+  app.get('/api/tasks/:id', async (req, res) => {
+    const { id } = req.params;
+    logger.info(`API request received`, {
+      method: 'GET',
+      endpoint: '/api/tasks/:id',
+      taskId: id,
+      userAgent: req.get('User-Agent'),
+      ip: req.ip,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      const task = await getTask(id);
+      logger.info(`API request successful`, {
+        method: 'GET',
+        endpoint: '/api/tasks/:id',
+        taskId: id,
+        statusCode: 200,
+        responseTime: Date.now() - startTime
+      });
+      res.json(task);
+    } catch (error) {
+      logger.error(`API request failed`, {
+        method: 'GET',
+        endpoint: '/api/tasks/:id',
+        taskId: id,
+        error: error.message,
+        statusCode: 500
+      });
+      res.status(500).json({ error: error.message });
+    }
+  });
+  ```
+
+- **Database Operation Logging:**
+  ```javascript
+  // ✅ DO: Log all database operations
+  async function createTask(taskData) {
+    logger.info(`Database operation started`, {
+      operation: 'CREATE',
+      table: 'tasks',
+      data: taskData,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      const result = await db.query(
+        'INSERT INTO tasks (title, description, status) VALUES (?, ?, ?)',
+        [taskData.title, taskData.description, taskData.status]
+      );
+      
+      logger.info(`Database operation successful`, {
+        operation: 'CREATE',
+        table: 'tasks',
+        taskId: result.insertId,
+        rowsAffected: result.affectedRows
+      });
+      
+      return result;
+    } catch (error) {
+      logger.error(`Database operation failed`, {
+        operation: 'CREATE',
+        table: 'tasks',
+        error: error.message,
+        sql: 'INSERT INTO tasks...'
+      });
+      throw error;
+    }
+  }
+  ```
+
+- **Error Handling with Verbose Logging:**
+  ```javascript
+  // ✅ DO: Comprehensive error logging
+  process.on('uncaughtException', (error) => {
+    logger.fatal(`Uncaught Exception`, {
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString(),
+      processId: process.pid,
+      memoryUsage: process.memoryUsage()
+    });
+    process.exit(1);
+  });
+  
+  process.on('unhandledRejection', (reason, promise) => {
+    logger.error(`Unhandled Rejection`, {
+      reason: reason,
+      promise: promise,
+      timestamp: new Date().toISOString(),
+      processId: process.pid
+    });
+  });
+  ```
+
+- **Logging Configuration Requirements:**
+  - **Environment-based log levels** (DEBUG for development, INFO for production)
+  - **Structured logging** with JSON format for production
+  - **Log rotation** to prevent disk space issues
+  - **Sensitive data masking** (passwords, tokens, personal information)
+  - **Performance metrics** logging (response times, memory usage)
+
+- **Monitoring and Alerting:**
+  - **Log aggregation** for centralized monitoring
+  - **Error rate tracking** and alerting
+  - **Performance bottleneck identification** through logging
+  - **User behavior analytics** through request logging
+description:
+globs:
+alwaysApply: false
+---
