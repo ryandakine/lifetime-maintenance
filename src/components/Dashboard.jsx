@@ -5,10 +5,25 @@ import './Dashboard.css'
 const Dashboard = memo(() => {
   const [workflowResults, setWorkflowResults] = useState([])
   const [isLoading, setIsLoading] = useState(false)
-  const tasks = useSelector(state => state.tasks?.tasks || [])
+  
+  // Add safety check for Redux store
+  const tasks = useSelector(state => {
+    try {
+      return state?.tasks?.tasks || []
+    } catch (error) {
+      console.warn('Error accessing tasks from Redux store:', error)
+      return []
+    }
+  })
+  
   const shoppingItems = useSelector(state => {
-    const shopping = state.shopping || {}
-    return [...(shopping.mainList || []), ...(shopping.miscList || [])]
+    try {
+      const shopping = state?.shopping || {}
+      return [...(shopping.mainList || []), ...(shopping.miscList || [])]
+    } catch (error) {
+      console.warn('Error accessing shopping items from Redux store:', error)
+      return []
+    }
   })
 
   // Memoized workflow trigger function
@@ -91,16 +106,32 @@ const Dashboard = memo(() => {
 
   // Memoized computed values for better performance
   const statusStats = useMemo(() => ({
-    activeTasks: tasks.length,
-    shoppingItems: shoppingItems.length,
+    activeTasks: tasks?.length || 0,
+    shoppingItems: shoppingItems?.length || 0,
     maintenanceDue: 5, // This could be computed from actual maintenance data
     photosDocumented: 12 // This could be computed from actual photo data
-  }), [tasks.length, shoppingItems.length])
+  }), [tasks?.length, shoppingItems?.length])
 
   const recentWorkflows = useMemo(() => 
     workflowResults.slice(-5).reverse(),
     [workflowResults]
   )
+
+  // Add loading state for initial render
+  if (!tasks || !shoppingItems) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '200px',
+        fontSize: '1.1rem',
+        color: '#666'
+      }}>
+        Loading dashboard...
+      </div>
+    )
+  }
 
   return (
     <div className="dashboard">
