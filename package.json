@@ -51,6 +51,17 @@
     "taskmaster:report": "node scripts/taskmaster-ai.js report"
   },
   "dependencies": {
+    "@progress/kendo-react-buttons": "^11.3.1",
+    "@progress/kendo-react-charts": "^11.3.1",
+    "@progress/kendo-react-data-tools": "^11.3.1",
+    "@progress/kendo-react-dateinputs": "^11.3.1",
+    "@progress/kendo-react-dropdowns": "^11.3.1",
+    "@progress/kendo-react-grid": "^11.3.1",
+    "@progress/kendo-react-inputs": "^11.3.1",
+    "@progress/kendo-react-layout": "^11.3.1",
+    "@progress/kendo-react-notification": "^11.3.1",
+    "@progress/kendo-react-scheduler": "^11.3.1",
+    "@progress/kendo-theme-default": "^11.2.0",
     "@reduxjs/toolkit": "^2.8.2",
     "@supabase/supabase-js": "^2.38.4",
     "chart.js": "^4.5.0",

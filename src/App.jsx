@@ -11,6 +11,7 @@ import './App.css'
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const PersonalMaintenanceDashboard = lazy(() => import('./components/PersonalMaintenanceDashboard'))
 const Tasks = lazy(() => import('./components/Tasks'))
+const TasksKendo = lazy(() => import('./components/TasksKendo'))
 const Shopping = lazy(() => import('./components/Shopping'))
 const Maintenance = lazy(() => import('./components/Maintenance'))
 const VisualMaintenance = lazy(() => import('./components/VisualMaintenance'))
@@ -35,6 +36,7 @@ function App() {
     { id: 'dashboard', label: '📊 Dashboard', icon: '📊' },
     { id: 'personal-dashboard', label: '👤 Your Dashboard', icon: '👤' },
     { id: 'tasks', label: '📋 Tasks', icon: '📋' },
+    { id: 'tasks-pro', label: '🔥 Tasks Pro', icon: '🔥' },
     { id: 'shopping', label: '🛒 Shopping', icon: '🛒' },
     { id: 'maintenance', label: '🔧 Maintenance', icon: '🔧' },
     { id: 'visual-maintenance', label: '📸 Visual AI', icon: '📸' },
@@ -59,6 +61,8 @@ function App() {
           return <PersonalMaintenanceDashboard />
         case 'tasks':
           return <Tasks />
+        case 'tasks-pro':
+          return <TasksKendo />
         case 'shopping':
           return <Shopping />
         case 'maintenance':
@@ -146,12 +150,12 @@ function App() {
         <footer className="app-footer">
           <div className="footer-content">
             <p className="footer-text">
-              Lifetime Fitness Maintenance - Powered by Workflows
+              Lifetime Fitness Maintenance - Powered by Workflows & Kendo UI
             </p>
             <div className="footer-links">
               <span className="footer-link">Version 2.0.0</span>
               <span className="footer-link">•</span>
-              <span className="footer-link">Workflow-Powered</span>
+              <span className="footer-link">Kendo UI Enhanced</span>
             </div>
           </div>
         </footer>

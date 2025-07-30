@@ -203,4 +203,9 @@ export const useToastNotifications = () => {
     dismiss: toast.removeToast,
     clear: toast.clearToasts
   }
-} 
+}
+
+// Default export - the ToastProvider for easy importing
+const Toast = ToastProvider
+
+export default Toast 

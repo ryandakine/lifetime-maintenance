@@ -199,4 +199,14 @@ export const LoadingStyles = () => (
       50% { opacity: 0.5; }
     }
   `}</style>
-) 
+)
+
+// Default export - a component that includes global styles and common loading states
+const LoadingStates = ({ children }) => (
+  <>
+    <LoadingStyles />
+    {children}
+  </>
+)
+
+export default LoadingStates 
