@@ -13,17 +13,45 @@ import {
   Sparkles
 } from 'lucide-react'
 
+// Kendo UI imports with error handling
+let Grid, GridColumn, GridToolbar, Button, Input, TextArea, DropDownList, ComboBox, DatePicker, Notification, NotificationGroup
+
+try {
+  const kendoGrid = require('@progress/kendo-react-grid')
+  const kendoButtons = require('@progress/kendo-react-buttons')
+  const kendoInputs = require('@progress/kendo-react-inputs')
+  const kendoDropdowns = require('@progress/kendo-react-dropdowns')
+  const kendoDateInputs = require('@progress/kendo-react-dateinputs')
+  const kendoNotification = require('@progress/kendo-react-notification')
+  
+  Grid = kendoGrid.Grid
+  GridColumn = kendoGrid.GridColumn
+  GridToolbar = kendoGrid.GridToolbar
+  Button = kendoButtons.Button
+  Input = kendoInputs.Input
+  TextArea = kendoInputs.TextArea
+  DropDownList = kendoDropdowns.DropDownList
+  ComboBox = kendoDropdowns.ComboBox
+  DatePicker = kendoDateInputs.DatePicker
+  Notification = kendoNotification.Notification
+  NotificationGroup = kendoNotification.NotificationGroup
+} catch (error) {
+  console.warn('Kendo UI components not available, using fallback:', error.message)
+  // Fallback components will be defined below
+}
+
 const TasksKendo = () => {
   // State management
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [notifications, setNotifications] = useState([])
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
     priority: 'medium',
     category: '',
-    dueDate: '',
+    dueDate: null,
     status: 'pending'
   })
 
@@ -65,6 +93,7 @@ const TasksKendo = () => {
 
       if (error) {
         logger.error('TasksKendo:loadTasks:error', { error: error.message })
+        addNotification('Error loading tasks', 'error')
         return
       }
 
@@ -84,9 +113,26 @@ const TasksKendo = () => {
       
     } catch (error) {
       logger.error('TasksKendo:loadTasks:catch', { error: error.message })
+      addNotification('Failed to load tasks', 'error')
     } finally {
       setLoading(false)
     }
+  }, [])
+
+  // Add notification helper
+  const addNotification = useCallback((message, type = 'info') => {
+    const notification = {
+      id: Date.now(),
+      message,
+      type,
+      show: true
+    }
+    setNotifications(prev => [...prev, notification])
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== notification.id))
+    }, 5000)
   }, [])
 
   // Toggle task status
@@ -104,6 +150,7 @@ const TasksKendo = () => {
 
       if (error) {
         logger.error('TasksKendo:toggleTaskStatus:error', { taskId, error: error.message })
+        addNotification('Error updating task status', 'error')
         return
       }
 
@@ -118,9 +165,11 @@ const TasksKendo = () => {
       ))
 
       logger.info('TasksKendo:toggleTaskStatus:success', { taskId, newStatus })
+      addNotification(`Task ${newStatus === 'completed' ? 'completed' : 'reopened'}`, 'success')
       
     } catch (error) {
       logger.error('TasksKendo:toggleTaskStatus:catch', { taskId, error: error.message })
+      addNotification('Failed to update task', 'error')
     }
   }, [])
 
@@ -128,7 +177,7 @@ const TasksKendo = () => {
   const addTask = useCallback(async () => {
     try {
       if (!newTask.title.trim()) {
-        alert('Task title is required')
+        addNotification('Task title is required', 'warning')
         return
       }
 
@@ -140,7 +189,7 @@ const TasksKendo = () => {
         priority: newTask.priority,
         category: newTask.category,
         status: 'pending',
-        due_date: newTask.dueDate || null,
+        due_date: newTask.dueDate?.toISOString(),
         created_at: new Date().toISOString()
       }
 
@@ -151,7 +200,7 @@ const TasksKendo = () => {
 
       if (error) {
         logger.error('TasksKendo:addTask:error', { error: error.message })
-        alert('Error creating task')
+        addNotification('Error creating task', 'error')
         return
       }
 
@@ -161,258 +210,597 @@ const TasksKendo = () => {
         description: '',
         priority: 'medium',
         category: '',
-        dueDate: '',
+        dueDate: null,
         status: 'pending'
       })
       setShowAddForm(false)
       await loadTasks()
 
       logger.info('TasksKendo:addTask:success', { taskId: data[0]?.id })
-      alert('Task created successfully')
+      addNotification('Task created successfully', 'success')
 
     } catch (error) {
       logger.error('TasksKendo:addTask:catch', { error: error.message })
-      alert('Failed to create task')
+      addNotification('Failed to create task', 'error')
     }
   }, [newTask, loadTasks])
 
-  // Get priority color
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'critical': return '#e74c3c'
-      case 'high': return '#f39c12'
-      case 'medium': return '#3498db'
-      case 'low': return '#27ae60'
-      default: return '#7f8c8d'
+  // Custom cell renderers
+  const StatusCell = ({ dataItem }) => (
+    <div className="task-status-cell">
+      <button
+        className={`status-toggle ${dataItem.status}`}
+        onClick={() => toggleTaskStatus(dataItem.id, dataItem.status)}
+        title={`Click to ${dataItem.status === 'completed' ? 'reopen' : 'complete'} task`}
+      >
+        {dataItem.status === 'completed' ? <CheckSquare size={16} /> : <Square size={16} />}
+        <span>{dataItem.statusText}</span>
+      </button>
+    </div>
+  )
+
+  const PriorityCell = ({ dataItem }) => {
+    const getPriorityColor = (priority) => {
+      switch (priority) {
+        case 'critical': return '#e74c3c'
+        case 'high': return '#f39c12'
+        case 'medium': return '#3498db'
+        case 'low': return '#27ae60'
+        default: return '#7f8c8d'
+      }
     }
+
+    return (
+      <div className="priority-cell" style={{ color: getPriorityColor(dataItem.priority) }}>
+        <Star size={14} fill="currentColor" />
+        <span>{dataItem.priorityText}</span>
+      </div>
+    )
   }
 
-  // Get category icon
-  const getCategoryIcon = (category) => {
-    switch (category) {
-      case 'cardio': return '🏃'
-      case 'strength': return '💪'
-      case 'facility': return '🏢'
-      case 'pool': return '🏊'
-      case 'hvac': return '🌡️'
-      case 'cleaning': return '🧹'
-      case 'safety': return '🛡️'
-      default: return '⚙️'
+  const CategoryCell = ({ dataItem }) => {
+    const getCategoryIcon = (category) => {
+      switch (category) {
+        case 'cardio': return '🏃'
+        case 'strength': return '💪'
+        case 'facility': return '🏢'
+        case 'pool': return '🏊'
+        case 'hvac': return '🌡️'
+        case 'cleaning': return '🧹'
+        case 'safety': return '🛡️'
+        default: return '⚙️'
+      }
     }
+
+    return (
+      <div className="category-cell">
+        <span>{getCategoryIcon(dataItem.category)}</span>
+        <span>{dataItem.categoryText}</span>
+      </div>
+    )
   }
+
+  const DueDateCell = ({ dataItem }) => (
+    <div className="due-date-cell">
+      {dataItem.dueDate ? (
+        <>
+          <Calendar size={14} />
+          <span>{dataItem.dueDate.toLocaleDateString()}</span>
+        </>
+      ) : (
+        <span className="no-date">No due date</span>
+      )}
+    </div>
+  )
+
+  const DaysCreatedCell = ({ dataItem }) => (
+    <div className="days-created-cell">
+      <span className={dataItem.daysSinceCreated > 7 ? 'old-task' : 'recent-task'}>
+        {dataItem.daysSinceCreated} days
+      </span>
+    </div>
+  )
+
+  // Grid toolbar
+  const GridToolbarComponent = () => (
+    <GridToolbar>
+      <Button
+        primary={true}
+        onClick={() => setShowAddForm(!showAddForm)}
+        icon={<Plus size={16} />}
+      >
+        Add New Task
+      </Button>
+      <Button
+        onClick={loadTasks}
+        icon={<Sparkles size={16} />}
+      >
+        Refresh
+      </Button>
+    </GridToolbar>
+  )
 
   // Load tasks on component mount
   useEffect(() => {
     loadTasks()
   }, [loadTasks])
 
-  if (loading) {
+  // Check if Kendo components are available
+  const kendoAvailable = Grid && GridColumn && GridToolbar && Button && Input && TextArea && DropDownList && ComboBox && DatePicker && Notification && NotificationGroup
+
+  if (!kendoAvailable) {
+    // Fallback to regular HTML table
     return (
       <div className="tasks-kendo-container">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Loading Tasks Pro...</p>
+        <div className="tasks-header">
+          <h2>🔧 Maintenance Tasks Pro</h2>
+          <p>Professional task management interface (Kendo UI loading...)</p>
         </div>
+
+        {loading ? (
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <p>Loading Tasks Pro...</p>
+          </div>
+        ) : (
+          <div className="tasks-table-container">
+            <div className="table-header">
+              <h3>Tasks ({tasks.length})</h3>
+              <button 
+                className="btn btn-primary"
+                onClick={() => setShowAddForm(!showAddForm)}
+              >
+                <Plus size={16} />
+                Add New Task
+              </button>
+            </div>
+
+            <div className="tasks-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>Title</th>
+                    <th>Priority</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Due Date</th>
+                    <th>Age</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tasks.map(task => (
+                    <tr key={task.id}>
+                      <td>
+                        <button
+                          className={`status-toggle ${task.status}`}
+                          onClick={() => toggleTaskStatus(task.id, task.status)}
+                          title={`Click to ${task.status === 'completed' ? 'reopen' : 'complete'} task`}
+                        >
+                          {task.status === 'completed' ? <CheckSquare size={16} /> : <Square size={16} />}
+                          <span>{task.statusText}</span>
+                        </button>
+                      </td>
+                      <td>{task.title}</td>
+                      <td>
+                        <div className="priority-cell" style={{ color: getPriorityColor(task.priority) }}>
+                          <Star size={14} fill="currentColor" />
+                          <span>{task.priorityText}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="category-cell">
+                          <span>{getCategoryIcon(task.category)}</span>
+                          <span>{task.categoryText}</span>
+                        </div>
+                      </td>
+                      <td>{task.description}</td>
+                      <td>
+                        <div className="due-date-cell">
+                          {task.dueDate ? (
+                            <>
+                              <Calendar size={14} />
+                              <span>{task.dueDate.toLocaleDateString()}</span>
+                            </>
+                          ) : (
+                            <span className="no-date">No due date</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="days-created-cell">
+                          <span className={task.daysSinceCreated > 7 ? 'old-task' : 'recent-task'}>
+                            {task.daysSinceCreated} days
+                          </span>
+                        </div>
+                      </td>
+                      <td>{task.createdAt.toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <style jsx>{`
+          .tasks-kendo-container {
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            min-height: calc(100vh - 200px);
+          }
+
+          .tasks-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+          }
+
+          .tasks-header h2 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 2rem;
+            margin-bottom: 8px;
+          }
+
+          .tasks-header p {
+            color: #6c757d;
+            font-size: 1.1rem;
+            margin: 0;
+          }
+
+          .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            gap: 20px;
+          }
+
+          .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+          }
+
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+
+          .tasks-table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid #e1e5e9;
+            overflow: hidden;
+          }
+
+          .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-bottom: 2px solid #dee2e6;
+          }
+
+          .table-header h3 {
+            margin: 0;
+            color: #495057;
+          }
+
+          .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+
+          .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+          }
+
+          .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+          }
+
+          .tasks-table {
+            overflow-x: auto;
+          }
+
+          .tasks-table table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+
+          .tasks-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            padding: 12px;
+            text-align: left;
+            border-right: 1px solid rgba(255,255,255,0.2);
+          }
+
+          .tasks-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+          }
+
+          .tasks-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+          }
+
+          .tasks-table tr:hover {
+            background-color: #e3f2fd;
+          }
+
+          .status-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .status-toggle:hover {
+            background: rgba(102, 126, 234, 0.1);
+          }
+
+          .status-toggle.completed {
+            color: #10b981;
+          }
+
+          .status-toggle.pending {
+            color: #6b7280;
+          }
+
+          .priority-cell {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .category-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+          }
+
+          .due-date-cell {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+          }
+
+          .due-date-cell .no-date {
+            color: #9ca3af;
+            font-style: italic;
+            font-weight: 400;
+          }
+
+          .days-created-cell .old-task {
+            color: #ef4444;
+            font-weight: 600;
+          }
+
+          .days-created-cell .recent-task {
+            color: #10b981;
+            font-weight: 600;
+          }
+        `}</style>
       </div>
     )
   }
 
+  // Kendo UI version
   return (
     <div className="tasks-kendo-container">
       <div className="tasks-header">
         <h2>🔧 Maintenance Tasks Pro</h2>
-        <p>Professional task management interface</p>
+        <p>Professional task management with Kendo UI Grid</p>
       </div>
 
       {/* Add Task Form */}
       {showAddForm && (
-        <div className="add-task-form">
+        <div className="add-task-form kendo-form">
           <h3>Add New Task</h3>
           <div className="form-row">
             <div className="form-field">
               <label>Task Title *</label>
-              <input
-                type="text"
+              <Input
                 value={newTask.title}
                 onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
                 placeholder="Enter task title..."
-                className="form-input"
               />
             </div>
             <div className="form-field">
               <label>Priority</label>
-              <select
-                value={newTask.priority}
-                onChange={(e) => setNewTask(prev => ({ ...prev, priority: e.target.value }))}
-                className="form-select"
-              >
-                {priorityOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.text}
-                  </option>
-                ))}
-              </select>
+              <DropDownList
+                data={priorityOptions}
+                textField="text"
+                dataItemKey="value"
+                value={priorityOptions.find(p => p.value === newTask.priority)}
+                onChange={(e) => setNewTask(prev => ({ ...prev, priority: e.target.value.value }))}
+              />
             </div>
           </div>
 
           <div className="form-row">
             <div className="form-field">
               <label>Category</label>
-              <select
-                value={newTask.category}
-                onChange={(e) => setNewTask(prev => ({ ...prev, category: e.target.value }))}
-                className="form-select"
-              >
-                <option value="">Select category...</option>
-                {categoryOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.text}
-                  </option>
-                ))}
-              </select>
+              <ComboBox
+                data={categoryOptions}
+                textField="text"
+                dataItemKey="value"
+                value={categoryOptions.find(c => c.value === newTask.category)}
+                onChange={(e) => setNewTask(prev => ({ ...prev, category: e.target.value?.value || '' }))}
+                placeholder="Select category..."
+                allowCustom={true}
+              />
             </div>
             <div className="form-field">
               <label>Due Date</label>
-              <input
-                type="date"
+              <DatePicker
                 value={newTask.dueDate}
                 onChange={(e) => setNewTask(prev => ({ ...prev, dueDate: e.target.value }))}
-                className="form-input"
               />
             </div>
           </div>
 
           <div className="form-field">
             <label>Description</label>
-            <textarea
+            <TextArea
               value={newTask.description}
               onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
               placeholder="Enter task description..."
               rows={3}
-              className="form-textarea"
             />
           </div>
 
           <div className="form-actions">
-            <button className="btn btn-primary" onClick={addTask}>
+            <Button primary={true} onClick={addTask}>
               Create Task
-            </button>
-            <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}>
+            </Button>
+            <Button onClick={() => setShowAddForm(false)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      {/* Tasks Table */}
-      <div className="tasks-table-container">
-        <div className="table-header">
-          <h3>Tasks ({tasks.length})</h3>
-          <button 
-            className="btn btn-primary"
-            onClick={() => setShowAddForm(!showAddForm)}
-          >
-            <Plus size={16} />
-            Add New Task
-          </button>
-        </div>
-
-        <div className="tasks-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Status</th>
-                <th>Title</th>
-                <th>Priority</th>
-                <th>Category</th>
-                <th>Description</th>
-                <th>Due Date</th>
-                <th>Age</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.map(task => (
-                <tr key={task.id}>
-                  <td>
-                    <button
-                      className={`status-toggle ${task.status}`}
-                      onClick={() => toggleTaskStatus(task.id, task.status)}
-                      title={`Click to ${task.status === 'completed' ? 'reopen' : 'complete'} task`}
-                    >
-                      {task.status === 'completed' ? <CheckSquare size={16} /> : <Square size={16} />}
-                      <span>{task.statusText}</span>
-                    </button>
-                  </td>
-                  <td>{task.title}</td>
-                  <td>
-                    <div className="priority-cell" style={{ color: getPriorityColor(task.priority) }}>
-                      <Star size={14} fill="currentColor" />
-                      <span>{task.priorityText}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="category-cell">
-                      <span>{getCategoryIcon(task.category)}</span>
-                      <span>{task.categoryText}</span>
-                    </div>
-                  </td>
-                  <td>{task.description}</td>
-                  <td>
-                    <div className="due-date-cell">
-                      {task.dueDate ? (
-                        <>
-                          <Calendar size={14} />
-                          <span>{task.dueDate.toLocaleDateString()}</span>
-                        </>
-                      ) : (
-                        <span className="no-date">No due date</span>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <div className="days-created-cell">
-                      <span className={task.daysSinceCreated > 7 ? 'old-task' : 'recent-task'}>
-                        {task.daysSinceCreated} days
-                      </span>
-                    </div>
-                  </td>
-                  <td>{task.createdAt.toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Kendo Grid */}
+      <div className="grid-container">
+        <Grid
+          data={tasks}
+          loading={loading}
+          pageable={{
+            buttonCount: 4,
+            pageSizes: [10, 20, 50],
+            info: true
+          }}
+          sortable={true}
+          filterable={true}
+          resizable={true}
+          reorderable={true}
+          groupable={true}
+          columnMenu={true}
+          toolbar={GridToolbarComponent}
+          style={{ height: '600px' }}
+        >
+          <GridColumn
+            field="status"
+            title="Status"
+            width="120px"
+            cell={StatusCell}
+            filterable={false}
+          />
+          <GridColumn
+            field="title"
+            title="Task Title"
+            width="250px"
+          />
+          <GridColumn
+            field="priority"
+            title="Priority"
+            width="100px"
+            cell={PriorityCell}
+          />
+          <GridColumn
+            field="category"
+            title="Category"
+            width="150px"
+            cell={CategoryCell}
+          />
+          <GridColumn
+            field="description"
+            title="Description"
+            width="300px"
+          />
+          <GridColumn
+            field="dueDate"
+            title="Due Date"
+            width="120px"
+            cell={DueDateCell}
+            format="{0:d}"
+          />
+          <GridColumn
+            field="daysSinceCreated"
+            title="Age"
+            width="80px"
+            cell={DaysCreatedCell}
+          />
+          <GridColumn
+            field="createdAt"
+            title="Created"
+            width="120px"
+            format="{0:d}"
+          />
+        </Grid>
       </div>
+
+      {/* Notifications */}
+      <NotificationGroup
+        style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 1000
+        }}
+      >
+        {notifications.map(notification => (
+          <Notification
+            key={notification.id}
+            type={notification.type}
+            closable={true}
+            onClose={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+          >
+            <span>{notification.message}</span>
+          </Notification>
+        ))}
+      </NotificationGroup>
 
       <style jsx>{`
         .tasks-kendo-container {
           padding: 20px;
           background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
           min-height: calc(100vh - 200px);
-        }
-
-        .loading-container {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 400px;
-          gap: 20px;
-        }
-
-        .loading-spinner {
-          width: 40px;
-          height: 40px;
-          border: 4px solid #f3f3f3;
-          border-top: 4px solid #667eea;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
         }
 
         .tasks-header {
@@ -475,22 +863,6 @@ const TasksKendo = () => {
           letter-spacing: 0.5px;
         }
 
-        .form-input, .form-select, .form-textarea {
-          width: 100%;
-          padding: 12px 16px;
-          border: 2px solid #e1e5e9;
-          border-radius: 6px;
-          font-size: 14px;
-          transition: all 0.2s ease;
-          background: white;
-        }
-
-        .form-input:focus, .form-select:focus, .form-textarea:focus {
-          border-color: #667eea;
-          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-          outline: none;
-        }
-
         .form-actions {
           display: flex;
           gap: 12px;
@@ -500,42 +872,7 @@ const TasksKendo = () => {
           border-top: 1px solid #e1e5e9;
         }
 
-        .btn {
-          padding: 10px 20px;
-          border: none;
-          border-radius: 6px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .btn-primary {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn-primary:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-secondary {
-          background: white;
-          border: 2px solid #e1e5e9;
-          color: #495057;
-        }
-
-        .btn-secondary:hover {
-          border-color: #667eea;
-          color: #667eea;
-          background: #f8f9ff;
-        }
-
-        .tasks-table-container {
+        .grid-container {
           background: white;
           border-radius: 12px;
           box-shadow: 0 8px 32px rgba(0,0,0,0.1);
@@ -543,55 +880,7 @@ const TasksKendo = () => {
           overflow: hidden;
         }
 
-        .table-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 20px;
-          background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-          border-bottom: 2px solid #dee2e6;
-        }
-
-        .table-header h3 {
-          margin: 0;
-          color: #495057;
-        }
-
-        .tasks-table {
-          overflow-x: auto;
-        }
-
-        .tasks-table table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-
-        .tasks-table th {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          font-weight: 600;
-          text-transform: uppercase;
-          font-size: 11px;
-          letter-spacing: 0.5px;
-          padding: 12px;
-          text-align: left;
-          border-right: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .tasks-table td {
-          padding: 12px;
-          border-bottom: 1px solid #e9ecef;
-        }
-
-        .tasks-table tr:nth-child(even) {
-          background-color: #f8f9fa;
-        }
-
-        .tasks-table tr:hover {
-          background-color: #e3f2fd;
-        }
-
-        .status-toggle {
+        .task-status-cell .status-toggle {
           display: flex;
           align-items: center;
           gap: 8px;
@@ -607,15 +896,15 @@ const TasksKendo = () => {
           letter-spacing: 0.5px;
         }
 
-        .status-toggle:hover {
+        .task-status-cell .status-toggle:hover {
           background: rgba(102, 126, 234, 0.1);
         }
 
-        .status-toggle.completed {
+        .task-status-cell .status-toggle.completed {
           color: #10b981;
         }
 
-        .status-toggle.pending {
+        .task-status-cell .status-toggle.pending {
           color: #6b7280;
         }
 
@@ -669,7 +958,7 @@ const TasksKendo = () => {
             gap: 15px;
           }
           
-          .tasks-table {
+          .grid-container {
             overflow-x: auto;
           }
           
