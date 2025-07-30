@@ -5,8 +5,11 @@ import './Dashboard.css'
 const Dashboard = memo(() => {
   const [workflowResults, setWorkflowResults] = useState([])
   const [isLoading, setIsLoading] = useState(false)
-  const tasks = useSelector(state => state.tasks.tasks)
-  const shoppingItems = useSelector(state => state.shopping.items)
+  const tasks = useSelector(state => state.tasks?.tasks || [])
+  const shoppingItems = useSelector(state => {
+    const shopping = state.shopping || {}
+    return [...(shopping.mainList || []), ...(shopping.miscList || [])]
+  })
 
   // Memoized workflow trigger function
   const triggerWorkflow = useCallback(async (workflowType, data) => {

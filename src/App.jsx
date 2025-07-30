@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, lazy, Suspense } from 'react'
 import ErrorBoundary from './components/ErrorBoundary'
-import LoadingStates from './components/LoadingStates'
-import Toast from './components/Toast'
+// import LoadingStates from './components/LoadingStates'
+// import Toast from './components/Toast'
 import { useTheme } from './hooks/useTheme'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useOnlineStatus } from './hooks/useOnlineStatus'
@@ -33,15 +33,15 @@ function App() {
 
   // Memoize tabs to prevent recreation on every render
   const tabs = useMemo(() => [
-    { id: 'dashboard', label: '📊 Dashboard', icon: '📊' },
-    { id: 'personal-dashboard', label: '👤 Your Dashboard', icon: '👤' },
-    { id: 'tasks', label: '📋 Tasks', icon: '📋' },
-    { id: 'tasks-pro', label: '🔥 Tasks Pro', icon: '🔥' },
-    { id: 'shopping', label: '🛒 Shopping', icon: '🛒' },
-    { id: 'maintenance', label: '🔧 Maintenance', icon: '🔧' },
-    { id: 'visual-maintenance', label: '📸 Visual AI', icon: '📸' },
-    { id: 'photos', label: '📷 Photos', icon: '📷' },
-    { id: 'voice', label: '🎤 Voice', icon: '🎤' }
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'personal-dashboard', label: 'Your Dashboard', icon: '👤' },
+    { id: 'tasks', label: 'Tasks', icon: '📋' },
+    { id: 'tasks-pro', label: 'Tasks Pro', icon: '🔥' },
+    { id: 'shopping', label: 'Shopping', icon: '🛒' },
+    { id: 'maintenance', label: 'Maintenance', icon: '🔧' },
+    { id: 'visual-maintenance', label: 'Visual AI', icon: '📸' },
+    { id: 'photos', label: 'Photos', icon: '📷' },
+    { id: 'voice', label: 'Voice', icon: '🎤' }
   ], [])
 
   // Memoized render function with Suspense for lazy loading
@@ -88,7 +88,7 @@ function App() {
   return (
     <ErrorBoundary>
       <div className={`app ${theme}`}>
-        <Toast />
+        {/* <Toast /> */}
         
         {/* Header */}
         <header className="app-header">
@@ -141,9 +141,9 @@ function App() {
 
         {/* Main Content */}
         <main className="main-content">
-          <LoadingStates>
+          {/* <LoadingStates> */}
             {renderTabContent()}
-          </LoadingStates>
+          {/* </LoadingStates> */}
         </main>
 
         {/* Footer */}
