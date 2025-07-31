@@ -15,9 +15,14 @@ const TasksKendo = lazy(() => import('./components/TasksKendo'))
 const Shopping = lazy(() => import('./components/Shopping'))
 const Maintenance = lazy(() => import('./components/Maintenance'))
 const VisualMaintenance = lazy(() => import('./components/VisualMaintenance'))
-const Photos = lazy(() => import('./components/Photos'))
-const VoiceInput = lazy(() => import('./components/VoiceInput'))
-const Voice = lazy(() => import('./components/Voice'))
+          const Photos = lazy(() => import('./components/Photos'))
+          const VoiceInput = lazy(() => import('./components/VoiceInput'))
+          const Voice = lazy(() => import('./components/Voice'))
+          const RealTimeCollaboration = lazy(() => import('./components/RealTimeCollaboration'))
+          const AdvancedAnalytics = lazy(() => import('./components/AdvancedAnalytics'))
+          const IntegrationHub = lazy(() => import('./components/IntegrationHub'))
+          const MobileApp = lazy(() => import('./components/MobileApp'))
+          const AITraining = lazy(() => import('./components/AITraining'))
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -42,7 +47,12 @@ function App() {
     { id: 'maintenance', label: 'Maintenance', icon: '🔧' },
     { id: 'visual-maintenance', label: 'Visual AI', icon: '📸' },
     { id: 'photos', label: 'Photos', icon: '📷' },
-    { id: 'voice', label: 'Voice', icon: '🎤' }
+    { id: 'voice', label: 'Voice', icon: '🎤' },
+    { id: 'collaboration', label: 'Collaboration', icon: '🤝' },
+    { id: 'advanced-analytics', label: 'Advanced Analytics', icon: '📈' },
+    { id: 'integrations', label: 'Integrations', icon: '🔗' },
+    { id: 'mobile-app', label: 'Mobile App', icon: '📱' },
+    { id: 'ai-training', label: 'AI Training', icon: '🤖' }
   ], [])
 
   // Memoized render function with Suspense for lazy loading
@@ -74,6 +84,16 @@ function App() {
           return <Photos />
         case 'voice':
           return <Voice />
+        case 'collaboration':
+          return <RealTimeCollaboration />
+        case 'advanced-analytics':
+          return <AdvancedAnalytics />
+        case 'integrations':
+          return <IntegrationHub />
+        case 'mobile-app':
+          return <MobileApp />
+        case 'ai-training':
+          return <AITraining />
         default:
           return <Dashboard />
       }
