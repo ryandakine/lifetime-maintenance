@@ -17,6 +17,7 @@ const Maintenance = lazy(() => import('./components/Maintenance'))
 const VisualMaintenance = lazy(() => import('./components/VisualMaintenance'))
 const Photos = lazy(() => import('./components/Photos'))
 const VoiceInput = lazy(() => import('./components/VoiceInput'))
+const Voice = lazy(() => import('./components/Voice'))
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -72,7 +73,7 @@ function App() {
         case 'photos':
           return <Photos />
         case 'voice':
-          return <VoiceInput />
+          return <Voice />
         default:
           return <Dashboard />
       }
@@ -159,6 +160,9 @@ function App() {
             </div>
           </div>
         </footer>
+
+        {/* Voice Input - Always Available */}
+        <VoiceInput />
       </div>
     </ErrorBoundary>
   )

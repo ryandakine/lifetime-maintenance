@@ -16,6 +16,8 @@ const photoRoutes = require('./routes/photos');
 const analyticsRoutes = require('./routes/analytics');
 const workflowRoutes = require('./routes/workflow');
 const equipmentPhotoRoutes = require('./routes/equipment-photos');
+const claudeRoutes = require('./routes/claude');
+const voiceCommandsRoutes = require('./routes/voice-commands');
 
 // Import database setup
 const { initializeDatabase } = require('./database/setup');
@@ -68,6 +70,8 @@ app.use('/api/photos', photoRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/workflow', workflowRoutes);
 app.use('/api/equipment', equipmentPhotoRoutes);
+app.use('/api/claude', claudeRoutes);
+app.use('/api/voice-commands', voiceCommandsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

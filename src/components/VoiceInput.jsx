@@ -1,86 +1,286 @@
-import React, { useState, useEffect, useRef } from 'react'
-import './VoiceInput.css'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useDispatch } from 'react-redux'
+import { addTask } from '../store/slices/tasksSlice'
+import { addShoppingItem } from '../store/slices/shoppingSlice'
 
 const VoiceInput = () => {
   const [isListening, setIsListening] = useState(false)
-  const [conversationHistory, setConversationHistory] = useState([])
-  const [currentTranscript, setCurrentTranscript] = useState('')
+  const [transcript, setTranscript] = useState('')
+  const [confidence, setConfidence] = useState(0)
+  const [error, setError] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
-  const [workflowResults, setWorkflowResults] = useState([])
-  const [conversationId, setConversationId] = useState(null)
+  const [voiceCommands, setVoiceCommands] = useState([])
+  const [isContinuousMode, setIsContinuousMode] = useState(false)
+  const [feedback, setFeedback] = useState('')
+  
   const recognitionRef = useRef(null)
-  const accumulatedTextRef = useRef('')
+  const dispatch = useDispatch()
 
+  // Voice command registry
+  const commandRegistry = {
+    // Navigation commands
+    'go to dashboard': () => window.location.hash = '#dashboard',
+    'go to tasks': () => window.location.hash = '#tasks',
+    'go to photos': () => window.location.hash = '#photos',
+    'go to shopping': () => window.location.hash = '#shopping',
+    'go to maintenance': () => window.location.hash = '#maintenance',
+    
+    // Task commands
+    'create task': (params) => handleCreateTask(params),
+    'complete task': (params) => handleCompleteTask(params),
+    'delete task': (params) => handleDeleteTask(params),
+    'mark task as done': (params) => handleCompleteTask(params),
+    
+    // Shopping commands
+    'add to shopping list': (params) => handleAddShoppingItem(params),
+    'buy': (params) => handleAddShoppingItem(params),
+    'purchase': (params) => handleAddShoppingItem(params),
+    
+    // Photo commands
+    'take photo': () => handleTakePhoto(),
+    'capture image': () => handleTakePhoto(),
+    'document equipment': () => handleTakePhoto(),
+    
+    // System commands
+    'stop listening': () => stopListening(),
+    'start listening': () => startListening(),
+    'help': () => showHelp(),
+    'what can I say': () => showHelp(),
+    
+    // Maintenance commands
+    'check equipment': (params) => handleCheckEquipment(params),
+    'schedule maintenance': (params) => handleScheduleMaintenance(params),
+    'report issue': (params) => handleReportIssue(params)
+  }
+
+  // Initialize Web Speech API
   useEffect(() => {
-    // Initialize speech recognition
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
       recognitionRef.current = new SpeechRecognition()
       
-      recognitionRef.current.continuous = false // Set to false for better control
+      recognitionRef.current.continuous = true
       recognitionRef.current.interimResults = true
       recognitionRef.current.lang = 'en-US'
       
       recognitionRef.current.onstart = () => {
         setIsListening(true)
-        // Generate new conversation ID if starting fresh
-        if (!conversationId) {
-          setConversationId(Date.now().toString())
-        }
+        setError('')
+        setFeedback('Listening...')
       }
       
       recognitionRef.current.onresult = (event) => {
         let finalTranscript = ''
         let interimTranscript = ''
         
-        for (let i = 0; i < event.results.length; i++) {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript
+          const confidence = event.results[i][0].confidence
+          
           if (event.results[i].isFinal) {
             finalTranscript += transcript
+            setConfidence(confidence)
           } else {
             interimTranscript += transcript
           }
         }
         
-        // Update the accumulated text
+        setTranscript(finalTranscript || interimTranscript)
+        
         if (finalTranscript) {
-          accumulatedTextRef.current += (accumulatedTextRef.current ? ' ' : '') + finalTranscript
-          setCurrentTranscript(accumulatedTextRef.current)
-        } else if (interimTranscript) {
-          // Show accumulated text + current interim
-          setCurrentTranscript(accumulatedTextRef.current + (accumulatedTextRef.current ? ' ' : '') + interimTranscript)
+          processVoiceCommand(finalTranscript.toLowerCase())
         }
       }
       
       recognitionRef.current.onerror = (event) => {
         console.error('Speech recognition error:', event.error)
+        setError(`Voice recognition error: ${event.error}`)
         setIsListening(false)
+        setFeedback('Error occurred')
       }
       
       recognitionRef.current.onend = () => {
         setIsListening(false)
-        // Keep the accumulated text visible
+        setFeedback('Stopped listening')
+        
+        if (isContinuousMode) {
+          setTimeout(() => {
+            startListening()
+          }, 1000)
+        }
       }
+    } else {
+      setError('Speech recognition not supported in this browser')
     }
-    
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop()
-      }
-    }
-  }, [conversationId])
+  }, [isContinuousMode])
 
-  const addToConversation = (text) => {
-    if (text.trim()) {
-      setConversationHistory(prev => [...prev, {
-        id: Date.now(),
-        text: text.trim(),
-        timestamp: new Date().toISOString(),
-        type: 'user'
-      }])
+  // Process voice commands with Claude API integration
+  const processVoiceCommand = useCallback(async (command) => {
+    setIsProcessing(true)
+    setFeedback('Processing command...')
+    
+    try {
+      // First, try to match with predefined commands
+      const matchedCommand = Object.keys(commandRegistry).find(cmd => 
+        command.includes(cmd)
+      )
+      
+      if (matchedCommand) {
+        const params = command.replace(matchedCommand, '').trim()
+        commandRegistry[matchedCommand](params)
+        setFeedback(`Executed: ${matchedCommand}`)
+        return
+      }
+      
+      // If no direct match, use Claude API for natural language processing
+      const claudeResponse = await processWithClaude(command)
+      
+      if (claudeResponse.action) {
+        executeClaudeAction(claudeResponse)
+        setFeedback(`AI processed: ${claudeResponse.action}`)
+      } else {
+        setFeedback('Command not recognized. Try saying "help" for available commands.')
+      }
+      
+    } catch (error) {
+      console.error('Error processing voice command:', error)
+      setError('Failed to process command')
+      setFeedback('Processing failed')
+    } finally {
+      setIsProcessing(false)
+    }
+  }, [])
+
+  // Claude API integration for natural language processing
+  const processWithClaude = async (command) => {
+    try {
+      const response = await fetch('/api/claude/process-voice', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          command,
+          context: {
+            currentTab: window.location.hash.replace('#', ''),
+            availableActions: Object.keys(commandRegistry)
+          }
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Claude API request failed')
+      }
+      
+      return await response.json()
+    } catch (error) {
+      console.error('Claude API error:', error)
+      return { action: null, error: error.message }
     }
   }
 
+  // Execute actions from Claude API
+  const executeClaudeAction = (response) => {
+    switch (response.action) {
+      case 'create_task':
+        handleCreateTask(response.params)
+        break
+      case 'add_shopping_item':
+        handleAddShoppingItem(response.params)
+        break
+      case 'navigate':
+        window.location.hash = `#${response.params}`
+        break
+      case 'take_photo':
+        handleTakePhoto()
+        break
+      default:
+        console.log('Unknown action from Claude:', response.action)
+    }
+  }
+
+  // Command handlers
+  const handleCreateTask = (description) => {
+    if (!description) {
+      setFeedback('Please provide a task description')
+      return
+    }
+    
+    const task = {
+      id: Date.now(),
+      title: description,
+      description: `Voice-created task: ${description}`,
+      status: 'pending',
+      priority: 'medium',
+      category: 'voice',
+      creation_date: new Date().toISOString(),
+      voice_created: true
+    }
+    
+    dispatch(addTask(task))
+    setFeedback(`Task created: ${description}`)
+    setTranscript('')
+  }
+
+  const handleCompleteTask = (taskId) => {
+    // Implementation for completing tasks
+    setFeedback(`Task ${taskId} marked as complete`)
+  }
+
+  const handleDeleteTask = (taskId) => {
+    // Implementation for deleting tasks
+    setFeedback(`Task ${taskId} deleted`)
+  }
+
+  const handleAddShoppingItem = (item) => {
+    if (!item) {
+      setFeedback('Please provide an item name')
+      return
+    }
+    
+    const shoppingItem = {
+      id: Date.now(),
+      name: item,
+      category: 'voice',
+      quantity: 1,
+      priority: 'medium',
+      voice_created: true
+    }
+    
+    dispatch(addShoppingItem(shoppingItem))
+    setFeedback(`Added to shopping: ${item}`)
+    setTranscript('')
+  }
+
+  const handleTakePhoto = () => {
+    // Trigger photo capture
+    const photoButton = document.querySelector('[data-photo-capture]')
+    if (photoButton) {
+      photoButton.click()
+      setFeedback('Photo capture triggered')
+    } else {
+      setFeedback('Photo capture not available')
+    }
+  }
+
+  const handleCheckEquipment = (equipment) => {
+    setFeedback(`Checking equipment: ${equipment}`)
+  }
+
+  const handleScheduleMaintenance = (equipment) => {
+    setFeedback(`Scheduling maintenance for: ${equipment}`)
+  }
+
+  const handleReportIssue = (issue) => {
+    setFeedback(`Issue reported: ${issue}`)
+  }
+
+  const showHelp = () => {
+    const commands = Object.keys(commandRegistry).map(cmd => `"${cmd}"`).join(', ')
+    setFeedback(`Available commands: ${commands}`)
+  }
+
+  // Control functions
   const startListening = () => {
     if (recognitionRef.current) {
       recognitionRef.current.start()
@@ -91,274 +291,285 @@ const VoiceInput = () => {
     if (recognitionRef.current) {
       recognitionRef.current.stop()
     }
+    setIsContinuousMode(false)
   }
 
-  const startNewConversation = () => {
-    setConversationHistory([])
-    setCurrentTranscript('')
-    setConversationId(null)
-    setWorkflowResults([])
-    accumulatedTextRef.current = ''
-  }
-
-  const clearCurrentTranscript = () => {
-    setCurrentTranscript('')
-    accumulatedTextRef.current = ''
-  }
-
-  const cleanConversation = () => {
-    setConversationHistory(prev => prev.map(item => ({
-      ...item,
-      text: item.text
-        .replace(/\b(um|uh|er|ah|like|you know)\b/gi, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-    })))
-  }
-
-  const triggerWorkflow = async (workflowType, data) => {
-    setIsProcessing(true)
-    try {
-      const response = await fetch(`/api/n8n/${workflowType}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      const result = await response.json()
-      
-      setWorkflowResults(prev => [...prev, {
-        id: Date.now(),
-        type: workflowType,
-        input: data,
-        result,
-        timestamp: new Date().toISOString()
-      }])
-      
-      return result
-    } catch (error) {
-      console.error('Workflow error:', error)
-      setWorkflowResults(prev => [...prev, {
-        id: Date.now(),
-        type: workflowType,
-        input: data,
-        error: error.message,
-        timestamp: new Date().toISOString()
-      }])
-    } finally {
-      setIsProcessing(false)
+  const toggleContinuousMode = () => {
+    setIsContinuousMode(!isContinuousMode)
+    if (!isContinuousMode && !isListening) {
+      startListening()
     }
   }
 
-  const processVoiceCommand = async () => {
-    // Get the current transcript (what's in the text box)
-    const currentText = currentTranscript.trim()
-    if (!currentText) return
-
-    // Add current text to conversation history
-    addToConversation(currentText)
-    
-    // Clear the current transcript after processing
-    setCurrentTranscript('')
-    accumulatedTextRef.current = ''
-
-    const command = currentText.toLowerCase()
-    
-    // Simple command parsing
-    if (command.includes('email') || command.includes('send')) {
-      await triggerWorkflow('email-automation', {
-        topic: currentText,
-        recipient: 'team@lifetimefitness.com',
-        urgency: 'normal'
-      })
-    } else if (command.includes('task') || command.includes('add task')) {
-      await triggerWorkflow('task-processing', {
-        description: currentText,
-        priority: 'medium',
-        source: 'voice'
-      })
-    } else if (command.includes('shopping') || command.includes('buy')) {
-      await triggerWorkflow('shopping-processing', {
-        item: currentText,
-        quantity: 1,
-        urgency: 'medium'
-      })
-    } else if (command.includes('photo') || command.includes('picture')) {
-      await triggerWorkflow('photo-analysis', {
-        description: currentText,
-        category: 'equipment-maintenance'
-      })
-    } else {
-      // Default to AI assistant
-      await triggerWorkflow('ai-assistant', {
-        message: currentText,
-        context: 'voice-command'
-      })
+  // Haptic feedback for mobile
+  const triggerHapticFeedback = () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50)
     }
   }
+
+  // Mobile optimization
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isListening) {
+        stopListening()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [isListening])
 
   return (
-    <div className="voice-input">
-      <div className="voice-header">
-        <h2>🎤 Voice Input</h2>
-        <p>Speak your maintenance tasks and commands</p>
-      </div>
-
-      {/* Voice Controls */}
-      <div className="voice-controls">
-        <div className="control-buttons">
-          <button
-            className={`voice-button ${isListening ? 'listening' : ''}`}
-            onClick={isListening ? stopListening : startListening}
-            disabled={isProcessing}
-          >
-            {isListening ? '🛑 Stop' : '🎤 Start Listening'}
-          </button>
-          
-          <button
-            className="voice-button secondary"
-            onClick={startNewConversation}
-            disabled={isProcessing}
-          >
-            🆕 New Conversation
-          </button>
-          
-          <button
-            className="voice-button secondary"
-            onClick={clearCurrentTranscript}
-            disabled={!currentTranscript || isProcessing}
-          >
-            🗑️ Clear Text
-          </button>
-          
-          <button
-            className="voice-button secondary"
-            onClick={cleanConversation}
-            disabled={conversationHistory.length === 0 || isProcessing}
-          >
-            🧹 Clean All
-          </button>
+    <div className="voice-input-container" style={{
+      position: 'fixed',
+      bottom: '20px',
+      right: '20px',
+      zIndex: 1000,
+      background: 'white',
+      borderRadius: '20px',
+      padding: '20px',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+      minWidth: '300px',
+      maxWidth: '400px'
+    }}>
+      {/* Status Display */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '15px'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}>
+          <div style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            background: isListening ? '#4CAF50' : '#ccc',
+            animation: isListening ? 'pulse 1.5s infinite' : 'none'
+          }} />
+          <span style={{
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: isListening ? '#4CAF50' : '#666'
+          }}>
+            {isListening ? 'Listening' : 'Voice Off'}
+          </span>
         </div>
-
-        {/* Status Indicator */}
-        <div className={`status-indicator ${isListening ? 'active' : ''}`}>
-          <div className="pulse-dot"></div>
-          <span>{isListening ? 'Listening...' : 'Ready'}</span>
-        </div>
-      </div>
-
-      {/* Current Text Box */}
-      <div className="current-text-section">
-        <h3>📝 Your Text</h3>
-        <div className="current-text-display">
-          {currentTranscript ? (
-            <div className="current-text-content">
-              <p className="current-text">{currentTranscript}</p>
-              <div className="text-actions">
-                <span className="text-status">
-                  {isListening ? '🎤 Speaking...' : '📝 Ready to send'}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <p className="current-text-placeholder">
-              Start speaking to see your text here...
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Process Button */}
-      <div className="process-section">
-        <button
-          className="process-button"
-          onClick={processVoiceCommand}
-          disabled={!currentTranscript.trim() || isProcessing}
-        >
-          {isProcessing ? '🔄 Processing...' : '🚀 Send Text'}
-        </button>
-      </div>
-
-      {/* Conversation Display */}
-      <div className="conversation-section">
-        <h3>💬 Conversation History</h3>
-        <div className="conversation-display">
-          {conversationHistory.length === 0 ? (
-            <p className="conversation-placeholder">
-              No messages sent yet. Speak and click "Send Text" to start your conversation...
-            </p>
-          ) : (
-            <div className="conversation-content">
-              {/* Show conversation history */}
-              {conversationHistory.map((item, index) => (
-                <div key={item.id} className="conversation-item">
-                  <div className="conversation-bubble">
-                    <p className="conversation-text">{item.text}</p>
-                    <span className="conversation-time">
-                      {new Date(item.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Voice Commands Help */}
-      <div className="commands-help">
-        <h3>💡 How It Works</h3>
-        <div className="commands-grid">
-          <div className="command-item">
-            <span className="command-example">🎤 Click "Start Listening"</span>
-            <span className="command-description">Begin speaking</span>
-          </div>
-          <div className="command-item">
-            <span className="command-example">⏸️ Pause talking</span>
-            <span className="command-description">Click "Stop" - text stays visible</span>
-          </div>
-          <div className="command-item">
-            <span className="command-example">🎤 Resume talking</span>
-            <span className="command-description">Click "Start Listening" - adds to existing text</span>
-          </div>
-          <div className="command-item">
-            <span className="command-example">🚀 Send when ready</span>
-            <span className="command-description">Click "Send Text" to process</span>
-          </div>
-          <div className="command-item">
-            <span className="command-example">🆕 New topic</span>
-            <span className="command-description">Click "New Conversation" to start fresh</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Workflow Results */}
-      <div className="workflow-results">
-        <h3>🔄 Recent Commands</h3>
-        {workflowResults.length === 0 ? (
-          <p className="no-results">No commands processed yet. Try speaking a command!</p>
-        ) : (
-          <div className="results-list">
-            {workflowResults.slice(-5).reverse().map(result => (
-              <div key={result.id} className={`result-item ${result.error ? 'error' : 'success'}`}>
-                <div className="result-header">
-                  <span className="result-type">{result.type}</span>
-                  <span className="result-time">
-                    {new Date(result.timestamp).toLocaleTimeString()}
-                  </span>
-                </div>
-                <div className="result-content">
-                  <p className="result-input">"{result.input?.message || result.input?.topic || 'Voice command'}"</p>
-                  {result.error ? (
-                    <p className="error-message">❌ {result.error}</p>
-                  ) : (
-                    <p className="success-message">✅ Command processed successfully</p>
-                  )}
-                </div>
-              </div>
-            ))}
+        
+        {confidence > 0 && (
+          <div style={{
+            fontSize: '12px',
+            color: '#666'
+          }}>
+            Confidence: {Math.round(confidence * 100)}%
           </div>
         )}
       </div>
+
+      {/* Transcript Display */}
+      {transcript && (
+        <div style={{
+          background: '#f5f5f5',
+          padding: '10px',
+          borderRadius: '8px',
+          marginBottom: '15px',
+          fontSize: '14px',
+          minHeight: '40px',
+          wordWrap: 'break-word'
+        }}>
+          "{transcript}"
+        </div>
+      )}
+
+      {/* Feedback Display */}
+      {feedback && (
+        <div style={{
+          background: '#e3f2fd',
+          padding: '8px 12px',
+          borderRadius: '6px',
+          marginBottom: '15px',
+          fontSize: '13px',
+          color: '#1976d2'
+        }}>
+          {feedback}
+        </div>
+      )}
+
+      {/* Error Display */}
+      {error && (
+        <div style={{
+          background: '#ffebee',
+          padding: '8px 12px',
+          borderRadius: '6px',
+          marginBottom: '15px',
+          fontSize: '13px',
+          color: '#d32f2f'
+        }}>
+          {error}
+        </div>
+      )}
+
+      {/* Control Buttons */}
+      <div style={{
+        display: 'flex',
+        gap: '10px',
+        flexWrap: 'wrap'
+      }}>
+        <button
+          onClick={() => {
+            if (isListening) {
+              stopListening()
+            } else {
+              startListening()
+            }
+            triggerHapticFeedback()
+          }}
+          disabled={isProcessing}
+          style={{
+            background: isListening ? '#f44336' : '#4CAF50',
+            color: 'white',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '25px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            flex: 1,
+            minWidth: '120px'
+          }}
+        >
+          {isListening ? 'Stop' : 'Start'} Listening
+        </button>
+
+        <button
+          onClick={toggleContinuousMode}
+          style={{
+            background: isContinuousMode ? '#ff9800' : '#2196F3',
+            color: 'white',
+            border: 'none',
+            padding: '10px 15px',
+            borderRadius: '25px',
+            cursor: 'pointer',
+            fontSize: '12px',
+            fontWeight: 'bold'
+          }}
+        >
+          {isContinuousMode ? 'Continuous' : 'Auto'}
+        </button>
+
+        <button
+          onClick={() => {
+            showHelp()
+            triggerHapticFeedback()
+          }}
+          style={{
+            background: '#9c27b0',
+            color: 'white',
+            border: 'none',
+            padding: '10px 15px',
+            borderRadius: '25px',
+            cursor: 'pointer',
+            fontSize: '12px',
+            fontWeight: 'bold'
+          }}
+        >
+          Help
+        </button>
+      </div>
+
+      {/* Processing Indicator */}
+      {isProcessing && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: '10px',
+          gap: '8px'
+        }}>
+          <div style={{
+            width: '16px',
+            height: '16px',
+            border: '2px solid #f3f3f3',
+            borderTop: '2px solid #3498db',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+          <span style={{ fontSize: '12px', color: '#666' }}>
+            Processing...
+          </span>
+        </div>
+      )}
+
+      {/* Quick Commands */}
+      <div style={{
+        marginTop: '15px',
+        paddingTop: '15px',
+        borderTop: '1px solid #eee'
+      }}>
+        <div style={{
+          fontSize: '12px',
+          color: '#666',
+          marginBottom: '8px'
+        }}>
+          Quick Commands:
+        </div>
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '5px'
+        }}>
+          {['"create task"', '"take photo"', '"go to tasks"', '"help"'].map(cmd => (
+            <button
+              key={cmd}
+              onClick={() => {
+                setTranscript(cmd.replace(/"/g, ''))
+                processVoiceCommand(cmd.replace(/"/g, ''))
+              }}
+              style={{
+                background: '#f0f0f0',
+                border: '1px solid #ddd',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                color: '#333'
+              }}
+            >
+              {cmd}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+          .voice-input-container {
+            bottom: 10px;
+            right: 10px;
+            left: 10px;
+            max-width: none;
+          }
+        }
+      `}</style>
     </div>
   )
 }

@@ -100,13 +100,81 @@ function initializeDatabase() {
       )
     `;
 
+    // Voice Commands tables
+    const createVoiceCommandsTable = `
+      CREATE TABLE IF NOT EXISTS voice_commands (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        command_text TEXT NOT NULL,
+        action_type TEXT,
+        parameters TEXT,
+        confidence REAL DEFAULT 0.0,
+        success BOOLEAN DEFAULT 1,
+        processing_time_ms INTEGER,
+        user_id TEXT,
+        session_id TEXT,
+        device_info TEXT,
+        browser_info TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    const createVoiceTrainingDataTable = `
+      CREATE TABLE IF NOT EXISTS voice_training_data (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        command_text TEXT NOT NULL,
+        expected_action TEXT NOT NULL,
+        expected_parameters TEXT,
+        user_feedback TEXT,
+        training_session_id TEXT,
+        accuracy_score REAL DEFAULT 0.0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    const createVoiceCustomCommandsTable = `
+      CREATE TABLE IF NOT EXISTS voice_custom_commands (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT,
+        command_phrase TEXT NOT NULL,
+        action_type TEXT NOT NULL,
+        action_parameters TEXT,
+        is_active BOOLEAN DEFAULT 1,
+        usage_count INTEGER DEFAULT 0,
+        last_used TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    const createVoiceAnalyticsTable = `
+      CREATE TABLE IF NOT EXISTS voice_analytics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date DATE NOT NULL,
+        total_commands INTEGER DEFAULT 0,
+        successful_commands INTEGER DEFAULT 0,
+        failed_commands INTEGER DEFAULT 0,
+        average_confidence REAL DEFAULT 0.0,
+        average_processing_time_ms INTEGER DEFAULT 0,
+        most_used_actions TEXT,
+        unique_users INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(date)
+      )
+    `;
+
     // Execute all table creation statements
     const tables = [
       { name: 'Equipment', sql: createEquipmentTable },
       { name: 'Tasks', sql: createTasksTable },
       { name: 'Analyses', sql: createAnalysesTable },
       { name: 'AgentMemory', sql: createAgentMemoryTable },
-      { name: 'Photos', sql: createPhotosTable }
+      { name: 'Photos', sql: createPhotosTable },
+      { name: 'voice_commands', sql: createVoiceCommandsTable },
+      { name: 'voice_training_data', sql: createVoiceTrainingDataTable },
+      { name: 'voice_custom_commands', sql: createVoiceCustomCommandsTable },
+      { name: 'voice_analytics', sql: createVoiceAnalyticsTable }
     ];
 
     // Migration function to add missing columns
