@@ -1,6 +1,103 @@
 const express = require('express');
 const router = express.Router();
 const workflowService = require('../services/workflow-automation');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs').promises;
+
+// Configure multer for photo uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadsDir = path.join(__dirname, '../uploads');
+    fs.mkdir(uploadsDir, { recursive: true }).catch(console.error);
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `analysis_photo_${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
+
+// POST /api/workflow/analyze-photo - Analyze photo with AI and return results
+router.post('/analyze-photo', upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No photo file provided'
+      });
+    }
+
+    const { location, issue, urgency } = req.body;
+    const photoPath = req.file.path;
+    
+    console.log('🔍 Starting AI photo analysis...', {
+      location,
+      issue,
+      urgency,
+      photoPath: req.file.filename
+    });
+
+    // Import AI analysis service
+    const aiAnalysisService = require('../services/ai_analysis');
+    
+    // Perform AI analysis
+    const analysisResult = await aiAnalysisService.analyzePhoto(photoPath, {
+      location,
+      issue,
+      urgency,
+      equipmentType: 'fitness_equipment'
+    });
+
+    console.log('✅ AI analysis completed successfully');
+
+    // Clean up the temporary file
+    try {
+      await fs.unlink(photoPath);
+    } catch (cleanupError) {
+      console.warn('⚠️ Could not clean up temporary file:', cleanupError.message);
+    }
+
+    res.json({
+      success: true,
+      data: analysisResult,
+      message: 'Photo analysis completed successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Photo analysis error:', error);
+    
+    // Clean up file on error
+    if (req.file) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (cleanupError) {
+        console.warn('⚠️ Could not clean up temporary file on error:', cleanupError.message);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to analyze photo',
+      message: error.message
+    });
+  }
+});
 
 // POST /api/workflow/trigger - Trigger workflow automation from photo analysis
 router.post('/trigger', async (req, res) => {

@@ -15,14 +15,16 @@ const TasksKendo = lazy(() => import('./components/TasksKendo'))
 const Shopping = lazy(() => import('./components/Shopping'))
 const Maintenance = lazy(() => import('./components/Maintenance'))
 const VisualMaintenance = lazy(() => import('./components/VisualMaintenance'))
-          const Photos = lazy(() => import('./components/Photos'))
-          const VoiceInput = lazy(() => import('./components/VoiceInput'))
-          const Voice = lazy(() => import('./components/Voice'))
-          const RealTimeCollaboration = lazy(() => import('./components/RealTimeCollaboration'))
-          const AdvancedAnalytics = lazy(() => import('./components/AdvancedAnalytics'))
-          const IntegrationHub = lazy(() => import('./components/IntegrationHub'))
-          const MobileApp = lazy(() => import('./components/MobileApp'))
-          const AITraining = lazy(() => import('./components/AITraining'))
+const Photos = lazy(() => import('./components/Photos'))
+const VoiceInput = lazy(() => import('./components/VoiceInput'))
+const Voice = lazy(() => import('./components/Voice'))
+const RealTimeCollaboration = lazy(() => import('./components/RealTimeCollaboration').catch(() => ({ default: () => <div>Collaboration feature loading...</div> })))
+const AdvancedAnalytics = lazy(() => import('./components/AdvancedAnalytics').catch(() => ({ default: () => <div>Analytics loading...</div> })))
+const IntegrationHub = lazy(() => import('./components/IntegrationHub').catch(() => ({ default: () => <div>Integrations loading...</div> })))
+const MobileApp = lazy(() => import('./components/MobileApp').catch(() => ({ default: () => <div>Mobile app loading...</div> })))
+const AITraining = lazy(() => import('./components/AITraining').catch(() => ({ default: () => <div>AI Training loading...</div> })))
+const DemoMode = lazy(() => import('./components/DemoMode').catch(() => ({ default: () => <div>Demo mode loading...</div> })))
+const GymBuddyFinder = lazy(() => import('./components/GymBuddyFinder').catch(() => ({ default: () => <div>Gym Buddy Finder loading...</div> })))
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -39,6 +41,7 @@ function App() {
 
   // Memoize tabs to prevent recreation on every render
   const tabs = useMemo(() => [
+    { id: 'demo', label: 'Demo', icon: '🎯' },
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'personal-dashboard', label: 'Your Dashboard', icon: '👤' },
     { id: 'tasks', label: 'Tasks', icon: '📋' },
@@ -52,7 +55,8 @@ function App() {
     { id: 'advanced-analytics', label: 'Advanced Analytics', icon: '📈' },
     { id: 'integrations', label: 'Integrations', icon: '🔗' },
     { id: 'mobile-app', label: 'Mobile App', icon: '📱' },
-    { id: 'ai-training', label: 'AI Training', icon: '🤖' }
+    { id: 'ai-training', label: 'AI Training', icon: '🤖' },
+    { id: 'gym-buddy-finder', label: 'Gym Buddy Finder', icon: '🏋️' }
   ], [])
 
   // Memoized render function with Suspense for lazy loading
@@ -66,6 +70,8 @@ function App() {
 
     const content = (() => {
       switch (activeTab) {
+        case 'demo':
+          return <DemoMode />
         case 'dashboard':
           return <Dashboard />
         case 'personal-dashboard':
@@ -94,6 +100,8 @@ function App() {
           return <MobileApp />
         case 'ai-training':
           return <AITraining />
+        case 'gym-buddy-finder':
+          return <GymBuddyFinder />
         default:
           return <Dashboard />
       }
@@ -129,13 +137,28 @@ function App() {
                 </span>
               </div>
 
-              {/* Theme Toggle */}
+              {/* Gym Buddy Finder Quick Access */}
               <button 
                 className="theme-toggle"
-                onClick={toggleTheme}
-                title="Toggle theme (Ctrl+T)"
+                onClick={() => setActiveTab('gym-buddy-finder')}
+                style={{ 
+                  background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  marginLeft: '1rem'
+                }}
               >
-                {theme === 'light' ? '🌙' : '☀️'}
+                🏋️ Gym Buddy Demo
+              </button>
+
+              {/* Theme Toggle */}
+              <button className="theme-toggle" onClick={toggleTheme}>
+                {theme === 'dark' ? '☀️' : '🌙'}
               </button>
             </div>
           </div>

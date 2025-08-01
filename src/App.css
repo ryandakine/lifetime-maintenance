@@ -302,6 +302,8 @@ select {
   padding: 0 1rem;
   overflow-x: auto;
   scrollbar-width: none;
+  gap: 0.5rem;
+  align-items: stretch;
 }
 
 .tab-container::-webkit-scrollbar {
@@ -311,17 +313,21 @@ select {
 .tab-button {
   background: none;
   border: none;
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1rem;
   cursor: pointer;
   transition: var(--transition-fast);
   border-bottom: 3px solid transparent;
   color: var(--text-secondary);
   font-weight: 500;
-  white-space: nowrap;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  min-height: 60px;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 70px;
+  min-width: 80px;
+  text-align: center;
+  flex-shrink: 0;
 }
 
 .tab-button:hover {
@@ -336,11 +342,17 @@ select {
 }
 
 .tab-icon {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  display: block;
 }
 
 .tab-label {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  display: block;
+  word-wrap: break-word;
+  max-width: 100%;
 }
 
 /* Main content area */

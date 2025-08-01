@@ -42,33 +42,21 @@ const VisualMaintenance = () => {
 
     setIsLoading(true);
     try {
-      // Convert photo to base64
-      const base64Photo = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const base64 = reader.result.split(',')[1];
-          resolve(base64);
-        };
-        reader.readAsDataURL(photo);
-      });
+      // Create FormData for file upload
+      const uploadFormData = new FormData();
+      uploadFormData.append('photo', photo);
+      uploadFormData.append('location', formData.location || 'Gym Equipment');
+      uploadFormData.append('issue', formData.issue || 'Maintenance check');
+      uploadFormData.append('urgency', formData.urgency || 'normal');
 
-      // Prepare request data
-      const requestData = {
-        photo: `data:image/jpeg;base64,${base64Photo}`,
-        location: formData.location,
-        issue: formData.issue,
-        urgency: formData.urgency
-      };
-
-      // Send to n8n webhook (you'll need to replace with your actual webhook URL)
-      const webhookUrl = process.env.REACT_APP_MAINTENANCE_WEBHOOK_URL || 'https://your-n8n-instance.com/webhook/maintenance-photo';
+      // Use local backend API endpoint
+      const apiUrl = 'http://localhost:3001/api/workflow/analyze-photo';
       
-      const response = await fetch(webhookUrl, {
+      console.log('🔍 Sending photo for AI analysis to local backend...');
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData)
+        body: uploadFormData // Send as FormData for file upload
       });
 
       if (!response.ok) {
@@ -76,14 +64,42 @@ const VisualMaintenance = () => {
       }
 
       const result = await response.json();
-      setAnalysis(result);
       
-      // Show success message
-      alert('Photo analyzed successfully! Check the results below.');
+      if (result.success) {
+        setAnalysis(result.data);
+        console.log('✅ Photo analysis completed successfully');
+        alert('Photo analyzed successfully! Check the results below.');
+      } else {
+        throw new Error(result.error || 'Analysis failed');
+      }
       
     } catch (error) {
       console.error('Analysis error:', error);
-      alert('Failed to analyze photo. Please try again.');
+      
+      // Fallback to demo analysis if local API fails
+      console.log('⚠️ Using demo analysis due to API error:', error.message);
+      
+      const demoAnalysis = {
+        equipment_type: 'Treadmill',
+        brand: 'Life Fitness',
+        model: '95T',
+        issues_detected: ['Belt wear', 'Motor noise'],
+        severity: 'medium',
+        time_estimate: '2-3 hours',
+        cost_estimate: 150,
+        maintenance_recommendations: [
+          'Replace worn belt',
+          'Lubricate motor bearings',
+          'Check electrical connections'
+        ],
+        parts_needed: [
+          { part_number: 'GR123', description: 'Treadmill Belt', price: 89.99 },
+          { part_number: 'GR456', description: 'Motor Bearings', price: 45.50 }
+        ]
+      };
+      
+      setAnalysis(demoAnalysis);
+      alert('Demo analysis loaded (local API unavailable). Check the results below.');
     } finally {
       setIsLoading(false);
     }
