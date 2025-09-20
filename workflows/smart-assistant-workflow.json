@@ -1,0 +1,264 @@
+{
+  "name": "Smart Assistant Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smart-assistant",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "smart-assistant-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Smart Assistant Input Analyzer\nconst input = $input.first().json;\nconst { message, photo, context, userId } = input;\n\n// Determine the type of request\nlet requestType = 'text';\nlet analysis = {\n  hasPhoto: false,\n  hasText: false,\n  needsPhotoAnalysis: false,\n  needsEmail: false,\n  needsTaskCreation: false,\n  needsKnowledgeQuery: false,\n  priority: 'normal'\n};\n\n// Analyze input\nif (photo && photo.data) {\n  requestType = 'photo';\n  analysis.hasPhoto = true;\n  analysis.needsPhotoAnalysis = true;\n  analysis.priority = 'high';\n}\n\nif (message && message.trim()) {\n  analysis.hasText = true;\n  \n  // Check for email-related keywords\n  const emailKeywords = ['email', 'send', 'mail', 'notify', 'contact'];\n  if (emailKeywords.some(keyword => message.toLowerCase().includes(keyword))) {\n    analysis.needsEmail = true;\n  }\n  \n  // Check for task-related keywords\n  const taskKeywords = ['task', 'todo', 'reminder', 'schedule', 'appointment'];\n  if (taskKeywords.some(keyword => message.toLowerCase().includes(keyword))) {\n    analysis.needsTaskCreation = true;\n  }\n  \n  // Check for knowledge-related keywords\n  const knowledgeKeywords = ['how', 'what', 'when', 'where', 'why', 'procedure', 'process', 'policy'];\n  if (knowledgeKeywords.some(keyword => message.toLowerCase().includes(keyword))) {\n    analysis.needsKnowledgeQuery = true;\n  }\n}\n\n// Set priority based on urgency keywords\nconst urgencyKeywords = ['urgent', 'asap', 'emergency', 'critical', 'immediate'];\nif (urgencyKeywords.some(keyword => message?.toLowerCase().includes(keyword))) {\n  analysis.priority = 'urgent';\n}\n\nreturn {\n  requestType,\n  analysis,\n  originalInput: input,\n  timestamp: new Date().toISOString(),\n  userId: userId || 'anonymous'\n};"
+      },
+      "id": "input-analyzer",
+      "name": "Input Analyzer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "photo-analysis",
+              "leftValue": "={{ $json.analysis.needsPhotoAnalysis }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "photo-analysis-router",
+      "name": "Photo Analysis Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "email-needed",
+              "leftValue": "={{ $json.analysis.needsEmail }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "email-router",
+      "name": "Email Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "task-needed",
+              "leftValue": "={{ $json.analysis.needsTaskCreation }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "task-router",
+      "name": "Task Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 600]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "knowledge-needed",
+              "leftValue": "={{ $json.analysis.needsKnowledgeQuery }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "knowledge-router",
+      "name": "Knowledge Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 800]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Photo Analysis Node\nconst input = $input.first().json;\nconst { originalInput, analysis } = input;\nconst photo = originalInput.photo;\n\n// Simulate AI photo analysis\nconst photoAnalysis = {\n  objects: [],\n  text: '',\n  description: '',\n  projectRelevance: null,\n  suggestedActions: [],\n  confidence: 0.8\n};\n\n// Analyze photo content (this would integrate with OpenAI Vision API)\nif (photo && photo.data) {\n  // Extract text from image\n  photoAnalysis.text = 'Sample text extracted from image';\n  \n  // Identify objects\n  photoAnalysis.objects = [\n    { name: 'equipment', confidence: 0.9, boundingBox: [10, 20, 100, 150] },\n    { name: 'maintenance_tool', confidence: 0.8, boundingBox: [200, 50, 80, 120] }\n  ];\n  \n  // Generate description\n  photoAnalysis.description = 'Image shows fitness equipment with maintenance tools visible. Equipment appears to be in good condition with some wear visible.';\n  \n  // Determine project relevance\n  const projectKeywords = ['equipment', 'maintenance', 'fitness', 'gym', 'machine'];\n  const relevanceScore = projectKeywords.filter(keyword => \n    photoAnalysis.description.toLowerCase().includes(keyword)\n  ).length / projectKeywords.length;\n  \n  photoAnalysis.projectRelevance = {\n    score: relevanceScore,\n    project: relevanceScore > 0.5 ? 'Lifetime Fitness Maintenance' : 'General',\n    category: relevanceScore > 0.7 ? 'Equipment Maintenance' : 'General Observation'\n  };\n  \n  // Generate suggested actions\n  if (relevanceScore > 0.5) {\n    photoAnalysis.suggestedActions = [\n      'Schedule maintenance check',\n      'Update equipment status',\n      'Create maintenance task'\n    ];\n  } else {\n    photoAnalysis.suggestedActions = [\n      'Archive for reference',\n      'No action required'\n    ];\n  }\n}\n\n// Generate follow-up questions\nconst followUpQuestions = [\n  'Is this equipment functioning properly?',\n  'When was the last maintenance performed?',\n  'Are there any specific issues to address?',\n  'Should I schedule a maintenance appointment?'\n];\n\nreturn {\n  ...input,\n  photoAnalysis,\n  followUpQuestions,\n  needsClarification: true,\n  clarificationPrompt: `I've analyzed the photo and found: ${photoAnalysis.description}\\n\\nRelevance to your projects: ${photoAnalysis.projectRelevance.project}\\n\\nSuggested actions: ${photoAnalysis.suggestedActions.join(', ')}\\n\\nWould you like me to:\\n1. Create a maintenance task\\n2. Send an email notification\\n3. Update equipment status\\n4. Ask follow-up questions\\n\\nPlease let me know how you'd like to proceed!`\n};"
+      },
+      "id": "photo-analyzer",
+      "name": "Photo Analyzer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Email Composer Node\nconst input = $input.first().json;\nconst { originalInput, analysis } = input;\nconst message = originalInput.message || '';\n\n// Extract email details from message\nconst emailDetails = {\n  to: '',\n  subject: '',\n  body: '',\n  priority: analysis.priority,\n  attachments: []\n};\n\n// Parse message for email information\nconst emailPatterns = {\n  to: /(?:to|send to|email to)\\s+([\\w@.]+)/i,\n  subject: /(?:subject|about|regarding)\\s+([^.]+)/i,\n  urgency: /(urgent|asap|emergency|critical)/i\n};\n\n// Extract recipient\nconst toMatch = message.match(emailPatterns.to);\nif (toMatch) {\n  emailDetails.to = toMatch[1];\n} else {\n  // Default recipients based on context\n  emailDetails.to = 'maintenance@lifetimefitness.com';\n}\n\n// Extract subject\nconst subjectMatch = message.match(emailPatterns.subject);\nif (subjectMatch) {\n  emailDetails.subject = subjectMatch[1].trim();\n} else {\n  emailDetails.subject = 'Maintenance Update - ' + new Date().toLocaleDateString();\n}\n\n// Generate email body\nemailDetails.body = `Hello,\\n\\n${message}\\n\\nThis is an automated message from your Smart Assistant.\\n\\nBest regards,\\nLifetime Fitness Maintenance System\\n\\nGenerated: ${new Date().toLocaleString()}`;\n\n// Add photo as attachment if available\nif (originalInput.photo && originalInput.photo.data) {\n  emailDetails.attachments.push({\n    filename: 'photo.jpg',\n    data: originalInput.photo.data\n  });\n}\n\n// Set priority\nif (emailPatterns.urgency.test(message)) {\n  emailDetails.priority = 'urgent';\n}\n\nreturn {\n  ...input,\n  emailDetails,\n  readyToSend: true\n};"
+      },
+      "id": "email-composer",
+      "name": "Email Composer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Task Creator Node\nconst input = $input.first().json;\nconst { originalInput, analysis } = input;\nconst message = originalInput.message || '';\n\n// Extract task details from message\nconst taskDetails = {\n  title: '',\n  description: '',\n  priority: analysis.priority,\n  dueDate: null,\n  category: 'maintenance',\n  assignee: '',\n  tags: []\n};\n\n// Parse message for task information\nconst taskPatterns = {\n  title: /(?:create|add|make)\\s+(?:a\\s+)?(?:task|todo|reminder)\\s+(?:for\\s+)?([^.]+)/i,\n  dueDate: /(?:due|by|on)\\s+([\\w\\s,]+)/i,\n  assignee: /(?:assign|to)\\s+([\\w\\s]+)/i\n};\n\n// Extract task title\nconst titleMatch = message.match(taskPatterns.title);\nif (titleMatch) {\n  taskDetails.title = titleMatch[1].trim();\n} else {\n  // Generate title from message\n  taskDetails.title = message.length > 50 ? message.substring(0, 50) + '...' : message;\n}\n\n// Extract due date\nconst dueMatch = message.match(taskPatterns.dueDate);\nif (dueMatch) {\n  const dueText = dueMatch[1].trim();\n  // Simple date parsing (would use a proper date library in production)\n  if (dueText.includes('today')) {\n    taskDetails.dueDate = new Date().toISOString().split('T')[0];\n  } else if (dueText.includes('tomorrow')) {\n    const tomorrow = new Date();\n    tomorrow.setDate(tomorrow.getDate() + 1);\n    taskDetails.dueDate = tomorrow.toISOString().split('T')[0];\n  } else {\n    taskDetails.dueDate = dueText; // Would need proper date parsing\n  }\n}\n\n// Extract assignee\nconst assigneeMatch = message.match(taskPatterns.assignee);\nif (assigneeMatch) {\n  taskDetails.assignee = assigneeMatch[1].trim();\n} else {\n  taskDetails.assignee = 'Maintenance Team'; // Default assignee\n}\n\n// Generate description\ntaskDetails.description = `Task created from Smart Assistant:\\n\\n${message}\\n\\nCreated: ${new Date().toLocaleString()}`;\n\n// Determine category based on keywords\nconst categoryKeywords = {\n  'equipment': 'equipment_maintenance',\n  'cleaning': 'cleaning',\n  'inspection': 'inspection',\n  'repair': 'repair',\n  'safety': 'safety'\n};\n\nfor (const [keyword, category] of Object.entries(categoryKeywords)) {\n  if (message.toLowerCase().includes(keyword)) {\n    taskDetails.category = category;\n    break;\n  }\n}\n\n// Add tags based on content\nif (message.toLowerCase().includes('urgent')) {\n  taskDetails.tags.push('urgent');\n}\nif (message.toLowerCase().includes('equipment')) {\n  taskDetails.tags.push('equipment');\n}\nif (message.toLowerCase().includes('safety')) {\n  taskDetails.tags.push('safety');\n}\n\nreturn {\n  ...input,\n  taskDetails,\n  readyToCreate: true\n};"
+      },
+      "id": "task-creator",
+      "name": "Task Creator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Knowledge Query Node\nconst input = $input.first().json;\nconst { originalInput, analysis } = input;\nconst message = originalInput.message || '';\n\n// Simulate knowledge base query\nconst knowledgeQuery = {\n  query: message,\n  results: [],\n  confidence: 0.8,\n  sources: [],\n  suggestedActions: []\n};\n\n// Parse query for different knowledge types\nconst knowledgeTypes = {\n  'procedure': /(?:how\\s+to|procedure|process|steps)/i,\n  'policy': /(?:policy|rule|guideline|requirement)/i,\n  'equipment': /(?:equipment|machine|device|tool)/i,\n  'safety': /(?:safety|emergency|hazard|protective)/i,\n  'schedule': /(?:schedule|timing|when|frequency)/i\n};\n\n// Determine knowledge type\nlet queryType = 'general';\nfor (const [type, pattern] of Object.entries(knowledgeTypes)) {\n  if (pattern.test(message)) {\n    queryType = type;\n    break;\n  }\n}\n\n// Generate mock knowledge results (in production, this would query a real knowledge base)\nconst mockKnowledgeBase = {\n  procedure: [\n    {\n      title: 'Equipment Maintenance Procedure',\n      content: '1. Inspect equipment for visible damage\\n2. Check all moving parts\\n3. Clean surfaces\\n4. Test functionality\\n5. Document findings',\n      relevance: 0.9\n    }\n  ],\n  policy: [\n    {\n      title: 'Safety Policy Guidelines',\n      content: 'All maintenance work must be performed with proper safety equipment. Report any hazards immediately.',\n      relevance: 0.8\n    }\n  ],\n  equipment: [\n    {\n      title: 'Equipment Specifications',\n      content: 'Standard fitness equipment requires monthly inspection and quarterly deep cleaning.',\n      relevance: 0.7\n    }\n  ],\n  safety: [\n    {\n      title: 'Emergency Procedures',\n      content: 'In case of equipment malfunction, immediately stop use and contact maintenance team.',\n      relevance: 0.9\n    }\n  ],\n  schedule: [\n    {\n      title: 'Maintenance Schedule',\n      content: 'Daily: Basic inspection\\nWeekly: Deep cleaning\\nMonthly: Full maintenance check\\nQuarterly: Equipment calibration',\n      relevance: 0.8\n    }\n  ]\n};\n\nknowledgeQuery.results = mockKnowledgeBase[queryType] || mockKnowledgeBase.general || [];\nknowledgeQuery.sources = ['Lifetime Fitness Knowledge Base', 'Maintenance Manual', 'Safety Guidelines'];\n\n// Generate suggested actions based on query type\nif (queryType === 'procedure') {\n  knowledgeQuery.suggestedActions = [\n    'Create a task to follow this procedure',\n    'Schedule a training session',\n    'Update procedure documentation'\n  ];\n} else if (queryType === 'safety') {\n  knowledgeQuery.suggestedActions = [\n    'Send safety alert email',\n    'Schedule safety inspection',\n    'Update safety protocols'\n  ];\n} else {\n  knowledgeQuery.suggestedActions = [\n    'Create a reminder',\n    'Schedule follow-up',\n    'Update knowledge base'\n  ];\n}\n\nreturn {\n  ...input,\n  knowledgeQuery,\n  queryType,\n  readyToRespond: true\n};"
+      },
+      "id": "knowledge-query",
+      "name": "Knowledge Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 800]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Response Generator Node\nconst input = $input.first().json;\n\n// Collect all responses from different nodes\nconst responses = {\n  photoAnalysis: input.photoAnalysis || null,\n  emailDetails: input.emailDetails || null,\n  taskDetails: input.taskDetails || null,\n  knowledgeQuery: input.knowledgeQuery || null\n};\n\n// Generate comprehensive response\nlet responseText = '';\nlet actions = [];\nlet followUpQuestions = [];\n\n// Handle photo analysis response\nif (responses.photoAnalysis) {\n  responseText += `📸 **Photo Analysis Complete**\\n\\n`;\n  responseText += `**Description:** ${responses.photoAnalysis.description}\\n`;\n  responseText += `**Project Relevance:** ${responses.photoAnalysis.projectRelevance.project}\\n`;\n  responseText += `**Confidence:** ${Math.round(responses.photoAnalysis.confidence * 100)}%\\n\\n`;\n  \n  if (responses.photoAnalysis.suggestedActions.length > 0) {\n    responseText += `**Suggested Actions:**\\n`;\n    responses.photoAnalysis.suggestedActions.forEach((action, index) => {\n      responseText += `${index + 1}. ${action}\\n`;\n    });\n    responseText += `\\n`;\n  }\n  \n  followUpQuestions.push(...responses.photoAnalysis.followUpQuestions || []);\n}\n\n// Handle email response\nif (responses.emailDetails) {\n  responseText += `📧 **Email Ready to Send**\\n\\n`;\n  responseText += `**To:** ${responses.emailDetails.to}\\n`;\n  responseText += `**Subject:** ${responses.emailDetails.subject}\\n`;\n  responseText += `**Priority:** ${responses.emailDetails.priority}\\n\\n`;\n  \n  actions.push({\n    type: 'send_email',\n    details: responses.emailDetails,\n    description: 'Send email notification'\n  });\n}\n\n// Handle task response\nif (responses.taskDetails) {\n  responseText += `✅ **Task Ready to Create**\\n\\n`;\n  responseText += `**Title:** ${responses.taskDetails.title}\\n`;\n  responseText += `**Category:** ${responses.taskDetails.category}\\n`;\n  responseText += `**Assignee:** ${responses.taskDetails.assignee}\\n`;\n  if (responses.taskDetails.dueDate) {\n    responseText += `**Due Date:** ${responses.taskDetails.dueDate}\\n`;\n  }\n  responseText += `\\n`;\n  \n  actions.push({\n    type: 'create_task',\n    details: responses.taskDetails,\n    description: 'Create maintenance task'\n  });\n}\n\n// Handle knowledge response\nif (responses.knowledgeQuery) {\n  responseText += `📚 **Knowledge Base Results**\\n\\n`;\n  responseText += `**Query:** ${responses.knowledgeQuery.query}\\n`;\n  responseText += `**Results Found:** ${responses.knowledgeQuery.results.length}\\n\\n`;\n  \n  responses.knowledgeQuery.results.forEach((result, index) => {\n    responseText += `**${index + 1}. ${result.title}**\\n`;\n    responseText += `${result.content}\\n\\n`;\n  });\n  \n  if (responses.knowledgeQuery.suggestedActions.length > 0) {\n    responseText += `**Suggested Actions:**\\n`;\n    responses.knowledgeQuery.suggestedActions.forEach((action, index) => {\n      responseText += `${index + 1}. ${action}\\n`;\n    });\n    responseText += `\\n`;\n  }\n}\n\n// Add follow-up questions\nif (followUpQuestions.length > 0) {\n  responseText += `🤔 **Follow-up Questions:**\\n\\n`;\n  followUpQuestions.forEach((question, index) => {\n    responseText += `${index + 1}. ${question}\\n`;\n  });\n  responseText += `\\n`;\n}\n\n// Add action summary\nif (actions.length > 0) {\n  responseText += `🎯 **Ready Actions:**\\n\\n`;\n  actions.forEach((action, index) => {\n    responseText += `${index + 1}. ${action.description}\\n`;\n  });\n  responseText += `\\n`;\n}\n\n// Add timestamp\nresponseText += `\\n---\\n*Generated by Smart Assistant at ${new Date().toLocaleString()}*`;\n\nreturn {\n  response: responseText,\n  actions: actions,\n  followUpQuestions: followUpQuestions,\n  timestamp: new Date().toISOString(),\n  userId: input.userId,\n  success: true\n};"
+      },
+      "id": "response-generator",
+      "name": "Response Generator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "response",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [["Input Analyzer"]]
+    },
+    "Input Analyzer": {
+      "main": [["Photo Analysis Router", "Email Router", "Task Router", "Knowledge Router"]]
+    },
+    "Photo Analysis Router": {
+      "main": [
+        ["Photo Analyzer"],
+        ["Response Generator"]
+      ]
+    },
+    "Email Router": {
+      "main": [
+        ["Email Composer"],
+        ["Response Generator"]
+      ]
+    },
+    "Task Router": {
+      "main": [
+        ["Task Creator"],
+        ["Response Generator"]
+      ]
+    },
+    "Knowledge Router": {
+      "main": [
+        ["Knowledge Query"],
+        ["Response Generator"]
+      ]
+    },
+    "Photo Analyzer": {
+      "main": [["Response Generator"]]
+    },
+    "Email Composer": {
+      "main": [["Response Generator"]]
+    },
+    "Task Creator": {
+      "main": [["Response Generator"]]
+    },
+    "Knowledge Query": {
+      "main": [["Response Generator"]]
+    },
+    "Response Generator": {
+      "main": [["Response"]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "smart-assistant-workflow",
+  "tags": ["smart-assistant", "photo-analysis", "email", "tasks", "knowledge"]
+}
