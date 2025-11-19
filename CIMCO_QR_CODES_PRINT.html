@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cimco Equipment QR Codes - Print Sheet</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+        @media print {
+            @page {
+                margin: 0.5in;
+            }
+            .no-print {
+                display: none;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 8.5in;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #1e40af;
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .equipment-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .equipment-card {
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 25px;
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .equipment-card:hover {
+            border-color: #2563eb;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+        }
+
+        .qr-container {
+            flex-shrink: 0;
+        }
+
+        .qr-code {
+            border: 3px solid #2563eb;
+            border-radius: 8px;
+            padding: 10px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .equipment-info {
+            flex: 1;
+        }
+
+        .equipment-type {
+            display: inline-block;
+            background: #2563eb;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        .equipment-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .qr-code-text {
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            color: #2563eb;
+            font-weight: 600;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        .equipment-details {
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        .equipment-details strong {
+            color: #475569;
+        }
+
+        .print-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .print-button:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
+        }
+
+        .instructions {
+            background: #fef3c7;
+            border: 2px solid #fbbf24;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 30px;
+        }
+
+        .instructions h3 {
+            color: #92400e;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .instructions p {
+            color: #78350f;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .icon {
+            display: inline-block;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button no-print" onclick="window.print()">🖨️ Print QR Codes</button>
+
+    <div class="container">
+        <div class="header">
+            <h1>🏭 Cimco Resources Equipment Tracker</h1>
+            <p>QR Code Labels - Sterling, Illinois Scrapyard</p>
+        </div>
+
+        <div class="instructions no-print">
+            <h3>📋 Instructions:</h3>
+            <p>
+                <strong>1.</strong> Click "Print QR Codes" button below or press Ctrl+P (Cmd+P on Mac)<br>
+                <strong>2.</strong> Cut out each label and attach to corresponding equipment<br>
+                <strong>3.</strong> Use the Cimco Equipment Tracker app to scan codes for instant equipment lookup<br>
+                <strong>4.</strong> Each code is linked to maintenance history, GPS data, and predictive alerts
+            </p>
+        </div>
+
+        <div class="equipment-grid">
+            <!-- Semi Truck #1 -->
+            <div class="equipment-card">
+                <div class="qr-container">
+                    <canvas id="qr-semi-001" class="qr-code"></canvas>
+                </div>
+                <div class="equipment-info">
+                    <span class="equipment-type">🚛 Semi Truck</span>
+                    <div class="equipment-name">Semi Truck #1 - Long Haul</div>
+                    <div class="qr-code-text">CIMCO-SEMI-001</div>
+                    <div class="equipment-details">
+                        <strong>Make:</strong> Kenworth T680 (2020)<br>
+                        <strong>Features:</strong> GPS Telematics • Brake Alert • 156,420 miles<br>
+                        <strong>Location:</strong> Truck Bay
+                    </div>
+                </div>
+            </div>
+
+            <!-- Front-End Loader -->
+            <div class="equipment-card">
+                <div class="qr-container">
+                    <canvas id="qr-loader-001" class="qr-code"></canvas>
+                </div>
+                <div class="equipment-info">
+                    <span class="equipment-type">🏗️ Loader</span>
+                    <div class="equipment-name">CAT Front-End Loader</div>
+                    <div class="qr-code-text">CIMCO-LOADER-001</div>
+                    <div class="equipment-details">
+                        <strong>Make:</strong> Caterpillar 950M (2018)<br>
+                        <strong>Features:</strong> Hydraulic System Monitor • 4,235 hours<br>
+                        <strong>Location:</strong> North Yard
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shredder Motor -->
+            <div class="equipment-card">
+                <div class="qr-container">
+                    <canvas id="qr-shredder-001" class="qr-code"></canvas>
+                </div>
+                <div class="equipment-info">
+                    <span class="equipment-type">⚙️ Motor</span>
+                    <div class="equipment-name">Main Shredder Motor A</div>
+                    <div class="qr-code-text">CIMCO-SHREDDER-MTR-001</div>
+                    <div class="equipment-details">
+                        <strong>Make:</strong> Siemens SIMOTICS HV (2019)<br>
+                        <strong>Features:</strong> 500HP • Runtime Tracking • 12,456 hours<br>
+                        <strong>Location:</strong> Shredder Building
+                    </div>
+                </div>
+            </div>
+
+            <!-- Skid Steer -->
+            <div class="equipment-card">
+                <div class="qr-container">
+                    <canvas id="qr-skid-001" class="qr-code"></canvas>
+                </div>
+                <div class="equipment-info">
+                    <span class="equipment-type">🚜 Skid Steer</span>
+                    <div class="equipment-name">Bobcat Skid Steer</div>
+                    <div class="qr-code-text">CIMCO-SKID-001</div>
+                    <div class="equipment-details">
+                        <strong>Make:</strong> Bobcat S650 (2021)<br>
+                        <strong>Features:</strong> Compact Design • Recent Service • 1,842 hours<br>
+                        <strong>Location:</strong> South Yard
+                    </div>
+                </div>
+            </div>
+
+            <!-- Semi Truck #2 -->
+            <div class="equipment-card">
+                <div class="qr-container">
+                    <canvas id="qr-semi-002" class="qr-code"></canvas>
+                </div>
+                <div class="equipment-info">
+                    <span class="equipment-type">🚛 Semi Truck</span>
+                    <div class="equipment-name">Semi Truck #2 - Regional</div>
+                    <div class="qr-code-text">CIMCO-SEMI-002</div>
+                    <div class="equipment-details">
+                        <strong>Make:</strong> Freightliner Cascadia (2019)<br>
+                        <strong>Features:</strong> GPS Telematics • Heavy Brake Wear Alert • 98,342 miles<br>
+                        <strong>Location:</strong> Truck Bay
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px;">
+            <p>Cimco Resources Equipment Tracker • Sterling, Illinois • Generated for Monday Management Demo</p>
+            <p style="margin-top: 5px;">Scan codes with mobile device camera or use "Enter Manually" in app</p>
+        </div>
+    </div>
+
+    <script>
+        // Generate QR codes when page loads
+        window.addEventListener('load', function() {
+            const equipment = [
+                { id: 'qr-semi-001', code: 'CIMCO-SEMI-001' },
+                { id: 'qr-loader-001', code: 'CIMCO-LOADER-001' },
+                { id: 'qr-shredder-001', code: 'CIMCO-SHREDDER-MTR-001' },
+                { id: 'qr-skid-001', code: 'CIMCO-SKID-001' },
+                { id: 'qr-semi-002', code: 'CIMCO-SEMI-002' }
+            ];
+
+            equipment.forEach(item => {
+                const canvas = document.getElementById(item.id);
+                if (canvas) {
+                    QRCode.toCanvas(canvas, item.code, {
+                        width: 180,
+                        height: 180,
+                        margin: 2,
+                        color: {
+                            dark: '#1e40af',
+                            light: '#ffffff'
+                        }
+                    }, function(error) {
+                        if (error) console.error('QR Code generation error:', error);
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
