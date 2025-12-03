@@ -1,11 +1,13 @@
 import React, { useState, useRef } from 'react'
 import { supabase, uploadMaintenancePhoto, compressImage } from '../lib/supabase'
+import VoiceRecorder from './VoiceRecorder'
+import { WORK_TYPES, WORK_TYPE_LABELS, WORK_TYPE_ICONS, PHOTO_LIMITS } from '../utils/constants'
 
 export default function MaintenanceLogForm({ equipment, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
     work_date: new Date().toISOString().split('T')[0],
     worker_name: '',
-    work_type: 'preventive',
+    work_type: WORK_TYPES.PREVENTIVE,
     work_description: '',
     parts_used: '',
     hours_spent: '',
@@ -23,10 +25,20 @@ export default function MaintenanceLogForm({ equipment, onSubmit, onCancel }) {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  const handleVoiceTranscript = (text) => {
+    setFormData(prev => {
+      const currentDescription = prev.work_description
+      const newDescription = currentDescription
+        ? `${currentDescription} ${text}`
+        : text
+      return { ...prev, work_description: newDescription }
+    })
+  }
+
   const handlePhotoSelect = async (e) => {
     const files = Array.from(e.target.files)
-    if (files.length + photos.length > 5) {
-      setError('Maximum 5 photos allowed')
+    if (files.length + photos.length > PHOTO_LIMITS.MAX_COUNT) {
+      setError(`Maximum ${PHOTO_LIMITS.MAX_COUNT} photos allowed`)
       return
     }
 
@@ -136,15 +148,23 @@ export default function MaintenanceLogForm({ equipment, onSubmit, onCancel }) {
             onChange={handleChange}
             required
           >
-            <option value="preventive">🔧 Preventive Maintenance</option>
-            <option value="repair">🔨 Repair</option>
-            <option value="inspection">🔍 Inspection</option>
-            <option value="emergency">🚨 Emergency</option>
+            {Object.entries(WORK_TYPES).map(([key, value]) => (
+              <option key={value} value={value}>
+                {WORK_TYPE_ICONS[value]} {WORK_TYPE_LABELS[value]}
+              </option>
+            ))}
           </select>
         </div>
 
         <div className="form-group">
-          <label htmlFor="work_description">Work Description *</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <label htmlFor="work_description" style={{ marginBottom: 0 }}>Work Description *</label>
+            <VoiceRecorder
+              onTranscript={handleVoiceTranscript}
+              isCompact={true}
+              placeholder="Speak description..."
+            />
+          </div>
           <textarea
             id="work_description"
             name="work_description"
@@ -253,6 +273,33 @@ export default function MaintenanceLogForm({ equipment, onSubmit, onCancel }) {
             ))}
           </div>
         )}
+
+        {/* Safety Interlock */}
+        <div className="form-group" style={{
+          background: '#fff3e0',
+          padding: '15px',
+          borderRadius: '8px',
+          border: '1px solid #ffcc80',
+          marginTop: '20px'
+        }}>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            cursor: 'pointer',
+            color: '#d35400',
+            fontWeight: 'bold',
+            fontSize: '16px',
+            marginBottom: 0
+          }}>
+            <input
+              type="checkbox"
+              required
+              style={{ width: '20px', height: '20px' }}
+            />
+            I confirm Lock Out / Tag Out procedures were followed.
+          </label>
+        </div>
 
         {/* Form Actions */}
         <div className="form-actions">

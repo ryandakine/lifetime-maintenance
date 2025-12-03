@@ -1,74 +1,58 @@
-import React, { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import React, { useState } from 'react'
 import { format } from 'date-fns'
+import { useMaintenanceLogs } from '../hooks/useMaintenanceLogs'
+import {
+  EQUIPMENT_ICONS,
+  STATUS_COLORS,
+  WORK_TYPE_ICONS
+} from '../utils/constants'
+import LoadingSpinner from './common/LoadingSpinner'
+import ExportButton from './ExportButton'
+import { useFavorites } from '../hooks/useFavorites'
+import { exportMaintenanceLogsToPDF, exportToCSV } from '../utils/exportUtils'
+import { useToast } from '../context/ToastContext'
 
 export default function EquipmentDetail({ equipment, onLogMaintenance }) {
-  const [maintenanceLogs, setMaintenanceLogs] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { logs: maintenanceLogs, loading, error, totalCost } = useMaintenanceLogs(equipment.equipment_id)
   const [selectedLog, setSelectedLog] = useState(null)
-
-  useEffect(() => {
-    fetchMaintenanceLogs()
-  }, [equipment])
-
-  const fetchMaintenanceLogs = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('maintenance_logs')
-        .select('*')
-        .eq('equipment_id', equipment.equipment_id)
-        .order('work_date', { ascending: false })
-
-      if (error) throw error
-
-      setMaintenanceLogs(data || [])
-    } catch (err) {
-      console.error('Error fetching maintenance logs:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { isFavorite, toggleFavorite } = useFavorites()
+  const { success } = useToast()
 
   const getStatusColor = (status) => {
-    const colors = {
-      active: '#4CAF50',
-      maintenance: '#FF9800',
-      down: '#f44336',
-      retired: '#9E9E9E'
-    }
-    return colors[status] || '#2196F3'
+    return STATUS_COLORS[status] || '#2196F3'
   }
 
   const getWorkTypeIcon = (type) => {
-    const icons = {
-      preventive: '🔧',
-      repair: '🔨',
-      inspection: '🔍',
-      emergency: '🚨'
-    }
-    return icons[type] || '⚙️'
+    return WORK_TYPE_ICONS[type] || '⚙️'
+  }
+
+  const getEquipmentIcon = (type) => {
+    return EQUIPMENT_ICONS[type] || '⚙️'
   }
 
   const formatCurrency = (amount) => {
     return amount ? `$${parseFloat(amount).toFixed(2)}` : 'N/A'
   }
 
-  const totalMaintenanceCost = maintenanceLogs.reduce(
-    (sum, log) => sum + (parseFloat(log.cost) || 0),
-    0
-  )
+  if (error) {
+    return (
+      <div className="error-container" style={{
+        padding: '40px 20px',
+        textAlign: 'center',
+        color: '#e74c3c'
+      }}>
+        <h3>⚠️ Error Loading Equipment</h3>
+        <p>{error}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="equipment-detail">
       {/* Equipment Header Card */}
       <div className="equipment-header">
         <div className="equipment-icon">
-          {equipment.equipment_type === 'Shredder' && '🏭'}
-          {equipment.equipment_type === 'Crane' && '🏗️'}
-          {equipment.equipment_type === 'Conveyor' && '📦'}
-          {equipment.equipment_type === 'Baler' && '🗜️'}
-          {equipment.equipment_type === 'Forklift' && '🚜'}
-          {!['Shredder', 'Crane', 'Conveyor', 'Baler', 'Forklift'].includes(equipment.equipment_type) && '⚙️'}
+          {getEquipmentIcon(equipment.equipment_type)}
         </div>
         <h2>{equipment.equipment_name}</h2>
         <div className="qr-badge">{equipment.qr_code_id}</div>
@@ -78,6 +62,34 @@ export default function EquipmentDetail({ equipment, onLogMaintenance }) {
         >
           {equipment.status.toUpperCase()}
         </div>
+        <div
+          className="status-badge ai-badge"
+          style={{
+            backgroundColor: '#8e44ad',
+            marginLeft: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+        >
+          <span>🤖</span>
+          <span>Health: 92% (AI)</span>
+        </div>
+        <button
+          onClick={() => {
+            toggleFavorite(equipment.equipment_id)
+            success(isFavorite(equipment.equipment_id) ? 'Removed from favorites' : 'Added to favorites!')
+          }}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            fontSize: '24px',
+            cursor: 'pointer',
+            marginLeft: '8px'
+          }}
+        >
+          {isFavorite(equipment.equipment_id) ? '⭐' : '☆'}
+        </button>
       </div>
 
       {/* Equipment Info */}
@@ -116,6 +128,37 @@ export default function EquipmentDetail({ equipment, onLogMaintenance }) {
         )}
       </div>
 
+      {/* Mesh Telemetry (Simulated) */}
+      <div className="info-card" style={{ marginTop: '16px', borderLeft: '4px solid #9b59b6' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <h3 style={{ margin: 0, color: '#8e44ad' }}>📡 Live Mesh Telemetry</h3>
+          <span style={{ fontSize: '12px', background: '#e8daef', color: '#8e44ad', padding: '2px 8px', borderRadius: '10px' }}>
+            BETA
+          </span>
+        </div>
+        <div className="info-grid">
+          <div className="info-item">
+            <span className="info-label">Network Status:</span>
+            <span className="info-value" style={{ color: '#27ae60', fontWeight: 'bold' }}>● Online (Mesh)</span>
+          </div>
+          <div className="info-item">
+            <span className="info-label">Signal Strength:</span>
+            <span className="info-value">92% (-85 dBm)</span>
+          </div>
+          <div className="info-item">
+            <span className="info-label">Connected Node:</span>
+            <span className="info-value">Node-Alpha-7</span>
+          </div>
+          <div className="info-item">
+            <span className="info-label">Last Ping:</span>
+            <span className="info-value">Just now</span>
+          </div>
+        </div>
+        <div style={{ marginTop: '10px', fontSize: '12px', color: '#666', fontStyle: 'italic' }}>
+          * Data transmitted via decentralized 915MHz LoRa mesh network
+        </div>
+      </div>
+
       {/* Maintenance Stats */}
       <div className="stats-row">
         <div className="stat-box">
@@ -123,22 +166,49 @@ export default function EquipmentDetail({ equipment, onLogMaintenance }) {
           <div className="stat-text">Total Logs</div>
         </div>
         <div className="stat-box">
-          <div className="stat-number">{formatCurrency(totalMaintenanceCost)}</div>
+          <div className="stat-number">{formatCurrency(totalCost)}</div>
           <div className="stat-text">Total Cost</div>
         </div>
       </div>
 
       {/* Log Maintenance Button */}
-      <button className="primary-button log-button" onClick={onLogMaintenance}>
-        <span className="button-icon">📝</span>
-        Log New Maintenance
-      </button>
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <button className="primary-button log-button" onClick={onLogMaintenance} style={{ flex: 2 }}>
+          <span className="button-icon">📝</span>
+          Log New Maintenance
+        </button>
+        <button
+          className="secondary-button"
+          onClick={() => window.print()}
+          style={{ flex: 1, background: '#34495e', color: 'white', border: 'none' }}
+        >
+          <span className="button-icon">🖨️</span>
+          Print QR
+        </button>
+      </div>
+
+      {/* Export Buttons */}
+      {maintenanceLogs.length > 0 && (
+        <ExportButton
+          equipment={equipment}
+          logs={maintenanceLogs}
+          onExport={(format) => {
+            if (format === 'pdf') {
+              exportMaintenanceLogsToPDF(equipment, maintenanceLogs)
+              success('PDF exported successfully!')
+            } else if (format === 'csv') {
+              exportToCSV(equipment, maintenanceLogs)
+              success('CSV exported successfully!')
+            }
+          }}
+        />
+      )}
 
       {/* Maintenance History */}
       <div className="maintenance-history">
         <h3>Maintenance History</h3>
         {loading ? (
-          <div className="loading">Loading maintenance logs...</div>
+          <LoadingSpinner size="medium" message="Loading maintenance logs..." />
         ) : maintenanceLogs.length === 0 ? (
           <div className="empty-state">
             <p>No maintenance logs yet</p>

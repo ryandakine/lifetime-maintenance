@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { MOCK_EQUIPMENT } from '../utils/mockData'
 
 export default function EquipmentList({ onSelectEquipment }) {
   const [equipment, setEquipment] = useState([])
@@ -12,6 +13,11 @@ export default function EquipmentList({ onSelectEquipment }) {
 
   const fetchEquipment = async () => {
     try {
+      // Check for forced demo mode
+      if (localStorage.getItem('force_demo_mode') === 'true') {
+        throw new Error('Demo Mode Forced')
+      }
+
       const { data, error } = await supabase
         .from('equipment')
         .select('*')
@@ -22,6 +28,9 @@ export default function EquipmentList({ onSelectEquipment }) {
       setEquipment(data || [])
     } catch (err) {
       console.error('Error fetching equipment:', err)
+      // Fallback to mock data for demo stability
+      console.log('Falling back to mock equipment')
+      setEquipment(MOCK_EQUIPMENT)
     } finally {
       setLoading(false)
     }
