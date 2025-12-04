@@ -1,7 +1,7 @@
 {
-  "name": "lifetime-fitness-maintenance-pwa",
+  "name": "cimco-equipment-tracking",
   "version": "1.0.0",
-  "description": "Lifetime Fitness Maintenance PWA - Comprehensive maintenance management for fitness facilities",
+  "description": "Cimco Equipment Tracking - Comprehensive equipment and maintenance management system",
   "main": "index.js",
   "scripts": {
     "dev": "vite --host --port 3000",
