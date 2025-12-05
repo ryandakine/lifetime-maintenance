@@ -3,7 +3,7 @@ import {
   ShoppingCart, Search, CheckSquare, Square, Trash2, Plus,
   Brain, Store, Package, MapPin, Loader, Mic,
   Lightbulb, Droplet, Paintbrush, Wrench, HelpCircle,
-  FileText, Send, Printer, ExternalLink, AlertTriangle
+  FileText, Send, Printer, ExternalLink, AlertTriangle, Camera, Image as ImageIcon
 } from 'lucide-react'
 
 // Lifetime Brand Colors
@@ -24,6 +24,7 @@ const Shopping = () => {
   const [isListening, setIsListening] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const recognitionRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   // Load list from local storage for the Pilot
   useEffect(() => {
@@ -54,35 +55,34 @@ const Shopping = () => {
     setUserInput('')
   }
 
-  // The "Maintenance Planner" Logic
-  const analyzeProblem = async () => {
-    if (!userInput.trim()) return
+  // The "Maintenance Planner" Logic (Text & Image)
+  const analyzeProblem = async (inputText = userInput) => {
+    if (!inputText && !inputText.trim()) return
     setIsAnalyzing(true)
 
-    // Simulate AI Analysis (Perplexity would do this in production)
-    // Logic: Problem -> Parts -> Grainger Check -> Home Depot Fallback
+    // Simulate AI Analysis
     setTimeout(() => {
       let newItems = []
-      const problem = userInput.toLowerCase()
+      const problem = inputText.toLowerCase()
 
-      if (problem.includes('leak') || problem.includes('faucet')) {
+      if (problem.includes('leak') || problem.includes('faucet') || problem.includes('water')) {
         newItems = [
           { name: 'Moen 1225 Cartridge', vendor: 'grainger', partNumber: '1WDE4', location: 'Online', tools: ['Allen Wrench', 'Channel Locks'] },
           { name: 'O-Ring Kit', vendor: 'homedepot', partNumber: '', location: 'Aisle 14, Bay 2', tools: [] }
         ]
-      } else if (problem.includes('treadmill') || problem.includes('belt')) {
+      } else if (problem.includes('treadmill') || problem.includes('belt') || problem.includes('motor')) {
         newItems = [
           { name: 'Drive Belt (Life Fitness 95T)', vendor: 'grainger', partNumber: '45K123', location: 'Online', tools: ['Tension Gauge', 'Socket Set'] },
           { name: 'Deck Lubricant', vendor: 'grainger', partNumber: '22L998', location: 'Online', tools: [] }
         ]
-      } else if (problem.includes('light') || problem.includes('bulb')) {
+      } else if (problem.includes('light') || problem.includes('bulb') || problem.includes('ballast')) {
         newItems = [
           { name: 'T8 LED Tube 4ft', vendor: 'grainger', partNumber: '54EP21', location: 'Online', tools: ['Ladder'] },
           { name: 'Wire Nuts (Assorted)', vendor: 'homedepot', partNumber: '', location: 'Aisle 3, Bay 12', tools: ['Wire Strippers'] }
         ]
       } else {
         // Generic Fallback
-        newItems = [{ name: userInput, vendor: 'unknown', partNumber: '', location: '', tools: [] }]
+        newItems = [{ name: inputText, vendor: 'unknown', partNumber: '', location: '', tools: [] }]
       }
 
       const formattedItems = newItems.map(item => ({
@@ -101,6 +101,37 @@ const Shopping = () => {
       setIsAnalyzing(false)
       setUserInput('')
     }, 1500)
+  }
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    setIsAnalyzing(true)
+    // Simulate Image Analysis
+    setTimeout(() => {
+      // Mock result based on "Visual Analysis"
+      const mockResult = [
+        { name: '3/4" PVC Ball Valve', vendor: 'grainger', partNumber: '6PZ45', location: 'Online', tools: ['PVC Cutter', 'Primer/Glue'] },
+        { name: 'PVC Primer & Cement', vendor: 'homedepot', partNumber: '', location: 'Aisle 22', tools: [] }
+      ]
+
+      const formattedItems = mockResult.map(item => ({
+        id: Date.now() + Math.random(),
+        name: item.name,
+        checked: false,
+        vendor: item.vendor,
+        partNumber: item.partNumber,
+        location: item.location,
+        tools: item.tools || [],
+        quantity: 1,
+        dateAdded: new Date().toISOString()
+      }))
+
+      setShoppingList(prev => [...formattedItems, ...prev])
+      setIsAnalyzing(false)
+      alert('Image Analyzed: Identified PVC Valve issue.')
+    }, 2000)
   }
 
   const toggleCheck = (id) => {
@@ -234,7 +265,7 @@ const Shopping = () => {
               value={userInput}
               onChange={e => setUserInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && analyzeProblem()}
-              placeholder="Describe the problem (e.g. 'Leaky faucet in locker room')"
+              placeholder="Describe problem or upload photo..."
               style={{
                 width: '100%',
                 padding: '15px 15px 15px 45px',
@@ -245,6 +276,8 @@ const Shopping = () => {
             />
             <Search size={20} style={{ position: 'absolute', left: 15, top: 15, color: '#999' }} />
           </div>
+
+          {/* Voice Button */}
           <button
             onClick={toggleVoice}
             style={{
@@ -255,11 +288,37 @@ const Shopping = () => {
               color: isListening ? 'white' : LIFETIME_COLORS.primary,
               cursor: 'pointer'
             }}
+            title="Voice Input"
           >
             <Mic size={24} />
           </button>
+
+          {/* Camera Button */}
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handleImageUpload}
+            style={{ display: 'none' }}
+          />
           <button
-            onClick={analyzeProblem}
+            onClick={() => fileInputRef.current.click()}
+            style={{
+              width: 50,
+              borderRadius: 12,
+              border: 'none',
+              background: LIFETIME_COLORS.accent,
+              color: LIFETIME_COLORS.primary,
+              cursor: 'pointer'
+            }}
+            title="Upload Photo"
+          >
+            <Camera size={24} />
+          </button>
+
+          {/* Analyze Button */}
+          <button
+            onClick={() => analyzeProblem()}
             disabled={isAnalyzing}
             style={{
               padding: '0 24px',
@@ -288,7 +347,7 @@ const Shopping = () => {
         {shoppingList.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>
             <ShoppingCart size={48} style={{ marginBottom: 10, opacity: 0.2 }} />
-            <p>List is empty. Describe a problem to generate a parts list.</p>
+            <p>List is empty. Describe a problem or upload a photo to generate a parts list.</p>
           </div>
         ) : (
           shoppingList.map(item => (
