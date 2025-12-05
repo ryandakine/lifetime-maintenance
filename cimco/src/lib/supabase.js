@@ -4,10 +4,32 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables')
+  console.error('Missing Supabase environment variables. Check Vercel settings.')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Create client only if keys exist, otherwise create a dummy client that warns on use
+export const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : {
+    from: () => ({
+      select: () => Promise.resolve({ data: [], error: { message: 'Supabase keys missing' } }),
+      insert: () => Promise.resolve({ data: null, error: { message: 'Supabase keys missing' } }),
+      update: () => Promise.resolve({ data: null, error: { message: 'Supabase keys missing' } }),
+      delete: () => Promise.resolve({ data: null, error: { message: 'Supabase keys missing' } }),
+      upload: () => Promise.resolve({ data: null, error: { message: 'Supabase keys missing' } }),
+      getPublicUrl: () => ({ data: { publicUrl: '' } })
+    }),
+    storage: {
+      from: () => ({
+        upload: () => Promise.resolve({ data: null, error: { message: 'Supabase keys missing' } }),
+        getPublicUrl: () => ({ data: { publicUrl: '' } })
+      })
+    },
+    auth: {
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
+      getSession: () => Promise.resolve({ data: { session: null }, error: null })
+    }
+  }
 
 // Helper function to upload maintenance photo
 export async function uploadMaintenancePhoto(file, equipmentId) {
