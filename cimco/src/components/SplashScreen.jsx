@@ -1,68 +1,80 @@
 import React, { useState, useEffect } from 'react'
+import '../industrial-theme.css'
+import './SplashScreen.css'
 
 export default function SplashScreen({ onFinish }) {
-    const [show, setShow] = useState(true)
+    const [visible, setVisible] = useState(true)
+    const [fading, setFading] = useState(false)
+    const [messageIndex, setMessageIndex] = useState(0)
+    const [readyToEnter, setReadyToEnter] = useState(false)
+
+    const loadingMessages = [
+        "Initializing Mesh Network...",
+        "Syncing Equipment Telemetry...",
+        "Verifying Safety Protocols...",
+        "Calibrating AI Health Models...",
+        "Connecting to Sterling HQ..."
+    ]
 
     useEffect(() => {
-        // Show splash for 2 seconds
+        // Cycle through messages
+        const interval = setInterval(() => {
+            setMessageIndex(prev => (prev + 1) % loadingMessages.length)
+        }, 800)
+
+        // After 3 seconds, allow entry
         const timer = setTimeout(() => {
-            setShow(false)
-            if (onFinish) onFinish()
-        }, 2000)
+            setReadyToEnter(true)
+            clearInterval(interval)
+        }, 3000)
 
-        return () => clearTimeout(timer)
-    }, [onFinish])
+        return () => {
+            clearTimeout(timer)
+            clearInterval(interval)
+        }
+    }, [])
 
-    if (!show) return null
+    const handleEnter = () => {
+        if (!readyToEnter) return
+        setFading(true)
+        setTimeout(() => {
+            setVisible(false)
+            onFinish()
+        }, 500)
+    }
+
+    if (!visible) return null
 
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: '#1a1a2e',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000,
-            animation: 'fadeOut 0.5s ease-out 1.5s forwards'
-        }}>
-            <img
-                src="/cimco-logo.png"
-                alt="Cimco Resources"
-                style={{
-                    maxWidth: '300px',
-                    width: '80%',
-                    marginBottom: '30px',
-                    animation: 'fadeIn 0.8s ease-in'
-                }}
-            />
-            <div style={{
-                width: '60px',
-                height: '60px',
-                border: '4px solid rgba(255,255,255,0.2)',
-                borderTop: '4px solid white',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-            }} />
+        <div
+            className={`splash-screen ${fading ? 'fade-out' : ''}`}
+            onClick={handleEnter}
+            style={{ cursor: readyToEnter ? 'pointer' : 'default' }}
+        >
+            <div className="splash-content">
+                <div className="logo-container">
+                    <img src="/cimco-logo-official.png" alt="Cimco Resources" className="splash-logo" />
+                    {!readyToEnter && <div className="gear-spinner"></div>}
+                </div>
+                <h1 className="splash-title">Equipment Tracker</h1>
+                <p className="splash-subtitle">Cimco Resources System</p>
 
-            <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: scale(0.9); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        @keyframes fadeOut {
-          from { opacity: 1; }
-          to { opacity: 0; pointer-events: none; }
-        }
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+                <div className="loading-message-container">
+                    {!readyToEnter ? (
+                        <p className="loading-message">{loadingMessages[messageIndex]}</p>
+                    ) : (
+                        <div className="enter-button-container">
+                            <button className="enter-button">
+                                Tap to Enter System
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="splash-footer">
+                    <p>v1.0.4 • Enterprise Edition</p>
+                </div>
+            </div>
         </div>
     )
 }

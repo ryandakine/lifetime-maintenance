@@ -95,7 +95,7 @@ function App() {
           )}
           <h1 className="app-title">
             <img
-              src="/cimco-logo.png"
+              src="/cimco-logo-official.png"
               alt="Cimco Resources"
               className="header-logo"
             />
@@ -269,6 +269,24 @@ function App() {
           }}>
           <span style={{ width: '8px', height: '8px', background: '#27ae60', borderRadius: '50%', display: 'inline-block' }}></span>
           System Healthy • v1.0.4 • Mesh Active
+        </div>
+        <div style={{ marginTop: '15px' }}>
+          <a
+            href="mailto:ryan@cimcoresources.com?subject=App Issue Report&body=Please describe the issue:"
+            style={{
+              color: '#64748b',
+              fontSize: '12px',
+              textDecoration: 'none',
+              border: '1px solid #e2e8f0',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            🐛 Report Issue
+          </a>
         </div>
       </footer>
     </div>

@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  base: '/lifetime-maintenance/', // Base path for GitHub Pages
+  // base: '/lifetime-maintenance/', // Commented out for local demo to have clean URL
   plugins: [react()],
   server: {
     host: true,
