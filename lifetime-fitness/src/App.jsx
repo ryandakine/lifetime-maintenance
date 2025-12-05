@@ -30,33 +30,33 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const { theme, toggleTheme } = useTheme()
   const { isOnline, connectionQuality } = useOnlineStatus()
-  
+
   // Memoized keyboard shortcuts to prevent unnecessary re-renders
   const keyboardCallbacks = useMemo(() => ({
     onTabChange: setActiveTab,
     onThemeToggle: toggleTheme
   }), [toggleTheme])
-  
+
   useKeyboardShortcuts(keyboardCallbacks)
 
   // Memoize tabs to prevent recreation on every render
   const tabs = useMemo(() => [
-    { id: 'demo', label: 'Demo', icon: '🎯' },
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'personal-dashboard', label: 'Your Dashboard', icon: '👤' },
+    { id: 'dashboard', label: 'Executive Dashboard', icon: '📊' },
     { id: 'tasks', label: 'Tasks', icon: '📋' },
-    { id: 'tasks-pro', label: 'Tasks Pro', icon: '🔥' },
-    { id: 'shopping', label: 'Shopping', icon: '🛒' },
     { id: 'maintenance', label: 'Maintenance', icon: '🔧' },
+    { id: 'shopping', label: 'Shopping', icon: '🛒' },
     { id: 'visual-maintenance', label: 'Visual AI', icon: '📸' },
-    { id: 'photos', label: 'Photos', icon: '📷' },
-    { id: 'voice', label: 'Voice', icon: '🎤' },
-    { id: 'collaboration', label: 'Collaboration', icon: '🤝' },
-    { id: 'advanced-analytics', label: 'Advanced Analytics', icon: '📈' },
-    { id: 'integrations', label: 'Integrations', icon: '🔗' },
-    { id: 'mobile-app', label: 'Mobile App', icon: '📱' },
-    { id: 'ai-training', label: 'AI Training', icon: '🤖' },
-    { id: 'gym-buddy-finder', label: 'Gym Buddy Finder', icon: '🏋️' }
+    { id: 'voice', label: 'Voice Assistant', icon: '🎤' },
+    { id: 'integrations', label: 'Service Channel', icon: '🔗' },
+    { id: 'advanced-analytics', label: 'Analytics', icon: '📈' },
+    // { id: 'demo', label: 'Demo', icon: '🎯' },
+    // { id: 'personal-dashboard', label: 'Your Dashboard', icon: '👤' },
+    // { id: 'tasks-pro', label: 'Tasks Pro', icon: '🔥' },
+    // { id: 'photos', label: 'Photos', icon: '📷' },
+    // { id: 'collaboration', label: 'Collaboration', icon: '🤝' },
+    // { id: 'mobile-app', label: 'Mobile App', icon: '📱' },
+    // { id: 'ai-training', label: 'AI Training', icon: '🤖' },
+    // { id: 'gym-buddy-finder', label: 'Gym Buddy Finder', icon: '🏋️' }
   ], [])
 
   // Memoized render function with Suspense for lazy loading
@@ -118,14 +118,14 @@ function App() {
     <ErrorBoundary>
       <div className={`app ${theme}`}>
         {/* <Toast /> */}
-        
+
         {/* Header */}
         <header className="app-header">
           <div className="header-content">
             <h1 className="app-title">
               🏋️ Lifetime Fitness Maintenance
             </h1>
-            
+
             <div className="header-controls">
               {/* Connection Status */}
               <div className={`connection-status ${isOnline ? 'online' : 'offline'}`}>
@@ -136,25 +136,6 @@ function App() {
                   {isOnline ? connectionQuality : 'Offline'}
                 </span>
               </div>
-
-              {/* Gym Buddy Finder Quick Access */}
-              <button 
-                className="theme-toggle"
-                onClick={() => setActiveTab('gym-buddy-finder')}
-                style={{ 
-                  background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
-                  color: 'white',
-                  border: 'none',
-                  padding: '0.5rem 1rem',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: '600',
-                  marginLeft: '1rem'
-                }}
-              >
-                🏋️ Gym Buddy Demo
-              </button>
 
               {/* Theme Toggle */}
               <button className="theme-toggle" onClick={toggleTheme}>
@@ -186,7 +167,7 @@ function App() {
         {/* Main Content */}
         <main className="main-content">
           {/* <LoadingStates> */}
-            {renderTabContent()}
+          {renderTabContent()}
           {/* </LoadingStates> */}
         </main>
 
@@ -197,9 +178,9 @@ function App() {
               Lifetime Fitness Maintenance - Powered by Workflows & Kendo UI
             </p>
             <div className="footer-links">
-              <span className="footer-link">Version 2.0.0</span>
+              <span className="footer-link">Version 2.1.0 (Executive Demo)</span>
               <span className="footer-link">•</span>
-              <span className="footer-link">Kendo UI Enhanced</span>
+              <span className="footer-link">Service Channel Ready</span>
             </div>
           </div>
         </footer>
@@ -211,4 +192,4 @@ function App() {
   )
 }
 
-export default App 
+export default App

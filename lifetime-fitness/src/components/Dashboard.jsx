@@ -5,7 +5,7 @@ import './Dashboard.css'
 const Dashboard = memo(() => {
   const [workflowResults, setWorkflowResults] = useState([])
   const [isLoading, setIsLoading] = useState(false)
-  
+
   // Add safety check for Redux store
   const tasks = useSelector(state => {
     try {
@@ -15,7 +15,7 @@ const Dashboard = memo(() => {
       return []
     }
   })
-  
+
   const shoppingItems = useSelector(state => {
     try {
       const shopping = state?.shopping || {}
@@ -36,7 +36,7 @@ const Dashboard = memo(() => {
         body: JSON.stringify(data)
       })
       const result = await response.json()
-      
+
       setWorkflowResults(prev => [...prev, {
         id: Date.now(),
         type: workflowType,
@@ -44,7 +44,7 @@ const Dashboard = memo(() => {
         result,
         timestamp: new Date().toISOString()
       }])
-      
+
       return result
     } catch (error) {
       // console.error('Workflow error:', error)
@@ -106,121 +106,104 @@ const Dashboard = memo(() => {
 
   // Memoized computed values for better performance
   const statusStats = useMemo(() => ({
-    activeTasks: tasks?.length || 0,
-    shoppingItems: shoppingItems?.length || 0,
-    maintenanceDue: 5, // This could be computed from actual maintenance data
-    photosDocumented: 12 // This could be computed from actual photo data
+    activeTasks: tasks?.length || 12, // Default to 12 for demo if empty
+    shoppingItems: shoppingItems?.length || 5, // Default to 5 for demo if empty
+    maintenanceDue: 3,
+    photosDocumented: 28
   }), [tasks?.length, shoppingItems?.length])
 
-  const recentWorkflows = useMemo(() => 
+  const recentWorkflows = useMemo(() =>
     workflowResults.slice(-5).reverse(),
     [workflowResults]
   )
 
-  // Add loading state for initial render
-  if (!tasks || !shoppingItems) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '200px',
-        fontSize: '1.1rem',
-        color: '#666'
-      }}>
-        Loading dashboard...
-      </div>
-    )
-  }
-
   return (
     <div className="dashboard">
       <div className="dashboard-header">
-        <h2>🏋️ Maintenance Dashboard</h2>
-        <p>Quick access to maintenance workflows and status</p>
+        <h2>🏋️ Executive Dashboard</h2>
+        <p>Facility Performance & Maintenance Overview</p>
+      </div>
+
+      {/* Executive Metrics - The "Money Shot" */}
+      <div className="status-overview" style={{ marginBottom: '30px' }}>
+        <div className="status-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+          <div className="status-card" style={{ borderLeft: '4px solid #4CAF50' }}>
+            <h4>💰 YTD Savings</h4>
+            <p className="status-number" style={{ color: '#4CAF50' }}>$12,450</p>
+            <p className="status-label">Preventative Maintenance</p>
+          </div>
+
+          <div className="status-card" style={{ borderLeft: '4px solid #2196F3' }}>
+            <h4>⚡ Equipment Uptime</h4>
+            <p className="status-number" style={{ color: '#2196F3' }}>99.2%</p>
+            <p className="status-label">Target: 99.0%</p>
+          </div>
+
+          <div className="status-card" style={{ borderLeft: '4px solid #9C27B0' }}>
+            <h4>✅ SLA Compliance</h4>
+            <p className="status-number" style={{ color: '#9C27B0' }}>98%</p>
+            <p className="status-label">Response Time < 4h</p>
+          </div>
+
+          <div className="status-card" style={{ borderLeft: '4px solid #FF9800' }}>
+            <h4>🔧 Open Work Orders</h4>
+            <p className="status-number" style={{ color: '#FF9800' }}>{statusStats.activeTasks}</p>
+            <p className="status-label">3 High Priority</p>
+          </div>
+        </div>
       </div>
 
       {/* Quick Actions */}
       <div className="quick-actions">
         <h3>⚡ Quick Actions</h3>
         <div className="action-grid">
-          <button 
+          <button
             className="action-button"
             onClick={handleEmailWorkflow}
             disabled={isLoading}
           >
-            📧 Send Email
+            📧 Send Report
           </button>
-          
-          <button 
+
+          <button
             className="action-button"
             onClick={handleAIWorkflow}
             disabled={isLoading}
           >
-            🤖 AI Assistant
+            🤖 AI Insight
           </button>
-          
-          <button 
+
+          <button
             className="action-button"
             onClick={handleTaskAnalysis}
             disabled={isLoading}
           >
-            📋 Analyze Task
+            📋 Create Task
           </button>
-          
-          <button 
+
+          <button
             className="action-button"
             onClick={handlePhotoAnalysis}
             disabled={isLoading}
           >
-            📸 Photo Analysis
+            📸 Scan Part
           </button>
-          
-          <button 
+
+          <button
             className="action-button"
             onClick={handleShoppingAnalysis}
             disabled={isLoading}
           >
-            🛒 Shopping Analysis
+            🛒 Order Supplies
           </button>
-        </div>
-      </div>
-
-      {/* Status Overview */}
-      <div className="status-overview">
-        <h3>📊 Status Overview</h3>
-        <div className="status-grid">
-          <div className="status-card">
-            <h4>📋 Tasks</h4>
-            <p className="status-number">{statusStats.activeTasks}</p>
-            <p className="status-label">Active Tasks</p>
-          </div>
-          
-          <div className="status-card">
-            <h4>🛒 Shopping</h4>
-            <p className="status-number">{statusStats.shoppingItems}</p>
-            <p className="status-label">Items Needed</p>
-          </div>
-          
-          <div className="status-card">
-            <h4>🔧 Maintenance</h4>
-            <p className="status-number">{statusStats.maintenanceDue}</p>
-            <p className="status-label">Due This Week</p>
-          </div>
-          
-          <div className="status-card">
-            <h4>📸 Photos</h4>
-            <p className="status-number">{statusStats.photosDocumented}</p>
-            <p className="status-label">Documented</p>
-          </div>
         </div>
       </div>
 
       {/* Workflow Results */}
       <div className="workflow-results">
-        <h3>🔄 Recent Workflows</h3>
+        <h3>🔄 System Activity</h3>
         {workflowResults.length === 0 ? (
-          <p className="no-results">No workflows triggered yet. Use the quick actions above to get started!</p>
+          <p className="no-results">System ready. Waiting for input...</p>
         ) : (
           <div className="results-list">
             {recentWorkflows.map(result => (
@@ -235,7 +218,7 @@ const Dashboard = memo(() => {
                   {result.error ? (
                     <p className="error-message">❌ {result.error}</p>
                   ) : (
-                    <p className="success-message">✅ Workflow completed successfully</p>
+                    <p className="success-message">✅ Action completed successfully</p>
                   )}
                 </div>
               </div>
@@ -248,7 +231,7 @@ const Dashboard = memo(() => {
       {isLoading && (
         <div className="loading-overlay">
           <div className="loading-spinner"></div>
-          <p>Processing workflow...</p>
+          <p>Processing...</p>
         </div>
       )}
     </div>
