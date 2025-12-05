@@ -52,6 +52,19 @@ export default function UserProfile({ userId = 'demo_user' }) {
                         <div style={{ fontSize: '16px', opacity: 0.9 }}>
                             Level {profile.level} • {profile.location_id.charAt(0).toUpperCase() + profile.location_id.slice(1)}
                         </div>
+                        {/* Demo Context Explanation */}
+                        <div style={{
+                            marginTop: '12px',
+                            fontSize: '13px',
+                            background: 'rgba(255,255,255,0.15)',
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            borderLeft: '3px solid #8cc63f'
+                        }}>
+                            <strong>Why is this here?</strong> This profile tracks your maintenance history.
+                            Every log, scan, and photo earns points. This builds accountability and
+                            creates a "resume" of your work at Cimco.
+                        </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{profile.points}</div>

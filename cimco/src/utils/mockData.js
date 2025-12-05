@@ -27,9 +27,9 @@ export const MOCK_EQUIPMENT = [
         serial_number: 'SN-2023-002',
         qr_code: 'QR-CRN-001',
         location: 'Building A',
-        status: 'active',
-        notes: '5-ton capacity.',
-        health_score: 98
+        status: 'active', // Running but dangerous
+        notes: '⚠️ CRITICAL: Hoist motor vibration excessive. Bearing failure imminent. Replace immediately.',
+        health_score: 16 // Critical Low (Red)
     },
     {
         equipment_id: 'e3',
@@ -40,9 +40,9 @@ export const MOCK_EQUIPMENT = [
         serial_number: 'SN-2023-004',
         qr_code: 'QR-BAL-001',
         location: 'Main Yard',
-        status: 'maintenance',
+        status: 'maintenance', // Maintenance (Yellow)
         notes: 'Hydraulic leak reported.',
-        health_score: 65
+        health_score: 65 // Warning health
     },
     {
         equipment_id: 'e4',
@@ -66,9 +66,9 @@ export const MOCK_EQUIPMENT = [
         serial_number: 'SN-2023-003',
         qr_code: 'QR-CNV-001',
         location: 'Processing Area',
-        status: 'active',
-        notes: 'Belt tension check required.',
-        health_score: 95
+        status: 'down', // The only one actually DOWN
+        notes: 'Belt snapped during shift.',
+        health_score: 0
     }
 ]
 

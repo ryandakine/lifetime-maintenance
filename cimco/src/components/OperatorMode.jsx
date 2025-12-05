@@ -81,35 +81,58 @@ export default function OperatorMode() {
             </div>
 
             {!isOnShift && (
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <input
-                        type="text"
-                        value={operatorName}
-                        onChange={(e) => setOperatorName(e.target.value)}
-                        placeholder={getBilingualText('workerName', language)}
-                        style={{
-                            flex: 1,
-                            padding: '10px',
-                            border: '1px solid #ddd',
-                            borderRadius: '6px',
-                            fontSize: '14px'
-                        }}
-                    />
-                    <button
-                        onClick={handleCheckIn}
-                        style={{
-                            padding: '10px 20px',
-                            background: '#27ae60',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            fontWeight: 'bold',
-                            fontSize: '14px'
-                        }}
-                    >
-                        {getBilingualText('checkIn', language)}
-                    </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <div style={{ flex: 1, position: 'relative' }}>
+                            {/* Hint for Dad */}
+                            <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>Select a name to start shift:</div>
+                            <select
+                                value={operatorName}
+                                onChange={(e) => setOperatorName(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '10px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '6px',
+                                    fontSize: '14px',
+                                    backgroundColor: 'white',
+                                    cursor: 'pointer',
+                                    appearance: 'none', // Remove default arrow
+                                    backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
+                                    backgroundRepeat: 'no-repeat',
+                                    backgroundPosition: 'right .7em top 50%',
+                                    backgroundSize: '.65em auto',
+                                    paddingRight: '1.5em'
+                                }}
+                            >
+                                <option value="" disabled>Select Operator...</option>
+                                <option value="Ryan Dakin">Ryan Dakin</option>
+                                <option value="Mike Johnson">Mike Johnson</option>
+                                <option value="Sarah Connor">Sarah Connor</option>
+                                <option value="John Smith">John Smith</option>
+                                <option value="David Miller">David Miller</option>
+                            </select>
+                        </div>
+                        <button
+                            onClick={handleCheckIn}
+                            style={{
+                                padding: '10px 20px',
+                                background: '#27ae60',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                fontSize: '14px'
+                            }}
+                        >
+                            {getBilingualText('checkIn', language)}
+                        </button>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>
+                        Recent: <span style={{ color: '#2980b9', cursor: 'pointer' }} onClick={() => setOperatorName('Ryan Dakin')}>Ryan</span>,{' '}
+                        <span style={{ color: '#2980b9', cursor: 'pointer' }} onClick={() => setOperatorName('Mike Johnson')}>Mike</span>
+                    </div>
                 </div>
             )}
 

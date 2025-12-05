@@ -127,6 +127,24 @@ export default function EquipmentList({ onSelectEquipment }) {
                 >
                   {item.status}
                 </div>
+                {/* AI Health Badge for List View */}
+                <div
+                  className="card-status"
+                  style={{
+                    backgroundColor: (() => {
+                      // Simulated logic for list view (randomized for demo variety if not in data)
+                      // In real app, this would come from item.health_score
+                      const health = item.health_score || (item.status === 'active' ? 92 : item.status === 'maintenance' ? 65 : 45);
+                      if (health >= 80) return '#8cc63f'; // Green
+                      if (health >= 50) return '#f59e0b'; // Yellow
+                      return '#ef4444'; // Red
+                    })(),
+                    marginLeft: '6px',
+                    color: '#fff'
+                  }}
+                >
+                  🤖 {item.health_score || (item.status === 'active' ? '92%' : item.status === 'maintenance' ? '65%' : '45%')}
+                </div>
               </div>
             </div>
           ))}

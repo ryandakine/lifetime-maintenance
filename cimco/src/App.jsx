@@ -12,6 +12,7 @@ import UserProfile from './components/gamification/UserProfile'
 import Leaderboard from './components/gamification/Leaderboard'
 import LanguageSelector from './components/LanguageSelector'
 import OperatorMode from './components/OperatorMode'
+import AboutCimco from './components/AboutCimco'
 import { LanguageProvider, useLanguage } from './context/LanguageContext'
 import { getBilingualText } from './utils/translations'
 import { useWakeLock } from './hooks/useWakeLock'
@@ -93,7 +94,7 @@ function App() {
               ← Back
             </button>
           )}
-          <h1 className="app-title">
+          <h1 className="app-title" onClick={() => setCurrentView('about')} style={{ cursor: 'pointer' }}>
             <img
               src="/cimco-logo-official.png"
               alt="Cimco Resources"
@@ -208,6 +209,8 @@ function App() {
         {currentView === 'profile' && <UserProfile />}
 
         {currentView === 'leaderboard' && <Leaderboard />}
+
+        {currentView === 'about' && <AboutCimco onBack={handleBack} />}
       </main>
 
       {/* QR Scanner Modal */}

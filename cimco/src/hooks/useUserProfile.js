@@ -13,6 +13,12 @@ export function useUserProfile(userId = 'demo_user') {
     const fetchProfile = async () => {
         try {
             setLoading(true)
+
+            // Check for forced demo mode
+            if (localStorage.getItem('force_demo_mode') === 'true') {
+                throw new Error('Demo Mode Forced')
+            }
+
             const { data, error: fetchError } = await supabase
                 .from('user_profiles')
                 .select('*')
@@ -23,7 +29,22 @@ export function useUserProfile(userId = 'demo_user') {
             setProfile(data)
         } catch (err) {
             console.error('Error fetching profile:', err)
-            setError(err.message)
+            // Fallback Mock Profile for Demo
+            setProfile({
+                user_id: 'demo_123',
+                username: 'demo_user',
+                display_name: 'Ryan Dakin',
+                level: 3,
+                points: 450,
+                location_id: 'sterling',
+                current_streak: 5,
+                longest_streak: 12,
+                total_logs: 24,
+                total_scans: 45,
+                total_photos: 18,
+                total_voice_entries: 12,
+                last_activity_date: new Date().toISOString().split('T')[0]
+            })
         } finally {
             setLoading(false)
         }

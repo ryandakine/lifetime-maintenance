@@ -65,11 +65,18 @@ export default function EquipmentDetail({ equipment, onLogMaintenance }) {
         <div
           className="status-badge ai-badge"
           style={{
-            backgroundColor: '#8e44ad',
+            backgroundColor: (() => {
+              // Logic: >80% Green, 50-80% Yellow, <50% Red
+              const health = 92; // This would be dynamic in real app
+              if (health >= 80) return '#8cc63f'; // Cimco Green
+              if (health >= 50) return '#f59e0b'; // Warning Yellow
+              return '#ef4444'; // Danger Red
+            })(),
             marginLeft: '8px',
             display: 'flex',
             alignItems: 'center',
-            gap: '4px'
+            gap: '4px',
+            color: '#fff' // Ensure text is readable
           }}
         >
           <span>🤖</span>

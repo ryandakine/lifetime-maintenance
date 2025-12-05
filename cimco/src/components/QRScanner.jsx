@@ -49,6 +49,29 @@ export default function QRScanner({ onScan, onClose }) {
 
   const onScanSuccess = async (decodedText) => {
     console.log('QR Code scanned:', decodedText)
+
+    try {
+      // Try parsing as JSON first (New format)
+      const data = JSON.parse(decodedText)
+      if (data.id && data.name) {
+        await stopScanner()
+        // Map JSON data to expected equipment format
+        onScan({
+          equipment_id: data.id, // Use QR ID as equipment ID for demo
+          equipment_name: data.name,
+          equipment_type: data.type,
+          qr_code_id: data.id,
+          status: 'active',
+          location_zone: 'Sterling Yard',
+          health_score: 92 // Default high health for demo
+        })
+        return
+      }
+    } catch (e) {
+      // Not JSON, treat as plain text ID (Old format)
+      console.log('Not JSON, fetching from DB...')
+    }
+
     await fetchEquipmentData(decodedText)
   }
 
@@ -58,6 +81,23 @@ export default function QRScanner({ onScan, onClose }) {
 
   const fetchEquipmentData = async (qrCode) => {
     try {
+      // Check for forced demo mode or fallback
+      if (localStorage.getItem('force_demo_mode') === 'true') {
+        // Simulate DB fetch for manual entry in demo mode
+        const mockData = {
+          equipment_id: qrCode,
+          equipment_name: qrCode === 'CIMCO001' ? 'Industrial Shredder' : 'Demo Equipment',
+          equipment_type: 'Generic',
+          qr_code_id: qrCode,
+          status: 'active',
+          location_zone: 'Sterling Yard',
+          health_score: 88
+        }
+        await stopScanner()
+        onScan(mockData)
+        return
+      }
+
       const { data, error } = await supabase
         .from('equipment')
         .select('*')
@@ -86,7 +126,9 @@ export default function QRScanner({ onScan, onClose }) {
   const handleManualSubmit = (e) => {
     e.preventDefault()
     if (manualCode.trim()) {
-      fetchEquipmentData(manualCode.trim().toUpperCase())
+      // Handle manual entry (treat as ID)
+      const code = manualCode.trim().toUpperCase()
+      fetchEquipmentData(code)
     }
   }
 
@@ -103,7 +145,10 @@ export default function QRScanner({ onScan, onClose }) {
       )}
 
       <div className="manual-entry">
-        <p>Or enter QR code manually:</p>
+        <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>Can't scan? Enter ID manually:</p>
+        <p style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
+          Try entering <strong>CIMCO001</strong> to see the Shredder.
+        </p>
         <form onSubmit={handleManualSubmit}>
           <input
             type="text"

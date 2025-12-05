@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -132,6 +133,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="print-header">
     <h1>🏭 Cimco Resources Equipment QR Codes</h1>
@@ -140,7 +142,8 @@
 
   <div class="no-print">
     <button class="print-button" onclick="window.print()">🖨️ Print QR Codes</button>
-    <button class="print-button" onclick="generateAllQRCodes()" style="background: #10b981;">🔄 Regenerate Codes</button>
+    <button class="print-button" onclick="generateAllQRCodes()" style="background: #10b981;">🔄 Regenerate
+      Codes</button>
   </div>
 
   <div class="qr-grid">
@@ -213,12 +216,12 @@
   <script>
     function generateAllQRCodes() {
       const codes = [
-        { id: 'qr1', text: 'CIMCO001' },
-        { id: 'qr2', text: 'CIMCO002' },
-        { id: 'qr3', text: 'CIMCO003' },
-        { id: 'qr4', text: 'CIMCO004' },
-        { id: 'qr5', text: 'CIMCO005' },
-        { id: 'qr6', text: 'CIMCO006' }
+        { id: 'qr1', text: JSON.stringify({ id: 'CIMCO001', name: 'Industrial Shredder', type: 'Shredder' }) },
+        { id: 'qr2', text: JSON.stringify({ id: 'CIMCO002', name: 'Crane #2', type: 'Crane' }) },
+        { id: 'qr3', text: JSON.stringify({ id: 'CIMCO003', name: 'Conveyor Belt A', type: 'Conveyor' }) },
+        { id: 'qr4', text: JSON.stringify({ id: 'CIMCO004', name: 'Baler', type: 'Baler' }) },
+        { id: 'qr5', text: JSON.stringify({ id: 'CIMCO005', name: 'Forklift #4', type: 'Forklift' }) },
+        { id: 'qr6', text: JSON.stringify({ id: 'CIMCO006', name: 'Spare Equipment', type: 'Generic' }) }
       ];
 
       codes.forEach(code => {
@@ -239,4 +242,5 @@
     window.onload = generateAllQRCodes;
   </script>
 </body>
+
 </html>
