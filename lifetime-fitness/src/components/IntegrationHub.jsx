@@ -158,17 +158,6 @@ const IntegrationHub = () => {
         </form>
       </div>
 
-      {/* Other Integrations Footer */}
-      <div style={{ textAlign: 'center', opacity: 0.7 }}>
-        <h3 style={{ color: '#666', marginBottom: '20px' }}>Other Available Connectors</h3>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
-          <span style={{ padding: '8px 16px', background: '#eee', borderRadius: '20px', color: '#555' }}>Life Fitness</span>
-          <span style={{ padding: '8px 16px', background: '#eee', borderRadius: '20px', color: '#555' }}>Precor</span>
-          <span style={{ padding: '8px 16px', background: '#eee', borderRadius: '20px', color: '#555' }}>Matrix</span>
-          <span style={{ padding: '8px 16px', background: '#eee', borderRadius: '20px', color: '#555' }}>Technogym</span>
-        </div>
-      </div>
-
     </div>
   )
 }
