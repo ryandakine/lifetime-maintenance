@@ -7,9 +7,21 @@ export default function QRScanner({ onScan, onClose }) {
   const [scanning, setScanning] = useState(false)
   const [error, setError] = useState(null)
   const [manualCode, setManualCode] = useState('')
+  const [connectedCameras, setConnectedCameras] = useState([])
 
   useEffect(() => {
     startScanner()
+
+    // 🦀 Rust Camera Detection
+    if (window.__TAURI__) {
+      window.__TAURI__.invoke('get_connected_cameras')
+        .then(cameras => {
+          console.log('Rust found cameras:', cameras)
+          setConnectedCameras(cameras)
+        })
+        .catch(err => console.error('Rust camera error:', err))
+    }
+
     return () => {
       stopScanner()
     }
@@ -167,6 +179,22 @@ export default function QRScanner({ onScan, onClose }) {
         <p>📱 Point your camera at the QR code on the equipment</p>
         <p>💡 Make sure the QR code is well-lit and in focus</p>
       </div>
+
+      {connectedCameras.length > 0 && (
+        <div style={{ marginTop: '20px', padding: '10px', background: '#1a1a1a', borderRadius: '8px', border: '1px solid #333' }}>
+          <h4 style={{ margin: '0 0 10px 0', color: '#00fff2', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>🦀</span> Native Cameras Found
+          </h4>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '0.9em', color: '#aaa' }}>
+            {connectedCameras.map((cam, idx) => (
+              <li key={idx} style={{ padding: '4px 0', borderBottom: '1px solid #333' }}>
+                <strong>{cam.name}</strong> <br />
+                <span style={{ fontSize: '0.8em', color: '#666' }}>Index: {cam.index} • {cam.description}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
