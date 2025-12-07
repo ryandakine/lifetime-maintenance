@@ -5,6 +5,21 @@
 
 ---
 
+## 🎨 Design Philosophy: "Industrial Futurism"
+*The Aesthetic: Anchored in reality, ready to leave the planet.*
+
+- **Visual Style:** "Hard Sci-Fi" (Think SpaceX/Tesla, not Star Trek).
+    - Dark Mode default.
+    - High-contrast, glowing accents (Green/Amber/Red) for critical status.
+    - Crisp, monospaced typography for data.
+    - Zero clutter.
+- **Micro-Interactions:** 
+    - Smooth, physics-based animations (spinning loaders, sliding panels).
+    - Instant feedback (Rust/WASM speed).
+- **Core Principle:** The software must feel like the control panel of a spaceship, but applied to heavy machinery. Robust, precise, and inspiring.
+
+---
+
 ## ✅ Phase 1: The Digital Foundation (The "Trojan Horse")
 *Objective: Replace paper tickets with a system so good they can't live without it. Establish the Rust Beachhead.*
 
