@@ -1,7 +1,78 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 
+// Check if running in Tauri
+const isTauri = window.__TAURI__ !== undefined;
+const invoke = isTauri ? window.__TAURI__.invoke : null;
+
 export default function UsageAnalytics({ usageData }) {
+  // New state for Rust Data
+  const [rustStats, setRustStats] = useState(null);
+  const [offlineLogs, setOfflineLogs] = useState([]);
+  const [scaleData, setScaleData] = useState(null);
+
+  // Fetch data from Rust (if in desktop mode)
+  // Fetch data from Rust (if in desktop mode)
+  useEffect(() => {
+    let interval;
+
+    if (isTauri) {
+      // DESKTOP MODE (Rust Backend)
+      invoke('get_equipment_stats')
+        .then(stats => setRustStats(stats))
+        .catch(err => console.error("Rust error:", err));
+
+      invoke('get_offline_logs')
+        .then(logs => setOfflineLogs(logs))
+        .catch(err => console.error("DB error:", err));
+
+      interval = setInterval(() => {
+        invoke('read_scale_weight')
+          .then(data => setScaleData(data))
+          .catch(err => console.error("Scale error:", err));
+      }, 200);
+
+    } else {
+      // WEB/MOBILE DEMO MODE (JS Simulation)
+      console.log("Running in Web Demo Mode");
+
+      // Simulate Scale Movement
+      let currentWeight = 0;
+      let targetWeight = 45200; // Truck on scale
+
+      interval = setInterval(() => {
+        // Randomly change target to simulate trucks coming/going
+        if (Math.random() > 0.98) {
+          targetWeight = targetWeight === 0 ? 40000 + Math.random() * 10000 : 0;
+        }
+
+        // Move current towards target
+        if (currentWeight < targetWeight) currentWeight += 1500;
+        if (currentWeight > targetWeight) currentWeight -= 1500;
+
+        // Add Jitter
+        const jitter = Math.abs(currentWeight - targetWeight) < 100 ? 0 : (Math.random() * 40 - 20);
+        const displayWt = Math.max(0, Math.floor(currentWeight + jitter));
+
+        setScaleData({
+          weight: displayWt,
+          unit: 'lbs',
+          status: Math.abs(currentWeight - targetWeight) < 100 && targetWeight > 0 ? 'STABLE' : 'MOTION'
+        });
+
+        // Mock offline logs for web demo
+        if (offlineLogs.length === 0) {
+          setOfflineLogs([
+            { timestamp: '2023-10-27 10:30:00', equipment_id: 'EQ-101', action: 'Safety Check' },
+            { timestamp: '2023-10-27 14:15:00', equipment_id: 'EQ-205', action: 'Fuel Log' }
+          ]);
+        }
+      }, 200);
+    }
+
+    return () => clearInterval(interval);
+  }, []);
+
   if (!usageData || usageData.length === 0) {
     return (
       <div className="usage-analytics">
@@ -58,6 +129,52 @@ export default function UsageAnalytics({ usageData }) {
           <div className="stat-large">
             <div className="stat-large-value">{totals.totalHours.toFixed(1)}</div>
             <div className="stat-large-label">Total Hours</div>
+          </div>
+        </div>
+
+        {/* Scale Reader Component */}
+        <div style={{ marginTop: '20px', background: '#000', padding: '15px', borderRadius: '8px', border: '2px solid #333' }}>
+          <h5 style={{ color: '#fff', margin: '0 0 10px 0' }}>🚛 Live Weigh Scale</h5>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <div style={{
+              fontFamily: 'monospace',
+              fontSize: '32px',
+              color: scaleData?.status === 'STABLE' ? '#0f0' : '#888',
+              background: '#111',
+              padding: '10px 20px',
+              borderRadius: '4px',
+              border: '1px solid #333',
+              minWidth: '200px',
+              textAlign: 'right'
+            }}>
+              {scaleData?.weight?.toLocaleString() || '---'} <span style={{ fontSize: '16px' }}>lbs</span>
+              {!isTauri && <div style={{ fontSize: '10px', color: '#f00', marginTop: '4px' }}>DEBUG: TAURI NOT DETECTED</div>}
+            </div>
+            <div>
+              <div style={{
+                color: scaleData?.status === 'STABLE' ? '#0f0' : '#f00',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                textTransform: 'uppercase'
+              }}>
+                {scaleData?.status || 'OFFLINE'}
+              </div>
+              <button
+                disabled={scaleData?.status !== 'STABLE' || scaleData?.weight === 0}
+                style={{
+                  marginTop: '8px',
+                  padding: '8px 16px',
+                  background: scaleData?.status === 'STABLE' ? '#2196f3' : '#444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: scaleData?.status === 'STABLE' ? 'pointer' : 'not-allowed'
+                }}
+                onClick={() => alert(`Ticket Printed: ${scaleData.weight} lbs`)}
+              >
+                🖨️ Print Ticket
+              </button>
+            </div>
           </div>
         </div>
 

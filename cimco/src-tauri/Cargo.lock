@@ -381,6 +381,7 @@ name = "cimco-app"
 version = "0.1.0"
 dependencies = [
  "nokhwa",
+ "rand 0.8.5",
  "rusqlite",
  "serde",
  "serde_json",

@@ -120,13 +120,63 @@ fn get_offline_logs() -> Vec<OfflineLog> {
     logs
 }
 
+// Simulate a truck scale
+use std::sync::Mutex;
+use tauri::State;
+
+struct ScaleState(Mutex<ScaleData>);
+
+struct ScaleData {
+    current_weight: i32,
+    target_weight: i32,
+    is_stable: bool,
+}
+
+#[tauri::command]
+fn read_scale_weight(state: State<ScaleState>) -> serde_json::Value {
+    // This simulates a real hardware driver reading RS-232 bytes
+    let mut data = state.0.lock().unwrap();
+    
+    // Ramp weight towards target (simulating truck settling)
+    if data.current_weight < data.target_weight {
+        data.current_weight += 500; // Truck driving on
+    } else if data.current_weight > data.target_weight {
+        data.current_weight -= 500;
+    }
+    
+    // Jitter simulation (scales never sit perfectly still until stable)
+    let jitter = if data.current_weight == data.target_weight { 0 } else { rand::random::<i32>() % 40 - 20 };
+    let display_weight = data.current_weight + jitter;
+    
+    // Randomly change target to simulate trucks coming/going
+    if rand::random::<f32>() > 0.98 {
+        if data.target_weight == 0 {
+            data.target_weight = 45000 + (rand::random::<i32>() % 10000); // New truck
+        } else {
+            data.target_weight = 0; // Truck leaves
+        }
+    }
+
+    serde_json::json!({
+        "weight": display_weight,
+        "unit": "lbs",
+        "status": if (data.current_weight - data.target_weight).abs() < 100 { "STABLE" } else { "MOTION" }
+    })
+}
+
 fn main() {
     tauri::Builder::default()
+        .manage(ScaleState(Mutex::new(ScaleData { 
+            current_weight: 0, 
+            target_weight: 45200, // Start with a truck on scale
+            is_stable: false 
+        })))
         .invoke_handler(tauri::generate_handler![
             get_equipment_stats, 
             get_connected_cameras,
             save_offline_log,
-            get_offline_logs
+            get_offline_logs,
+            read_scale_weight
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
