@@ -1,4 +1,5 @@
 use leptos::*;
+use leptos_router::A;
 use crate::api::{get_tasks, add_task, toggle_task, delete_task, Task};
 
 #[component]
@@ -19,7 +20,7 @@ pub fn Tasks() -> impl IntoView {
     let categories = vec!["General", "HVAC", "Plumbing", "Electrical", "Safety", "Hydraulics"];
 
     // Handlers
-    let on_add = move |_| {
+    let on_add = move || {
         spawn_local(async move {
             if !input_val.get().is_empty() {
                 let _ = add_task(input_val.get(), priority_val.get(), category_val.get()).await;
@@ -45,8 +46,10 @@ pub fn Tasks() -> impl IntoView {
 
     // Quick Action Handler
     let on_quick_action = move |desc: &str, prio: i32, cat: &str| {
+        let desc = desc.to_string();
+        let cat = cat.to_string();
         spawn_local(async move {
-            let _ = add_task(desc.to_string(), prio, cat.to_string()).await;
+            let _ = add_task(desc, prio, cat).await;
             set_refresh.update(|n| *n += 1);
         });
     };
@@ -92,7 +95,7 @@ pub fn Tasks() -> impl IntoView {
                             class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg text-white focus:border-blue-500 focus:outline-none"
                             prop:value=input_val
                             on:input=move |ev| set_input_val.set(event_target_value(&ev))
-                            on:keydown=move |ev| if ev.key() == "Enter" { on_add(ev) }
+                            on:keydown=move |ev| if ev.key() == "Enter" { on_add() }
                             placeholder="Describe new task..."
                         />
                     </div>
@@ -120,7 +123,7 @@ pub fn Tasks() -> impl IntoView {
 
                     <button 
                         class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-bold transition flex items-center justify-center"
-                        on:click=on_add
+                        on:click=move |_| on_add()
                     >
                         "Add Task"
                     </button>

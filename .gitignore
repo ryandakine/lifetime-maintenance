@@ -69,3 +69,4 @@ src-tauri/target/
 cimco/dist/
 cimco/input/
 cimco/cimco_offline.db
+.cursor/
