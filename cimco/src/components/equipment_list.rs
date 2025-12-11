@@ -1,6 +1,6 @@
 use leptos::*;
 use leptos_router::A;
-use crate::api::{get_equipment_list, add_equipment, delete_equipment, update_status, Equipment};
+use crate::api::{get_equipment_list, add_equipment, delete_equipment, update_status};
 
 #[component]
 pub fn EquipmentList() -> impl IntoView {

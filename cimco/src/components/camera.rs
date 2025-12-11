@@ -1,5 +1,5 @@
 use leptos::*;
-use crate::api::{get_cameras, CameraInfo};
+use crate::api::get_cameras;
 
 #[component]
 pub fn Camera() -> impl IntoView {

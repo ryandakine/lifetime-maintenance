@@ -1,5 +1,5 @@
 use leptos::*;
-use crate::api::{get_logs, save_log, OfflineLog};
+use crate::api::{get_logs, save_log};
 
 #[component]
 pub fn Logs() -> impl IntoView {

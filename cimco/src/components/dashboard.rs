@@ -1,5 +1,5 @@
 use leptos::*;
-use crate::api::{get_stats, EquipmentStats};
+use crate::api::get_stats;
 
 #[component]
 pub fn Dashboard() -> impl IntoView {
