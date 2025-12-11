@@ -125,27 +125,27 @@ fn MainApp(user: User) -> impl IntoView {
                     <h1 class="text-2xl font-bold">"CIMCO Equipment Tracker"</h1>
                     <div class="flex items-center gap-2 mt-1">
                         <span class="text-gray-400">"Rust Edition 🦀"</span>
-                        <span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-700 text-slate-300 border border-slate-600">
+                        <span class="ml-2 px-2 py-0.5 rounded text-xs font-bold bg-slate-700 text-slate-300 border border-slate-600">
                             {format!("Logged in as: {}", user.name)}
                         </span>
                     </div>
                 </div>
                 <div class="flex gap-4">
-                    <A href="/tasks" class="text-base text-white bg-emerald-700 px-6 py-2 rounded-lg hover:bg-emerald-600 border border-emerald-600 font-bold shadow-md transition-transform hover:scale-105 flex items-center gap-2">
+                    <A href="/tasks" class="text-base !text-white bg-emerald-700 px-6 py-2 rounded-lg hover:bg-emerald-600 border border-emerald-600 font-bold shadow-md transition-transform hover:scale-105 flex items-center gap-2">
                         "📋 Tasks"
                     </A>
-                    <A href="/scale" class="text-base text-white bg-purple-700 px-6 py-2 rounded-lg hover:bg-purple-600 border border-purple-600 font-bold shadow-md transition-transform hover:scale-105 flex items-center gap-2">
+                    <A href="/scale" class="text-base !text-white bg-purple-700 px-6 py-2 rounded-lg hover:bg-purple-600 border border-purple-600 font-bold shadow-md transition-transform hover:scale-105 flex items-center gap-2">
                          "⚖️ Scale"
                     </A>
                     
                     // RBAC: Only Admin sees Equipment Management
                     <Show when=move || is_admin fallback=|| ()>
-                        <A href="/equipment" class="text-base text-white bg-blue-700 px-6 py-2 rounded-lg hover:bg-blue-600 border border-blue-600 font-bold shadow-md transition-transform hover:scale-105">
+                        <A href="/equipment" class="text-base !text-white bg-blue-700 px-6 py-2 rounded-lg hover:bg-blue-600 border border-blue-600 font-bold shadow-md transition-transform hover:scale-105">
                             "🏗️ Manage Equipment"
                         </A>
                     </Show>
 
-                    <A href="/showcase" class="text-base text-white bg-slate-700 px-6 py-2 rounded-lg hover:bg-slate-600 border border-slate-600 font-bold shadow-md transition-transform hover:scale-105">
+                    <A href="/showcase" class="text-base !text-white bg-slate-700 px-6 py-2 rounded-lg hover:bg-slate-600 border border-slate-600 font-bold shadow-md transition-transform hover:scale-105">
                         "🛠️ Showcase"
                     </A>
                 </div>
