@@ -6,12 +6,14 @@
     <title>Cimco Equipment Tracker</title>
     <!-- We'll add Tailwind later via a link or Trunk's asset pipeline -->
     <link rel="stylesheet" href="./style-e00ff1daac583151.css" integrity="sha384-FN/Pp92BgfP/Rb6KGwiRnLH96jgJvcW49GMmohNUU1mH8yNbaJyuUmtoeisIYF3P"/>
-  <link rel="modulepreload" href="./cimco-ui-c7f68e1dd9be3b02.js" crossorigin="anonymous" integrity="sha384-wpVcmoMAUTy/avHkavfx89tjLxtNnvPF8jrPf3nAttnmZMNCBUi4jVOMgOTozwja"><link rel="preload" href="./cimco-ui-c7f68e1dd9be3b02_bg.wasm" crossorigin="anonymous" integrity="sha384-1dRpCkf/gP3rvmNot+/xRnyp419kJmtYyDqCKimnf/8IH7Y4JkDPUH3LR5uessUc" as="fetch" type="application/wasm"></head>
+    <!-- Copy public assets -->
+    
+  <link rel="modulepreload" href="./cimco-ui-514d532cd279f81e.js" crossorigin="anonymous" integrity="sha384-L6GnP2Qq3xaOut6zwdOXdP0pnp+9AUZARcJmm2W542M2G3obWqvbPgQ+O7FsUYFu"><link rel="preload" href="./cimco-ui-514d532cd279f81e_bg.wasm" crossorigin="anonymous" integrity="sha384-ppv/IggdXv6Wu+i30ejfkOg9DIMz9ArisJ7s0MglHLSLrT6s2FZItqkD+R3+diyf" as="fetch" type="application/wasm"></head>
   <body>
   
 <script type="module">
-import init, * as bindings from './cimco-ui-c7f68e1dd9be3b02.js';
-const wasm = await init({ module_or_path: './cimco-ui-c7f68e1dd9be3b02_bg.wasm' });
+import init, * as bindings from './cimco-ui-514d532cd279f81e.js';
+const wasm = await init({ module_or_path: './cimco-ui-514d532cd279f81e_bg.wasm' });
 
 
 window.wasmBindings = bindings;

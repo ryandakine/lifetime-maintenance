@@ -17,7 +17,7 @@ pub fn Login(on_login: Action<User, ()>) -> impl IntoView {
     view! {
         <div class="min-h-screen flex items-center justify-center bg-slate-900">
             <div class="bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 w-full max-w-md flex flex-col items-center">
-                <img src="./cimco-logo-official.png" alt="CIMCO" class="w-48 h-auto mb-6 drop-shadow-lg" />
+                <img src="public/cimco-logo-official.png" alt="CIMCO" class="w-48 h-auto mb-6 drop-shadow-lg" />
                 <h1 class="text-3xl font-bold text-center mb-2 text-white">"Welcome Back"</h1>
                 <p class="text-slate-400 text-center mb-8">"CIMCO Equipment Tracker"</p>
 
