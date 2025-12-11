@@ -1,9 +1,10 @@
 use rusqlite::{params, Connection};
-use std::sync::Mutex;
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
 use serde::{Serialize, Deserialize};
 
 pub struct AppState {
-    pub db: Mutex<Connection>,
+    pub db: Pool<SqliteConnectionManager>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -70,7 +71,11 @@ pub fn init() -> Result<AppState, Box<dyn std::error::Error>> {
     }
 
     println!("Database: Opening {:?}", path);
-    let conn = Connection::open(&path)?;
+    // Connection Pool Setup
+    let manager = SqliteConnectionManager::file(&path);
+    let pool = Pool::new(manager)?;
+    
+    let conn = pool.get()?;
 
     // Enable foreign keys
     conn.execute("PRAGMA foreign_keys = ON;", [])?;
@@ -145,13 +150,13 @@ pub fn init() -> Result<AppState, Box<dyn std::error::Error>> {
     }
 
     Ok(AppState {
-        db: Mutex::new(conn),
+        db: pool,
     })
 }
 
 // Equipment CRUD
 pub fn get_stats(state: &AppState) -> Result<EquipmentStats, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     
     // Calculate stats using SQL aggregation
     let total: i32 = conn.query_row("SELECT COUNT(*) FROM equipment", [], |row| row.get(0)).unwrap_or(0);
@@ -170,7 +175,7 @@ pub fn get_stats(state: &AppState) -> Result<EquipmentStats, String> {
 }
 
 pub fn get_all_equipment(state: &AppState) -> Result<Vec<Equipment>, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     
     let mut stmt = conn.prepare("SELECT id, name, status, health_score FROM equipment ORDER BY id DESC")
         .map_err(|e| format!("Failed to prepare query: {}", e))?;
@@ -194,7 +199,7 @@ pub fn get_all_equipment(state: &AppState) -> Result<Vec<Equipment>, String> {
 }
 
 pub fn create_equipment(state: &AppState, name: String, status: String, health: f32) -> Result<String, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     conn.execute(
         "INSERT INTO equipment (name, status, health_score) VALUES (?1, ?2, ?3)",
         params![name, status, health],
@@ -203,7 +208,7 @@ pub fn create_equipment(state: &AppState, name: String, status: String, health: 
 }
 
 pub fn update_equipment_status(state: &AppState, id: i32, status: String) -> Result<String, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     conn.execute(
         "UPDATE equipment SET status = ?1 WHERE id = ?2",
         params![status, id],
@@ -212,7 +217,7 @@ pub fn update_equipment_status(state: &AppState, id: i32, status: String) -> Res
 }
 
 pub fn delete_equipment(state: &AppState, id: i32) -> Result<String, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     conn.execute(
         "DELETE FROM equipment WHERE id = ?1",
         params![id],
@@ -222,7 +227,7 @@ pub fn delete_equipment(state: &AppState, id: i32) -> Result<String, String> {
 
 // Task CRUD
 pub fn get_tasks(state: &AppState) -> Result<Vec<Task>, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     
     let mut stmt = conn.prepare("SELECT id, description, priority, category, status, created_at FROM tasks ORDER BY status ASC, priority DESC, created_at DESC")
         .map_err(|e| format!("Failed to prepare query: {}", e))?;
@@ -248,7 +253,7 @@ pub fn get_tasks(state: &AppState) -> Result<Vec<Task>, String> {
 }
 
 pub fn create_task(state: &AppState, description: String, priority: i32, category: String) -> Result<String, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     conn.execute(
         "INSERT INTO tasks (description, priority, category, status) VALUES (?1, ?2, ?3, 'pending')",
         params![description, priority, category],
@@ -257,7 +262,7 @@ pub fn create_task(state: &AppState, description: String, priority: i32, categor
 }
 
 pub fn toggle_task_status(state: &AppState, id: i32) -> Result<String, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     // First get current status
     let status: String = conn.query_row("SELECT status FROM tasks WHERE id = ?1", params![id], |row| row.get(0))
         .map_err(|e| format!("Task not found: {}", e))?;
@@ -272,7 +277,7 @@ pub fn toggle_task_status(state: &AppState, id: i32) -> Result<String, String> {
 }
 
 pub fn delete_task(state: &AppState, id: i32) -> Result<String, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     conn.execute(
         "DELETE FROM tasks WHERE id = ?1",
         params![id],
@@ -282,7 +287,7 @@ pub fn delete_task(state: &AppState, id: i32) -> Result<String, String> {
 
 // Log CRUD
 pub fn save_log(state: &AppState, equipment_id: String, action: String) -> Result<String, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     
     conn.execute(
         "INSERT INTO logs (equipment_id, action) VALUES (?1, ?2)",
@@ -293,7 +298,7 @@ pub fn save_log(state: &AppState, equipment_id: String, action: String) -> Resul
 }
 
 pub fn get_logs(state: &AppState) -> Result<Vec<OfflineLog>, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     
     let mut stmt = conn.prepare("SELECT id, equipment_id, action, timestamp FROM logs ORDER BY id DESC LIMIT 50")
         .map_err(|e| format!("Failed to prepare query: {}", e))?;
@@ -322,7 +327,7 @@ pub fn get_logs(state: &AppState) -> Result<Vec<OfflineLog>, String> {
 
 /// Save a resolution when a task is completed
 pub fn save_resolution(state: &AppState, description: String, category: String, solution: String) -> Result<String, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     conn.execute(
         "INSERT INTO task_resolutions (original_description, category, solution_steps) VALUES (?1, ?2, ?3)",
         params![description, category, solution],
@@ -332,7 +337,7 @@ pub fn save_resolution(state: &AppState, description: String, category: String, 
 
 /// Find similar past resolutions using keyword matching
 pub fn find_similar_resolutions(state: &AppState, query: String) -> Result<Vec<TaskResolution>, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     
     // Simple LIKE-based search (can be upgraded to FTS5 later)
     let search_term = format!("%{}%", query.to_lowercase());

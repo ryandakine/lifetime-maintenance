@@ -7,7 +7,7 @@ class SyncService {
     this.syncInterval = null;
     this.retryAttempts = 3;
     this.retryDelay = 5000; // 5 seconds
-    
+
     this.setupEventListeners();
   }
 
@@ -44,13 +44,13 @@ class SyncService {
     try {
       // Sync pending photos
       await this.syncPendingPhotos();
-      
+
       // Sync pending annotations
       await this.syncPendingAnnotations();
-      
+
       // Process sync queue
       await this.processSyncQueue();
-      
+
       console.log('✅ Sync completed successfully');
     } catch (error) {
       console.error('❌ Sync failed:', error);
@@ -72,7 +72,7 @@ class SyncService {
     if (this.retryAttempts > 0) {
       this.retryAttempts--;
       console.log(`🔄 Scheduling retry in ${this.retryDelay}ms (${this.retryAttempts} attempts remaining)`);
-      
+
       setTimeout(() => {
         if (this.isOnline) {
           this.startSync();
@@ -86,14 +86,15 @@ class SyncService {
 
   async syncPendingPhotos() {
     const pendingPhotos = await offlineStorage.getPendingPhotos();
-    
+
     for (const photo of pendingPhotos) {
       try {
         console.log(`📤 Syncing photo: ${photo.localId}`);
-        
+
         // Upload photo to server
         const formData = new FormData();
-        formData.append('photo', this.dataURLtoBlob(photo.image));
+        const blob = await (await fetch(photo.image)).blob();
+        formData.append('photo', blob);
         formData.append('metadata', JSON.stringify({
           timestamp: photo.timestamp,
           location: photo.location,
@@ -108,10 +109,10 @@ class SyncService {
 
         if (response.ok) {
           const result = await response.json();
-          
+
           // Mark photo as synced
           await offlineStorage.markPhotoSynced(photo.id);
-          
+
           // Add to sync queue for AI analysis
           await offlineStorage.addToSyncQueue({
             type: 'ai_analysis',
@@ -128,7 +129,7 @@ class SyncService {
         }
       } catch (error) {
         console.error(`❌ Failed to sync photo ${photo.localId}:`, error);
-        
+
         // Add to sync queue for retry
         await offlineStorage.addToSyncQueue({
           type: 'photo_upload',
@@ -144,11 +145,11 @@ class SyncService {
     // Get all annotations that haven't been synced
     const annotations = await offlineStorage.getAllAnnotations();
     const pendingAnnotations = annotations.filter(ann => !ann.synced);
-    
+
     for (const annotation of pendingAnnotations) {
       try {
         console.log(`📤 Syncing annotation: ${annotation.id}`);
-        
+
         const response = await fetch(`/api/photos/${annotation.photoId}/annotations`, {
           method: 'POST',
           headers: {
@@ -170,7 +171,7 @@ class SyncService {
         }
       } catch (error) {
         console.error(`❌ Failed to sync annotation ${annotation.id}:`, error);
-        
+
         // Add to sync queue for retry
         await offlineStorage.addToSyncQueue({
           type: 'annotation_upload',
@@ -184,11 +185,11 @@ class SyncService {
 
   async processSyncQueue() {
     const queueItems = await offlineStorage.getSyncQueue('pending');
-    
+
     for (const item of queueItems) {
       try {
         console.log(`🔄 Processing queue item: ${item.type}`);
-        
+
         switch (item.type) {
           case 'ai_analysis':
             await this.processAIAnalysis(item);
@@ -202,7 +203,7 @@ class SyncService {
           default:
             console.warn(`⚠️ Unknown queue item type: ${item.type}`);
         }
-        
+
         await offlineStorage.markQueueItemComplete(item.id);
       } catch (error) {
         console.error(`❌ Failed to process queue item ${item.id}:`, error);
@@ -233,7 +234,8 @@ class SyncService {
 
   async processPhotoUpload(queueItem) {
     const formData = new FormData();
-    formData.append('photo', this.dataURLtoBlob(queueItem.data.image));
+    const blob = await (await fetch(queueItem.data.image)).blob();
+    formData.append('photo', blob);
     formData.append('metadata', JSON.stringify(queueItem.data.metadata));
 
     const response = await fetch('/api/photos/upload', {
@@ -277,26 +279,14 @@ class SyncService {
     console.log(`✅ Annotation ${annotationId} marked as synced`);
   }
 
-  dataURLtoBlob(dataURL) {
-    const arr = dataURL.split(',');
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n);
-    }
-    
-    return new Blob([u8arr], { type: mime });
-  }
+
 
   // Manual sync trigger
   async manualSync() {
     if (!this.isOnline) {
       throw new Error('Cannot sync while offline');
     }
-    
+
     console.log('🔄 Manual sync triggered');
     await this.startSync();
   }
@@ -306,7 +296,7 @@ class SyncService {
     const pendingPhotos = await offlineStorage.getPendingPhotos();
     const queueItems = await offlineStorage.getSyncQueue('pending');
     const storageUsage = await offlineStorage.getStorageUsage();
-    
+
     return {
       isOnline: this.isOnline,
       syncInProgress: this.syncInProgress,
@@ -322,7 +312,7 @@ class SyncService {
     if (!this.isOnline) {
       throw new Error('Cannot sync while offline');
     }
-    
+
     console.log('🔄 Force syncing photos...');
     await this.syncPendingPhotos();
   }
@@ -331,7 +321,7 @@ class SyncService {
     if (!this.isOnline) {
       throw new Error('Cannot sync while offline');
     }
-    
+
     console.log('🔄 Force syncing annotations...');
     await this.syncPendingAnnotations();
   }
@@ -348,7 +338,7 @@ class SyncService {
     const status = await this.getSyncStatus();
     const pendingPhotos = await offlineStorage.getPendingPhotos();
     const queueItems = await offlineStorage.getSyncQueue();
-    
+
     return {
       status,
       pendingPhotos,

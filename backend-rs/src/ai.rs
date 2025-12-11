@@ -68,7 +68,11 @@ pub struct AnalysisResult {
 
 impl AIService {
     pub fn new() -> Self {
-        let api_key = env::var("PERPLEXITY_API_KEY").expect("PERPLEXITY_API_KEY must be set");
+        let api_key = env::var("PERPLEXITY_API_KEY").unwrap_or_else(|_| {
+            tracing::warn!("PERPLEXITY_API_KEY not set. AI features will be disabled.");
+            "DUMMY_KEY".to_string()
+        });
+        
         let client = Client::new();
         
         if api_key.starts_with("sk-") {
@@ -158,6 +162,10 @@ impl AIService {
     }
 
     async fn send_request(&self, payload: &CompletionRequest) -> Result<AnalysisResult, Box<dyn std::error::Error>> {
+        if self.api_key == "DUMMY_KEY" {
+            return Err("AI Service not configured. Please set PERPLEXITY_API_KEY.".into());
+        }
+
         let res = self.client.post(&self.base_url)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")

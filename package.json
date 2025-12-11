@@ -38,6 +38,7 @@
     "gh:create-pr": "gh pr create --title \"Feature: \" --body \"Implements new feature\"",
     "start:hybrid": "node start-hybrid-system.js",
     "backend": "node start-fastapi.js",
+    "backend:rs": "cd backend-rs && cargo run",
     "backend:simple": "cd backend && python start-simple.py",
     "start:dynamic": "node scripts/dynamic-start.js",
     "start:ports": "node scripts/port-finder.js",

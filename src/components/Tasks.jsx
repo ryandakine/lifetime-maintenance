@@ -32,7 +32,11 @@ import {
 
 const Tasks = forwardRef((props, ref) => {
   console.log('Rendering Tasks')
+  console.log('Rendering Tasks')
+  const PAGE_SIZE = 20
   const [tasks, setTasks] = useState([])
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
   const [isOnline, setIsOnline] = useState(navigator.onLine)
@@ -107,7 +111,7 @@ const Tasks = forwardRef((props, ref) => {
     }
   }, [])
 
-  const loadTasks = async () => {
+  const loadTasks = async (pageToLoad = 0) => {
     try {
       setLoading(true)
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -115,27 +119,50 @@ const Tasks = forwardRef((props, ref) => {
 
       if (supabaseUrl && supabaseUrl !== 'https://your-project.supabase.co' &&
         supabaseAnonKey && supabaseAnonKey !== 'your-anon-key') {
+
+        const from = pageToLoad * PAGE_SIZE
+        const to = from + PAGE_SIZE - 1
+
         const { data, error } = await supabase
           .from(TABLES.TASKS)
           .select('*')
           .eq('user_id', 'current-user')
           .order('priority', { ascending: true })
           .order('created_at', { ascending: true })
+          .range(from, to)
 
         if (error) throw error
-        setTasks(data || [])
+
+        if (data) {
+          if (pageToLoad === 0) {
+            setTasks(data)
+          } else {
+            setTasks(prev => [...prev, ...data])
+          }
+          setHasMore(data.length === PAGE_SIZE)
+        }
       } else {
         const localTasks = JSON.parse(localStorage.getItem('localTasks') || '[]')
         const sortedTasks = localTasks.sort((a, b) => {
           if (a.priority !== b.priority) return a.priority - b.priority
           return new Date(a.created_at) - new Date(b.created_at)
         })
-        setTasks(sortedTasks)
+        // Simulate pagination for local storage
+        const from = pageToLoad * PAGE_SIZE
+        const to = from + PAGE_SIZE
+        const slicedTasks = sortedTasks.slice(from, to)
+
+        if (pageToLoad === 0) {
+          setTasks(slicedTasks)
+        } else {
+          setTasks(prev => [...prev, ...slicedTasks])
+        }
+        setHasMore(slicedTasks.length === PAGE_SIZE)
       }
     } catch (error) {
       console.error('Error loading tasks:', error)
       showMessage('error', 'Failed to load tasks')
-      setTasks([])
+      if (pageToLoad === 0) setTasks([])
     } finally {
       setLoading(false)
     }
@@ -583,6 +610,31 @@ const Tasks = forwardRef((props, ref) => {
           ))
         )}
       </div>
+
+      {/* Load More Button */}
+      {hasMore && (
+        <div style={{ marginTop: '2rem', textAlign: 'center', marginBottom: '2rem' }}>
+          <button
+            onClick={() => {
+              const nextPage = page + 1
+              setPage(nextPage)
+              loadTasks(nextPage)
+            }}
+            disabled={loading}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: '#f3f4f6',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: '0.95rem',
+              color: '#374151'
+            }}
+          >
+            {loading ? 'Loading...' : 'Load More Tasks'}
+          </button>
+        </div>
+      )}
     </div>
   )
 })

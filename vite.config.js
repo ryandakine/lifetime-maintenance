@@ -44,6 +44,11 @@ export default defineConfig({
   server: {
     host: true,
     port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 5174,
+    proxy: {
+      '/equipment': 'http://localhost:3001',
+      '/analyze': 'http://localhost:3001',
+      '/api': 'http://localhost:3001',
+    }
   },
   build: {
     outDir: 'dist',
