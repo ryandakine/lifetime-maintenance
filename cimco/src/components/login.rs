@@ -18,7 +18,22 @@ pub fn Login(on_login: Action<User, ()>) -> impl IntoView {
         <div class="min-h-screen flex items-center justify-center bg-slate-900">
             <div class="bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 w-full max-w-md flex flex-col items-center">
                 <img src="public/cimco-logo-official.png" alt="CIMCO" class="w-48 h-auto mb-6 drop-shadow-lg" />
-                <h1 class="text-3xl font-bold text-center mb-2 text-white">"Welcome Back"</h1>
+                
+                // Dynamic Greeting
+                <h1 class="text-3xl font-bold text-center mb-2 text-white">
+                    {
+                        let hour = js_sys::Date::new_0().get_hours();
+                        match hour {
+                            5..=8 => "Rise and shine! ☀️",         // Early Morning
+                            9..=11 => "Good morning! ☕",          // Late Morning
+                            12..=13 => "Lunch time yet? 🥪",       // Lunch
+                            14..=16 => "Keep pushing! 🚀",          // Afternoon
+                            17..=19 => "Finishing strong! 💪",      // Early Evening
+                            20..=23 => "Burning the midnight oil? 🌙", // Late Night
+                            _ => "Working hard or hardly working? 😉" // Late late night (0-4)
+                        }
+                    }
+                </h1>
                 <p class="text-slate-400 text-center mb-8">"CIMCO Equipment Tracker"</p>
 
                 <div class="space-y-4">
