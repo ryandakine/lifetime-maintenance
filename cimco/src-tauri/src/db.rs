@@ -37,7 +37,29 @@ pub struct Task {
 }
 
 pub fn init() -> Result<AppState, Box<dyn std::error::Error>> {
-    let conn = Connection::open("cimco_offline.db")?;
+    let mut path = std::path::PathBuf::from("cimco_offline.db");
+    
+    // Dev mode fallback: if we can't find it here, check src-tauri (where it might be in git)
+    if !path.exists() {
+        let dev_path = std::path::Path::new("src-tauri/cimco_offline.db");
+        if dev_path.exists() {
+            println!("Database: Found database in src-tauri/");
+            path = dev_path.to_path_buf();
+        } else {
+            // Also check parent (if running from src-tauri/target/debug)
+            let parent_path = std::path::Path::new("../src-tauri/cimco_offline.db");
+            if parent_path.exists() {
+                 println!("Database: Found database in ../src-tauri/");
+                 path = parent_path.to_path_buf();
+            }
+        }
+    }
+
+    println!("Database: Opening {:?}", path);
+    let conn = Connection::open(&path)?;
+
+    // Enable foreign keys
+    conn.execute("PRAGMA foreign_keys = ON;", [])?;
     
     // Create logs table
     conn.execute(
