@@ -18,23 +18,11 @@
 .top-full {
   top: 100%;
 }
-.left-\[calc\(50\%\+50px\)\] {
-  left: calc(50% + 50px);
-}
-.left-\[calc\(50\%\+90px\)\] {
-  left: calc(50% + 90px);
-}
-.left-\[calc\(50\%-10px\)\] {
-  left: calc(50% - 10px);
-}
-.left-\[calc\(50\%-40px\)\] {
-  left: calc(50% - 40px);
-}
-.left-\[calc\(50\%-80px\)\] {
-  left: calc(50% - 80px);
-}
 .isolate {
   isolation: isolate;
+}
+.z-0 {
+  z-index: 0;
 }
 .z-10 {
   z-index: 10;
@@ -110,21 +98,6 @@
   --tw-scale-y: 100%;
   --tw-scale-z: 100%;
   scale: var(--tw-scale-x) var(--tw-scale-y);
-}
-.rotate-\[-5deg\] {
-  rotate: -5deg;
-}
-.rotate-\[-15deg\] {
-  rotate: -15deg;
-}
-.rotate-\[10deg\] {
-  rotate: 10deg;
-}
-.rotate-\[12deg\] {
-  rotate: 12deg;
-}
-.rotate-\[25deg\] {
-  rotate: 25deg;
 }
 .transform {
   transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
@@ -226,8 +199,11 @@
   --tw-border-style: dashed;
   border-style: dashed;
 }
-.border-t-transparent {
-  border-top-color: transparent;
+.border-r-transparent {
+  border-right-color: transparent;
+}
+.border-l-transparent {
+  border-left-color: transparent;
 }
 .bg-gradient-to-b {
   --tw-gradient-position: to bottom in oklab;
@@ -236,6 +212,15 @@
 .bg-gradient-to-r {
   --tw-gradient-position: to right in oklab;
   background-image: linear-gradient(var(--tw-gradient-stops));
+}
+.bg-gradient-to-t {
+  --tw-gradient-position: to top in oklab;
+  background-image: linear-gradient(var(--tw-gradient-stops));
+}
+.via-transparent {
+  --tw-gradient-via: transparent;
+  --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops);
 }
 .to-transparent {
   --tw-gradient-to: transparent;
@@ -263,6 +248,10 @@
   --tw-leading: 1;
   line-height: 1;
 }
+.tracking-\[0\.2em\] {
+  --tw-tracking: 0.2em;
+  letter-spacing: 0.2em;
+}
 .tracking-\[0\.5em\] {
   --tw-tracking: 0.5em;
   letter-spacing: 0.5em;
@@ -282,11 +271,22 @@
 .opacity-0 {
   opacity: 0%;
 }
+.opacity-20 {
+  opacity: 20%;
+}
 .opacity-50 {
   opacity: 50%;
 }
+.opacity-75 {
+  opacity: 75%;
+}
 .opacity-80 {
   opacity: 80%;
+}
+.drop-shadow-\[0_0_10px_rgba\(34\,211\,238\,0\.8\)\] {
+  --tw-drop-shadow-size: drop-shadow(0 0 10px var(--tw-drop-shadow-color, rgba(34,211,238,0.8)));
+  --tw-drop-shadow: var(--tw-drop-shadow-size);
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
 }
 .drop-shadow-\[0_0_15px_rgba\(16\,185\,129\,0\.5\)\] {
   --tw-drop-shadow-size: drop-shadow(0 0 15px var(--tw-drop-shadow-color, rgba(16,185,129,0.5)));
@@ -305,21 +305,6 @@
   transition-property: transform, translate, scale, rotate;
   transition-timing-function: var(--tw-ease, ease);
   transition-duration: var(--tw-duration, 0s);
-}
-.delay-100 {
-  transition-delay: 100ms;
-}
-.delay-200 {
-  transition-delay: 200ms;
-}
-.delay-300 {
-  transition-delay: 300ms;
-}
-.delay-400 {
-  transition-delay: 400ms;
-}
-.delay-500 {
-  transition-delay: 500ms;
 }
 .duration-500 {
   --tw-duration: 500ms;
@@ -385,7 +370,7 @@ body {
 }
 @keyframes drop-in {
   0% {
-    transform: translateY(-600px) rotate(var(--tw-rotate));
+    transform: translateY(-120vh) rotate(var(--tw-rotate));
     opacity: 0;
   }
   60% {
@@ -402,7 +387,6 @@ body {
 }
 .animate-drop {
   animation: drop-in 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-  opacity: 0;
 }
 .delay-100 {
   animation-delay: 100ms;
@@ -429,7 +413,35 @@ body {
 }
 .animate-fade-in {
   animation: fade-in 1s ease-out forwards;
-  opacity: 0;
+}
+.neon-glow {
+  filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.6)) drop-shadow(0 0 10px rgba(56, 189, 248, 0.4));
+}
+.text-neon {
+  color: #38bdf8;
+  text-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+}
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+.animate-scan {
+  animation: scan 2s linear infinite;
+  background: linear-gradient(to bottom, transparent, rgba(56, 189, 248, 0.5), transparent);
+  height: 100px;
+  width: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0.3;
+}
+.bg-grid-pattern {
+  background-image: linear-gradient(rgba(56, 189, 248, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(56, 189, 248, 0.1) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
 @property --tw-scale-x {
   syntax: "*";

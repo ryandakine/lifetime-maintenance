@@ -41,9 +41,10 @@ pub fn App() -> impl IntoView {
                     // Center Content
                     <div class="z-20 flex flex-col items-center relative">
                          // Glowing Text Logo (Replaces Image)
-                        <div class="relative group mb-8">
-                            <div class="absolute -inset-2 bg-cyan-500/20 rounded-lg blur-xl opacity-75 animate-pulse"></div>
-                            <h1 class="relative text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.8)] tracking-wider">
+                        <div class="relative group mb-8 p-4">
+                            <div class="absolute inset-0 bg-cyan-500/10 rounded-xl blur-xl animate-pulse"></div>
+                            // Solid Neon Text - Guaranteed Color
+                            <h1 class="relative text-8xl font-black text-cyan-400 tracking-widest drop-shadow-[0_0_25px_rgba(34,211,238,0.8)]" style="text-shadow: 0 0 10px rgba(34,211,238,0.5), 0 0 20px rgba(34,211,238,0.3);">
                                 "CIMCO"
                             </h1>
                         </div>
@@ -56,9 +57,9 @@ pub fn App() -> impl IntoView {
                          
                          // Terminal Status Text
                          <div class="text-center space-y-2">
-                            <p class="text-cyan-400 text-xl font-bold tracking-[0.2em] animate-pulse">"SYSTEM INITIALIZING..."</p>
-                            <p class="text-cyan-600/80 text-sm">"LOADING MODULES: [HVAC, HYDRAULICS, SAFETY]"</p>
-                            <p class="text-cyan-800/60 text-xs mt-4">"v2.0.4 - FUTURE READY"</p>
+                            <p class="text-cyan-300 text-xl font-bold tracking-[0.2em] animate-pulse">"SYSTEM INITIALIZING..."</p>
+                            <p class="text-cyan-500/80 text-sm">"LOADING MODULES: [HVAC, HYDRAULICS, SAFETY]"</p>
+                            <p class="text-cyan-700/60 text-xs mt-4">"v2.0.4 - FUTURE READY"</p>
                          </div>
                     </div>
                 </div>
