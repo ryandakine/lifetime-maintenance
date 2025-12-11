@@ -33,38 +33,38 @@ pub fn App() -> impl IntoView {
         <div class="min-h-screen bg-slate-900 text-white font-sans">
             // Splash Screen
             <Show when=move || show_splash.get() fallback=|| ()>
-                <div class="fixed inset-0 w-screen h-screen bg-slate-950 z-50 overflow-hidden font-mono flex flex-col items-center justify-center">
+                <div class="fixed inset-0 w-screen h-screen bg-slate-950 z-50 overflow-hidden font-mono grid place-items-center">
                     // Sci-Fi Grid Background (Low Opacity)
                     <div class="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none z-0"></div>
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950 pointer-events-none z-0"></div>
                     
                     // Center Content
-                    <div class="z-20 flex flex-col items-center relative">
+                    <div class="z-20 flex flex-col items-center justify-center relative w-full max-w-7xl mx-auto">
                          // Glowing Text Logo (Replaces Image)
-                        <div class="relative group mb-8 p-6 border-4 border-cyan-500/30 rounded-2xl bg-slate-900/50 backdrop-blur-sm shadow-[0_0_20px_rgba(6,182,212,0.2)]">
-                            <div class="absolute inset-0 bg-cyan-500/5 rounded-2xl animate-pulse"></div>
+                        <div class="relative group mb-12 p-10 border-4 border-cyan-500/30 rounded-3xl bg-slate-900/50 backdrop-blur-sm shadow-[0_0_50px_rgba(6,182,212,0.3)] mx-auto">
+                            <div class="absolute inset-0 bg-cyan-500/5 rounded-3xl animate-pulse"></div>
                             
                             // Corner Accents (Top-Left, Bottom-Right)
-                            <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-cyan-400 rounded-tl-lg"></div>
-                            <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-cyan-400 rounded-br-lg"></div>
+                            <div class="absolute -top-2 -left-2 w-10 h-10 border-t-8 border-l-8 border-cyan-400 rounded-tl-xl"></div>
+                            <div class="absolute -bottom-2 -right-2 w-10 h-10 border-b-8 border-r-8 border-cyan-400 rounded-br-xl"></div>
 
-                            // Solid Neon Text
-                            <h1 class="relative text-8xl font-black text-cyan-400 tracking-widest drop-shadow-[0_0_25px_rgba(34,211,238,0.8)]" style="text-shadow: 0 0 10px rgba(34,211,238,0.5), 0 0 20px rgba(34,211,238,0.3);">
+                            // Solid Neon Text - MASSIVE SIZE
+                            <h1 class="relative text-9xl md:text-[12rem] font-black text-cyan-400 tracking-widest drop-shadow-[0_0_35px_rgba(34,211,238,0.9)] text-center leading-none" style="text-shadow: 0 0 20px rgba(34,211,238,0.6), 0 0 40px rgba(34,211,238,0.4);">
                                 "CIMCO"
                             </h1>
                         </div>
 
                          // High Tech Spinner
-                         <div class="relative w-16 h-16 mb-8">
-                            <div class="absolute top-0 left-0 w-full h-full border-4 border-cyan-500/30 rounded-full animate-ping"></div>
-                            <div class="absolute top-0 left-0 w-full h-full border-4 border-t-cyan-400 border-r-transparent border-b-cyan-400 border-l-transparent rounded-full animate-spin"></div>
+                         <div class="relative w-24 h-24 mb-10">
+                            <div class="absolute top-0 left-0 w-full h-full border-8 border-cyan-500/30 rounded-full animate-ping"></div>
+                            <div class="absolute top-0 left-0 w-full h-full border-8 border-t-cyan-400 border-r-transparent border-b-cyan-400 border-l-transparent rounded-full animate-spin"></div>
                          </div>
                          
                          // Terminal Status Text
-                         <div class="text-center space-y-2">
-                            <p class="text-cyan-300 text-xl font-bold tracking-[0.2em] animate-pulse">"SYSTEM INITIALIZING..."</p>
-                            <p class="text-cyan-500/80 text-sm">"LOADING MODULES: [HVAC, HYDRAULICS, SAFETY]"</p>
-                            <p class="text-cyan-700/60 text-xs mt-4">"v2.0.4 - FUTURE READY"</p>
+                         <div class="text-center space-y-4">
+                            <p class="text-cyan-300 text-3xl font-bold tracking-[0.3em] animate-pulse">"SYSTEM INITIALIZING..."</p>
+                            <p class="text-cyan-500/80 text-lg">"LOADING MODULES: [HVAC, HYDRAULICS, SAFETY]"</p>
+                            <p class="text-cyan-700/60 text-base mt-4">"v2.0.4 - FUTURE READY"</p>
                          </div>
                     </div>
                 </div>
