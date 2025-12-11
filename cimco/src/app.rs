@@ -3,6 +3,7 @@ use leptos_router::*;
 use crate::showcase::Showcase;
 use crate::components::equipment_list::EquipmentList;
 use crate::components::tasks::Tasks;
+use crate::components::scale::Scale;
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -13,6 +14,7 @@ pub fn App() -> impl IntoView {
                 <Route path="/showcase" view=Showcase />
                 <Route path="/equipment" view=EquipmentList />
                 <Route path="/tasks" view=Tasks />
+                <Route path="/scale" view=Scale />
             </Routes>
         </Router>
     }
@@ -31,6 +33,9 @@ fn MainApp() -> impl IntoView {
                     <A href="/tasks" class="text-base bg-emerald-700 px-6 py-2 rounded-lg hover:bg-emerald-600 border border-emerald-600 font-bold shadow-md transition-transform hover:scale-105 flex items-center gap-2">
                         "📋 Tasks"
                     </A>
+                    <A href="/scale" class="text-base bg-purple-700 px-6 py-2 rounded-lg hover:bg-purple-600 border border-purple-600 font-bold shadow-md transition-transform hover:scale-105 flex items-center gap-2">
+                         "⚖️ Scale"
+                    </A>
                     <A href="/equipment" class="text-base bg-blue-700 px-6 py-2 rounded-lg hover:bg-blue-600 border border-blue-600 font-bold shadow-md transition-transform hover:scale-105">
                         "🏗️ Manage Equipment"
                     </A>
@@ -41,9 +46,9 @@ fn MainApp() -> impl IntoView {
             </header>
             <main class="p-5">
                 <crate::components::dashboard::Dashboard />
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 mb-4">
+                     // Camera now takes full width as Scale moved to own page
                     <crate::components::camera::Camera />
-                    <crate::components::scale::Scale />
                 </div>
                 <crate::components::logs::Logs />
             </main>
