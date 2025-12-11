@@ -1,5 +1,5 @@
 use leptos::*;
-use leptos_dom::helpers::IntervalHandle;
+use leptos_router::A;
 use std::time::Duration;
 use crate::api::{read_scale, ScaleData};
 
@@ -42,10 +42,11 @@ pub fn Scale() -> impl IntoView {
                     </h1>
                     <p class="text-slate-400 mt-2">"Live weight reading from RS-232 Interface"</p>
                 </div>
-                <leptos_router::A href="/" class="px-6 py-3 bg-slate-800 rounded-lg hover:bg-slate-700 border border-slate-700 transition flex items-center gap-2">
+                <A href="/" class="px-6 py-3 bg-slate-800 rounded-lg hover:bg-slate-700 border border-slate-700 transition flex items-center gap-2">
                     "⬅ Back to Dashboard"
-                </leptos_router::A>
+                </A>
             </div>
+            // ... rest of view (unchanged below line 48 in diff but need to match context)
 
             // Main Weight Display
             <div class="max-w-4xl mx-auto">
