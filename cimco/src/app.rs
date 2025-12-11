@@ -42,10 +42,33 @@ pub fn App() -> impl IntoView {
 #[component]
 fn MainApp(user: User) -> impl IntoView {
     let is_admin = user.role == UserRole::Admin;
+    
+    // Get time-based greeting
+    let greeting = {
+        let hour = js_sys::Date::new_0().get_hours();
+        if hour < 12 {
+            "Good morning"
+        } else if hour < 17 {
+            "Good afternoon"
+        } else {
+            "Good evening"
+        }
+    };
+    
+    // Display name: "Boss" for admin, actual name for workers
+    let display_name = if is_admin { "Boss".to_string() } else { user.name.clone() };
 
     view! {
         <div class="container relative mx-auto">
-            <header class="p-5 bg-slate-800 text-white flex justify-between items-center rounded-b-xl shadow-lg mb-6">
+            // Personalized Greeting Banner
+            <div class="bg-gradient-to-r from-blue-900 to-indigo-900 text-white py-4 px-6 rounded-t-xl mt-4">
+                <p class="text-2xl font-bold">
+                    {greeting} ", " <span class="text-blue-300">{display_name}</span> "! 👋"
+                </p>
+                <p class="text-blue-200 text-sm">"Ready to keep the equipment running smooth."</p>
+            </div>
+            
+            <header class="p-5 bg-slate-800 text-white flex justify-between items-center shadow-lg mb-6">
                 <div>
                     <h1 class="text-2xl font-bold">"CIMCO Equipment Tracker"</h1>
                     <div class="flex items-center gap-2 mt-1">
