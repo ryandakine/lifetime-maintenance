@@ -3,8 +3,10 @@
 @tailwind utilities;
 
 body {
-    background-color: #0f172a; /* Slate 900 */
-    color: #e2e8f0; /* Slate 200 */
+    background-color: #0f172a;
+    /* Slate 900 */
+    color: #e2e8f0;
+    /* Slate 200 */
 }
 
 /* Scrollbar Styling */
@@ -12,13 +14,68 @@ body {
     width: 8px;
     height: 8px;
 }
+
 ::-webkit-scrollbar-track {
-    background: #1e293b; 
+    background: #1e293b;
 }
+
 ::-webkit-scrollbar-thumb {
-    background: #475569; 
+    background: #475569;
     border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-    background: #64748b; 
+    background: #64748b;
+}
+
+/* Animation Keyframes */
+@keyframes drop-in {
+    0% {
+        transform: translateY(-600px) rotate(var(--tw-rotate));
+        /* Start from high up */
+        opacity: 0;
+    }
+
+    60% {
+        transform: translateY(20px) rotate(var(--tw-rotate));
+        /* Heavy bounce impact */
+        opacity: 1;
+    }
+
+    80% {
+        transform: translateY(-10px) rotate(var(--tw-rotate));
+        /* Small rebound */
+    }
+
+    100% {
+        transform: translateY(0) rotate(var(--tw-rotate));
+        /* Land in the pile */
+        opacity: 1;
+    }
+}
+
+.animate-drop {
+    animation: drop-in 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    opacity: 0;
+    /* Star invisible */
+}
+
+.delay-100 {
+    animation-delay: 100ms;
+}
+
+.delay-200 {
+    animation-delay: 200ms;
+}
+
+.delay-300 {
+    animation-delay: 300ms;
+}
+
+.delay-400 {
+    animation-delay: 400ms;
+}
+
+.delay-500 {
+    animation-delay: 500ms;
 }

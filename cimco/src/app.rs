@@ -33,12 +33,30 @@ pub fn App() -> impl IntoView {
         <div class="min-h-screen bg-slate-900 text-white font-sans">
             // Splash Screen
             <Show when=move || show_splash.get() fallback=|| ()>
-                <div class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50 animate-pulse">
-                    <img src="public/cimco-logo-official.png" alt="CIMCO" class="w-64 h-auto mb-6 drop-shadow-2xl" />
-                    <h1 class="text-3xl font-bold text-white mb-2">"CIMCO Equipment Tracker"</h1>
-                    <p class="text-slate-400">"Rust Edition 🦀"</p>
-                    <div class="mt-8">
-                        <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <div class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50">
+                    <img src="public/cimco-logo-official.png" alt="CIMCO" class="w-64 h-auto mb-10 drop-shadow-2xl animate-fade-in" />
+                    
+                    <div class="flex justify-center items-end h-24 mb-6 perspective-500 relative">
+                        // C - Tilted left, base
+                        <span class="text-7xl font-black text-slate-300 animate-drop delay-100 inline-block text-shadow-xl absolute left-[calc(50%-80px)] bottom-0" style="transform: rotate(-15deg);">"C"</span>
+                        
+                        // I - Tilted right, overlapping
+                        <span class="text-7xl font-black text-slate-400 animate-drop delay-200 inline-block text-shadow-xl absolute left-[calc(50%-40px)] bottom-2 z-10" style="transform: rotate(10deg);">"I"</span>
+                        
+                        // M - Heavy center piece, flat but slightly crooked
+                        <span class="text-8xl font-black text-slate-200 animate-drop delay-300 inline-block text-shadow-xl absolute left-[calc(50%-10px)] bottom-0 z-20" style="transform: rotate(-5deg);">"M"</span>
+                        
+                        // C - Tilted way right, piled on side
+                        <span class="text-7xl font-black text-slate-300 animate-drop delay-400 inline-block text-shadow-xl absolute left-[calc(50%+50px)] bottom-1 z-10" style="transform: rotate(25deg);">"C"</span>
+                        
+                        // O - Rolled away slightly
+                        <span class="text-7xl font-black text-slate-400 animate-drop delay-500 inline-block text-shadow-xl absolute left-[calc(50%+90px)] bottom-0" style="transform: rotate(12deg);">"O"</span>
+                    </div>
+                    
+                    <p class="text-slate-400 text-xl tracking-widest uppercase mt-4 animate-fade-in delay-700 opacity-0" style="animation-fill-mode: forwards;">"Equipment Tracker"</p>
+                    
+                    <div class="mt-12">
+                         <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                     </div>
                 </div>
             </Show>
