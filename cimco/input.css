@@ -56,8 +56,7 @@ body {
 
 .animate-drop {
     animation: drop-in 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-    opacity: 0;
-    /* Star invisible */
+    /* Removed opacity: 0 to prevent invisible content on failure */
 }
 
 .delay-100 {
@@ -88,6 +87,11 @@ body {
     to {
         opacity: 1;
     }
+}
+
+.animate-fade-in {
+    animation: fade-in 1s ease-out forwards;
+    /* Removed opacity: 0 to prevent invisible content on failure */
 }
 
 /* Metallic Text Effect */
