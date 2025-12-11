@@ -1,6 +1,6 @@
 use leptos::*;
 use leptos_router::A;
-use crate::api::{get_tasks, add_task, toggle_task, delete_task, Task};
+use crate::api::{get_tasks, add_task, toggle_task, delete_task};
 
 #[component]
 pub fn Tasks() -> impl IntoView {
