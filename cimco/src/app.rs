@@ -38,19 +38,19 @@ pub fn App() -> impl IntoView {
                     
                     <div class="flex justify-center items-end h-24 mb-6 perspective-500 relative">
                         // C - Tilted left, base
-                        <span class="text-7xl font-black text-slate-300 animate-drop delay-100 inline-block drop-shadow-xl absolute left-[calc(50%-80px)] bottom-0 rotate-[-15deg]">"C"</span>
+                        <span class="text-7xl font-black text-slate-300 animate-drop delay-100 inline-block drop-shadow-xl absolute left-[calc(50%-80px)] bottom-0 transform rotate-[-15deg]">"C"</span>
                         
                         // I - Tilted right, overlapping
-                        <span class="text-7xl font-black text-slate-400 animate-drop delay-200 inline-block drop-shadow-xl absolute left-[calc(50%-40px)] bottom-2 z-10 rotate-[10deg]">"I"</span>
+                        <span class="text-7xl font-black text-slate-400 animate-drop delay-200 inline-block drop-shadow-xl absolute left-[calc(50%-40px)] bottom-2 z-10 transform rotate-[10deg]">"I"</span>
                         
                         // M - Heavy center piece, flat but slightly crooked
-                        <span class="text-8xl font-black text-slate-200 animate-drop delay-300 inline-block drop-shadow-xl absolute left-[calc(50%-10px)] bottom-0 z-20 rotate-[-5deg]">"M"</span>
+                        <span class="text-8xl font-black text-slate-200 animate-drop delay-300 inline-block drop-shadow-xl absolute left-[calc(50%-10px)] bottom-0 z-20 transform rotate-[-5deg]">"M"</span>
                         
                         // C - Tilted way right, piled on side
-                        <span class="text-7xl font-black text-slate-300 animate-drop delay-400 inline-block drop-shadow-xl absolute left-[calc(50%+50px)] bottom-1 z-10 rotate-[25deg]">"C"</span>
+                        <span class="text-7xl font-black text-slate-300 animate-drop delay-400 inline-block drop-shadow-xl absolute left-[calc(50%+50px)] bottom-1 z-10 transform rotate-[25deg]">"C"</span>
                         
                         // O - Rolled away slightly
-                        <span class="text-7xl font-black text-slate-400 animate-drop delay-500 inline-block drop-shadow-xl absolute left-[calc(50%+90px)] bottom-0 rotate-[12deg]">"O"</span>
+                        <span class="text-7xl font-black text-slate-400 animate-drop delay-500 inline-block drop-shadow-xl absolute left-[calc(50%+90px)] bottom-0 transform rotate-[12deg]">"O"</span>
                     </div>
                     
                     <div class="mt-12">
