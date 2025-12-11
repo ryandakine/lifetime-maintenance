@@ -31,8 +31,8 @@ body {
 /* Animation Keyframes */
 @keyframes drop-in {
     0% {
-        transform: translateY(-600px) rotate(var(--tw-rotate));
-        /* Start from high up */
+        transform: translateY(-120vh) rotate(var(--tw-rotate));
+        /* Start well above screen */
         opacity: 0;
     }
 

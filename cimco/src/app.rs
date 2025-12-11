@@ -33,28 +33,35 @@ pub fn App() -> impl IntoView {
         <div class="min-h-screen bg-slate-900 text-white font-sans">
             // Splash Screen
             <Show when=move || show_splash.get() fallback=|| ()>
-                <div class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50">
-                    <img src="public/cimco-logo-official.png" alt="CIMCO" class="w-64 h-auto mb-10 drop-shadow-2xl animate-fade-in" />
-                    
-                    <div class="flex justify-center items-end h-24 mb-6 perspective-500 relative">
-                        // C - Tilted left, base
-                        <span class="text-7xl font-black text-slate-300 animate-drop delay-100 inline-block drop-shadow-xl absolute left-[calc(50%-80px)] bottom-0 transform rotate-[-15deg]">"C"</span>
-                        
-                        // I - Tilted right, overlapping
-                        <span class="text-7xl font-black text-slate-400 animate-drop delay-200 inline-block drop-shadow-xl absolute left-[calc(50%-40px)] bottom-2 z-10 transform rotate-[10deg]">"I"</span>
-                        
-                        // M - Heavy center piece, flat but slightly crooked
-                        <span class="text-8xl font-black text-slate-200 animate-drop delay-300 inline-block drop-shadow-xl absolute left-[calc(50%-10px)] bottom-0 z-20 transform rotate-[-5deg]">"M"</span>
-                        
-                        // C - Tilted way right, piled on side
-                        <span class="text-7xl font-black text-slate-300 animate-drop delay-400 inline-block drop-shadow-xl absolute left-[calc(50%+50px)] bottom-1 z-10 transform rotate-[25deg]">"C"</span>
-                        
-                        // O - Rolled away slightly
-                        <span class="text-7xl font-black text-slate-400 animate-drop delay-500 inline-block drop-shadow-xl absolute left-[calc(50%+90px)] bottom-0 transform rotate-[12deg]">"O"</span>
+                <div class="fixed inset-0 bg-slate-900 z-50 overflow-hidden">
+                    // Logo Centered exactly in viewport
+                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <img src="public/cimco-logo-official.png" alt="CIMCO" class="w-96 h-auto drop-shadow-2xl animate-fade-in" />
+                        <div class="mt-8">
+                             <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                        </div>
                     </div>
                     
-                    <div class="mt-12">
-                         <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    // "RESOURCES" - Piling up at the very bottom
+                    <div class="absolute bottom-4 left-0 w-full h-32 flex justify-center items-end perspective-500 pointer-events-none">
+                        // R - Base Left
+                        <span class="text-8xl font-black text-slate-800 animate-drop delay-100 inline-block drop-shadow-xl absolute left-[10%] bottom-0 transform rotate-[-45deg] z-0">"R"</span>
+                         // E
+                        <span class="text-7xl font-black text-slate-700 animate-drop delay-200 inline-block drop-shadow-xl absolute left-[18%] bottom-2 transform rotate-[15deg] z-10">"E"</span>
+                         // S
+                        <span class="text-8xl font-black text-slate-600 animate-drop delay-300 inline-block drop-shadow-xl absolute left-[25%] bottom-0 transform rotate-[-10deg] z-0">"S"</span>
+                         // O
+                        <span class="text-7xl font-black text-slate-700 animate-drop delay-400 inline-block drop-shadow-xl absolute left-[35%] bottom-4 transform rotate-[30deg] z-20">"O"</span>
+                         // U - Heavy Center
+                        <span class="text-9xl font-black text-slate-500 animate-drop delay-500 inline-block drop-shadow-xl absolute left-[45%] bottom-0 transform rotate-[-5deg] z-30">"U"</span>
+                         // R
+                        <span class="text-8xl font-black text-slate-600 animate-drop delay-300 inline-block drop-shadow-xl absolute left-[55%] bottom-2 transform rotate-[20deg] z-20">"R"</span>
+                         // C
+                        <span class="text-7xl font-black text-slate-700 animate-drop delay-200 inline-block drop-shadow-xl absolute left-[65%] bottom-0 transform rotate-[-25deg] z-10">"C"</span>
+                         // E
+                        <span class="text-8xl font-black text-slate-800 animate-drop delay-100 inline-block drop-shadow-xl absolute left-[75%] bottom-4 transform rotate-[40deg] z-0">"E"</span>
+                         // S - Far Right
+                        <span class="text-7xl font-black text-slate-800 animate-drop delay-400 inline-block drop-shadow-xl absolute left-[85%] bottom-0 transform rotate-[-15deg] z-0">"S"</span>
                     </div>
                 </div>
             </Show>
