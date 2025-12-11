@@ -33,35 +33,33 @@ pub fn App() -> impl IntoView {
         <div class="min-h-screen bg-slate-900 text-white font-sans">
             // Splash Screen
             <Show when=move || show_splash.get() fallback=|| ()>
-                <div class="fixed inset-0 bg-slate-950 z-50 overflow-hidden font-mono">
-                    // Sci-Fi Grid Background
-                    <div class="absolute inset-0 bg-grid-pattern opacity-40 pointer-events-none z-0"></div>
+                <div class="fixed inset-0 bg-slate-950 z-50 overflow-hidden font-mono flex flex-col items-center justify-center">
+                    // Sci-Fi Grid Background (Low Opacity)
+                    <div class="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none z-0"></div>
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950 pointer-events-none z-0"></div>
                     
-                    // Moving Scanline
-                    <div class="animate-scan z-10 pointer-events-none"></div>
+                    // Center Content
+                    <div class="z-20 flex flex-col items-center relative">
+                         // Glowing Text Logo (Replaces Image)
+                        <div class="relative group mb-8">
+                            <div class="absolute -inset-2 bg-cyan-500/20 rounded-lg blur-xl opacity-75 animate-pulse"></div>
+                            <h1 class="relative text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.8)] tracking-wider">
+                                "CIMCO"
+                            </h1>
+                        </div>
 
-                    // Centered Content
-                    <div class="absolute inset-0 flex flex-col items-center justify-center z-20">
-                        <div class="relative group">
-                            <div class="absolute -inset-1 bg-gradient-to-r from-cyan-400 to-blue-600 rounded-lg blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-                            <img src="public/cimco-logo-official.png" alt="CIMCO" class="relative w-96 h-auto drop-shadow-2xl animate-fade-in neon-glow" />
-                        </div>
-                        
-                        <div class="mt-8 flex flex-col items-center">
-                             // High Tech Spinner
-                             <div class="relative w-16 h-16">
-                                <div class="absolute top-0 left-0 w-full h-full border-4 border-cyan-500/30 rounded-full animate-ping"></div>
-                                <div class="absolute top-0 left-0 w-full h-full border-4 border-t-cyan-400 border-r-transparent border-b-cyan-400 border-l-transparent rounded-full animate-spin"></div>
-                             </div>
-                             
-                             // Terminal Status Text
-                             <div class="mt-6 text-center space-y-1">
-                                <p class="text-cyan-400 text-xl font-bold tracking-[0.2em] animate-pulse">"SYSTEM INITIALIZING..."</p>
-                                <p class="text-cyan-600/80 text-sm">"LOADING MODULES: [HVAC, HYDRAULICS, SAFETY]"</p>
-                                <p class="text-cyan-800/60 text-xs">"v2.0.4 - FUTURE READY"</p>
-                             </div>
-                        </div>
+                         // High Tech Spinner
+                         <div class="relative w-16 h-16 mb-8">
+                            <div class="absolute top-0 left-0 w-full h-full border-4 border-cyan-500/30 rounded-full animate-ping"></div>
+                            <div class="absolute top-0 left-0 w-full h-full border-4 border-t-cyan-400 border-r-transparent border-b-cyan-400 border-l-transparent rounded-full animate-spin"></div>
+                         </div>
+                         
+                         // Terminal Status Text
+                         <div class="text-center space-y-2">
+                            <p class="text-cyan-400 text-xl font-bold tracking-[0.2em] animate-pulse">"SYSTEM INITIALIZING..."</p>
+                            <p class="text-cyan-600/80 text-sm">"LOADING MODULES: [HVAC, HYDRAULICS, SAFETY]"</p>
+                            <p class="text-cyan-800/60 text-xs mt-4">"v2.0.4 - FUTURE READY"</p>
+                         </div>
                     </div>
                 </div>
             </Show>
