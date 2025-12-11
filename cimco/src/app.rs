@@ -34,7 +34,7 @@ pub fn App() -> impl IntoView {
             // Splash Screen
             <Show when=move || show_splash.get() fallback=|| ()>
                 <div class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50 animate-pulse">
-                    <img src="/cimco-logo-official.png" alt="CIMCO" class="w-64 h-auto mb-6 drop-shadow-2xl" />
+                    <img src="./cimco-logo-official.png" alt="CIMCO" class="w-64 h-auto mb-6 drop-shadow-2xl" />
                     <h1 class="text-3xl font-bold text-white mb-2">"CIMCO Equipment Tracker"</h1>
                     <p class="text-slate-400">"Rust Edition 🦀"</p>
                     <div class="mt-8">
