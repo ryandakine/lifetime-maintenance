@@ -33,7 +33,7 @@ pub fn App() -> impl IntoView {
         <div class="min-h-screen bg-slate-900 text-white font-sans">
             // Splash Screen
             <Show when=move || show_splash.get() fallback=|| ()>
-                <div class="fixed inset-0 bg-slate-950 z-50 overflow-hidden font-mono flex flex-col items-center justify-center">
+                <div class="fixed inset-0 w-screen h-screen bg-slate-950 z-50 overflow-hidden font-mono flex flex-col items-center justify-center">
                     // Sci-Fi Grid Background (Low Opacity)
                     <div class="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none z-0"></div>
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950 pointer-events-none z-0"></div>
@@ -41,9 +41,14 @@ pub fn App() -> impl IntoView {
                     // Center Content
                     <div class="z-20 flex flex-col items-center relative">
                          // Glowing Text Logo (Replaces Image)
-                        <div class="relative group mb-8 p-4">
-                            <div class="absolute inset-0 bg-cyan-500/10 rounded-xl blur-xl animate-pulse"></div>
-                            // Solid Neon Text - Guaranteed Color
+                        <div class="relative group mb-8 p-6 border-4 border-cyan-500/30 rounded-2xl bg-slate-900/50 backdrop-blur-sm shadow-[0_0_20px_rgba(6,182,212,0.2)]">
+                            <div class="absolute inset-0 bg-cyan-500/5 rounded-2xl animate-pulse"></div>
+                            
+                            // Corner Accents (Top-Left, Bottom-Right)
+                            <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-cyan-400 rounded-tl-lg"></div>
+                            <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-cyan-400 rounded-br-lg"></div>
+
+                            // Solid Neon Text
                             <h1 class="relative text-8xl font-black text-cyan-400 tracking-widest drop-shadow-[0_0_25px_rgba(34,211,238,0.8)]" style="text-shadow: 0 0 10px rgba(34,211,238,0.5), 0 0 20px rgba(34,211,238,0.3);">
                                 "CIMCO"
                             </h1>
