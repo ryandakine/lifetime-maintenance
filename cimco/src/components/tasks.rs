@@ -107,6 +107,48 @@ pub fn Tasks() -> impl IntoView {
         set_solution_input.set(String::new());
     };
 
+    // Quick resolution templates based on category
+    let get_quick_fixes = move || -> Vec<(&'static str, &'static str)> {
+        match modal_task_cat.get().as_str() {
+            "HVAC" => vec![
+                ("🔧", "Replaced filter"),
+                ("🌡️", "Adjusted thermostat"),
+                ("💨", "Cleaned vents"),
+                ("🔌", "Reset system"),
+            ],
+            "Safety" => vec![
+                ("✅", "Inspected and passed"),
+                ("🔒", "Replaced guard"),
+                ("⚠️", "Added warning label"),
+                ("🧰", "Tightened loose bolts"),
+            ],
+            "Hydraulics" => vec![
+                ("💧", "Topped off fluid"),
+                ("🔧", "Replaced seal"),
+                ("📊", "Adjusted pressure"),
+                ("🧹", "Cleaned filter"),
+            ],
+            "Electrical" => vec![
+                ("🔌", "Replaced fuse"),
+                ("🔋", "Reset breaker"),
+                ("🔧", "Tightened connections"),
+                ("💡", "Replaced bulb/LED"),
+            ],
+            "Plumbing" => vec![
+                ("🔧", "Replaced gasket"),
+                ("🚰", "Cleared clog"),
+                ("💧", "Fixed leak"),
+                ("🔩", "Tightened fitting"),
+            ],
+            _ => vec![
+                ("🔧", "Made adjustment"),
+                ("🔄", "Reset system"),
+                ("✅", "Inspected OK"),
+                ("🧰", "Replaced part"),
+            ],
+        }
+    };
+
     view! {
         <div class="p-6 text-white min-h-screen max-w-5xl mx-auto">
             // Resolution Modal
@@ -119,6 +161,24 @@ pub fn Tasks() -> impl IntoView {
                         <div class="bg-slate-900 p-3 rounded mb-4">
                             <span class="text-xs text-blue-400 uppercase">{move || modal_task_cat.get()}</span>
                             <p class="font-medium">{move || modal_task_desc.get()}</p>
+                        </div>
+                        
+                        // Quick Fix Buttons
+                        <div class="mb-4">
+                            <p class="text-xs text-gray-500 uppercase mb-2">"⚡ Quick Select"</p>
+                            <div class="flex flex-wrap gap-2">
+                                {move || get_quick_fixes().into_iter().map(|(icon, text)| {
+                                    let text_owned = text.to_string();
+                                    view! {
+                                        <button
+                                            on:click=move |_| set_solution_input.set(text_owned.clone())
+                                            class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-sm transition border border-slate-600"
+                                        >
+                                            {icon} " " {text}
+                                        </button>
+                                    }
+                                }).collect_view()}
+                            </div>
                         </div>
                         
                         <textarea
