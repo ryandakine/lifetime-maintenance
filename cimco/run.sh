@@ -8,5 +8,8 @@ if ! command -v cargo-tauri &> /dev/null; then
     cargo install tauri-cli
 fi
 
+echo "Compiling Tailwind CSS..."
+./tailwindcss -i ./input.css -o ./style.css
+
 echo "Starting Cimco Equipment Tracker (Rust Edition)..."
 cargo tauri dev
