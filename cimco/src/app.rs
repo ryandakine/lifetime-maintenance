@@ -1,5 +1,6 @@
 use leptos::*;
 use leptos_router::*;
+use std::time::Duration;
 use crate::showcase::Showcase;
 use crate::components::equipment_list::EquipmentList;
 use crate::components::tasks::Tasks;
@@ -8,6 +9,15 @@ use crate::components::login::{Login, User, UserRole};
 
 #[component]
 pub fn App() -> impl IntoView {
+    // Splash Screen State
+    let (show_splash, set_show_splash) = create_signal(true);
+    
+    // Hide splash after 2.5 seconds
+    set_timeout(
+        move || set_show_splash.set(false),
+        Duration::from_millis(2500),
+    );
+    
     // Global User State
     let (user, set_user) = create_signal(None::<User>);
 
@@ -21,19 +31,34 @@ pub fn App() -> impl IntoView {
 
     view! {
         <div class="min-h-screen bg-slate-900 text-white font-sans">
-             <Show
-                when=move || user.get().is_some()
-                fallback=move || view! { <Login on_login=on_login /> }
-            >
-                <Router>
-                    <Routes>
-                        <Route path="/" view=move || view! { <MainApp user=user.get().unwrap() /> } />
-                        <Route path="/showcase" view=Showcase />
-                        <Route path="/equipment" view=EquipmentList />
-                        <Route path="/tasks" view=Tasks />
-                        <Route path="/scale" view=Scale />
-                    </Routes>
-                </Router>
+            // Splash Screen
+            <Show when=move || show_splash.get() fallback=|| ()>
+                <div class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50 animate-pulse">
+                    <img src="/cimco-logo-official.png" alt="CIMCO" class="w-64 h-auto mb-6 drop-shadow-2xl" />
+                    <h1 class="text-3xl font-bold text-white mb-2">"CIMCO Equipment Tracker"</h1>
+                    <p class="text-slate-400">"Rust Edition 🦀"</p>
+                    <div class="mt-8">
+                        <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                </div>
+            </Show>
+            
+            // Main App (after splash)
+            <Show when=move || !show_splash.get() fallback=|| ()>
+                <Show
+                    when=move || user.get().is_some()
+                    fallback=move || view! { <Login on_login=on_login /> }
+                >
+                    <Router>
+                        <Routes>
+                            <Route path="/" view=move || view! { <MainApp user=user.get().unwrap() /> } />
+                            <Route path="/showcase" view=Showcase />
+                            <Route path="/equipment" view=EquipmentList />
+                            <Route path="/tasks" view=Tasks />
+                            <Route path="/scale" view=Scale />
+                        </Routes>
+                    </Router>
+                </Show>
             </Show>
         </div>
     }
