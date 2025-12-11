@@ -1,9 +1,34 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key'
+// ============================================================================
+// CONFIGURATION VALIDATION - Fail Fast on Missing Environment Variables
+// ============================================================================
+// Instead of silently falling back to placeholder values, we validate that
+// required environment variables are properly configured. This prevents
+// production issues where the app runs with wrong configuration.
+// ============================================================================
 
-console.log('Supabase connected to:', supabaseUrl)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+// Validate Supabase configuration
+if (!supabaseUrl || supabaseUrl === 'https://your-project.supabase.co') {
+  throw new Error(
+    '❌ VITE_SUPABASE_URL is not configured.\n' +
+    'Please set VITE_SUPABASE_URL in your .env file.\n' +
+    'Example: VITE_SUPABASE_URL=https://your-project.supabase.co'
+  )
+}
+
+if (!supabaseAnonKey || supabaseAnonKey === 'your-anon-key') {
+  throw new Error(
+    '❌ VITE_SUPABASE_ANON_KEY is not configured.\n' +
+    'Please set VITE_SUPABASE_ANON_KEY in your .env file.\n' +
+    'Example: VITE_SUPABASE_ANON_KEY=your-anon-key-here'
+  )
+}
+
+console.log('✅ Supabase connected to:', supabaseUrl)
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
@@ -63,12 +88,23 @@ export const TASK_STATUS = {
   COMPLETED: 'completed'
 }
 
-// API Keys (placeholder - replace with actual keys)
+// ============================================================================
+// API KEYS - SECURITY FIX
+// ============================================================================
+// CRITICAL: Removed hard-coded API keys and GitHub tokens that were exposed
+// in source code. All API keys must now be properly configured in .env file.
+// No fallbacks to prevent accidental exposure of secrets.
+// ============================================================================
+
 export const API_KEYS = {
-  PERPLEXITY_API_KEY: import.meta.env.VITE_PERPLEXITY_API_KEY || 'your-perplexity-key',
-  CLAUDE_API_KEY: import.meta.env.VITE_ANTHROPIC_API_KEY || 'sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-  ANTHROPIC: import.meta.env.VITE_ANTHROPIC_API_KEY || 'your-anthropic-key',
-  GROK_API_KEY: import.meta.env.VITE_GROK_API_KEY || 'your-grok-key',
-  RESEND: import.meta.env.VITE_RESEND_API_KEY || 're_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-  GITHUB_TOKEN: import.meta.env.VITE_GITHUB_TOKEN || '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'
+  PERPLEXITY_API_KEY: import.meta.env.VITE_PERPLEXITY_API_KEY,
+  CLAUDE_API_KEY: import.meta.env.VITE_ANTHROPIC_API_KEY,
+  ANTHROPIC: import.meta.env.VITE_ANTHROPIC_API_KEY,
+  GROK_API_KEY: import.meta.env.VITE_GROK_API_KEY,
+  GROK_PRO: import.meta.env.VITE_GROK_API_KEY, // Alias for compatibility
+  RESEND: import.meta.env.VITE_RESEND_API_KEY,
+  GITHUB_TOKEN: import.meta.env.VITE_GITHUB_TOKEN
+  // ⚠️ IMPORTANT: The previously exposed GitHub token has been removed.
+  // Please rotate your GitHub token and add it to .env file:
+  // VITE_GITHUB_TOKEN=your_new_token_here
 } 

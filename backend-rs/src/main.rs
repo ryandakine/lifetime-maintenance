@@ -3,6 +3,7 @@ use axum::{
     Router,
 };
 use std::net::SocketAddr;
+use tower_http::cors::{CorsLayer, Any};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use sqlx::sqlite::SqlitePool;
 
@@ -44,17 +45,33 @@ async fn main() {
         ai: ai_service,
     };
 
-    // Build application
+    // CORS layer for frontend access
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    // Build application with pagination-enabled routes
     let app = Router::new()
         .route("/", get(handlers::handler))
         .route("/equipment", get(handlers::list_equipment))
+        .route("/tasks", get(handlers::list_tasks))
         .route("/analyze", post(handlers::analyze_image))
         .route("/api/workflow/analyze-photo", post(handlers::analyze_photo_workflow))
+        .layer(cors)
         .with_state(state);
 
     // Run server
     let addr = SocketAddr::from(([127, 0, 0, 1], 3001));
-    tracing::info!("listening on {}", addr);
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    tracing::info!("🚀 Starting server on {}", addr);
+    
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("❌ Failed to bind to address. Is port 3001 already in use?");
+    
+    tracing::info!("✅ Server successfully bound to {}", addr);
+    
+    axum::serve(listener, app)
+        .await
+        .expect("❌ Server crashed unexpectedly. Check logs for details.");
 }
