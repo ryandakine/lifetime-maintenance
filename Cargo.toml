@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "backend-rs",
+    "cimco",
+    "cimco/src-tauri",
+]
+resolver = "2"

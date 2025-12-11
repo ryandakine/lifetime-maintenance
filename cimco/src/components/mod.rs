@@ -1,0 +1,7 @@
+pub mod dashboard;
+pub mod camera;
+pub mod logs;
+pub mod scale;
+pub mod equipment_list;
+pub mod chart;
+pub mod tasks;

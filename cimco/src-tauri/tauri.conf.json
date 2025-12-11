@@ -3,12 +3,13 @@
     "version": "0.1.0",
     "identifier": "com.cimco.app",
     "build": {
-        "beforeDevCommand": "npm run dev",
-        "beforeBuildCommand": "npm run build",
-        "devUrl": "http://localhost:3000",
+        "beforeDevCommand": "trunk serve",
+        "beforeBuildCommand": "trunk build",
+        "devUrl": "http://localhost:8080",
         "frontendDist": "../dist"
     },
     "app": {
+        "withGlobalTauri": true,
         "windows": [
             {
                 "title": "Cimco Equipment Tracker",

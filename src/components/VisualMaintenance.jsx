@@ -49,11 +49,11 @@ const VisualMaintenance = () => {
       uploadFormData.append('issue', formData.issue || 'Maintenance check');
       uploadFormData.append('urgency', formData.urgency || 'normal');
 
-      // Use local backend API endpoint
-      const apiUrl = 'http://localhost:3001/api/workflow/analyze-photo';
-      
+      // Use local backend API endpoint (Rust)
+      const apiUrl = 'http://localhost:3000/api/workflow/analyze-photo';
+
       console.log('🔍 Sending photo for AI analysis to local backend...');
-      
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         body: uploadFormData // Send as FormData for file upload
@@ -64,7 +64,7 @@ const VisualMaintenance = () => {
       }
 
       const result = await response.json();
-      
+
       if (result.success) {
         setAnalysis(result.data);
         console.log('✅ Photo analysis completed successfully');
@@ -72,13 +72,13 @@ const VisualMaintenance = () => {
       } else {
         throw new Error(result.error || 'Analysis failed');
       }
-      
+
     } catch (error) {
       console.error('Analysis error:', error);
-      
+
       // Fallback to demo analysis if local API fails
       console.log('⚠️ Using demo analysis due to API error:', error.message);
-      
+
       const demoAnalysis = {
         equipment_type: 'Treadmill',
         brand: 'Life Fitness',
@@ -97,7 +97,7 @@ const VisualMaintenance = () => {
           { part_number: 'GR456', description: 'Motor Bearings', price: 45.50 }
         ]
       };
-      
+
       setAnalysis(demoAnalysis);
       alert('Demo analysis loaded (local API unavailable). Check the results below.');
     } finally {
@@ -122,7 +122,7 @@ const VisualMaintenance = () => {
       };
 
       alert(`Order Generated!\nPO Number: ${orderSummary.po_number}\nTotal Cost: $${orderSummary.total_cost}\nParts: ${orderSummary.parts_count}\nTime: ${orderSummary.estimated_time}`);
-      
+
     } catch (error) {
       console.error('Order generation error:', error);
       alert('Failed to generate order. Please try again.');
@@ -187,7 +187,7 @@ const VisualMaintenance = () => {
                 placeholder="e.g., Cardio Room, Weight Room, Pool Area"
               />
             </div>
-            
+
             <div className="form-group">
               <label>Reported Issue:</label>
               <textarea
@@ -198,7 +198,7 @@ const VisualMaintenance = () => {
                 rows="3"
               />
             </div>
-            
+
             <div className="form-group">
               <label>Urgency Level:</label>
               <select
@@ -224,7 +224,7 @@ const VisualMaintenance = () => {
           >
             {isLoading ? '🔍 Analyzing...' : '🔍 Analyze Photo'}
           </button>
-          
+
           {analysis && (
             <button
               onClick={generateOrder}
@@ -233,7 +233,7 @@ const VisualMaintenance = () => {
               📋 Generate Order
             </button>
           )}
-          
+
           <button
             onClick={resetForm}
             className="reset-btn"
@@ -246,7 +246,7 @@ const VisualMaintenance = () => {
         {analysis && (
           <div className="analysis-results">
             <h3>📊 AI Analysis Results</h3>
-            
+
             <div className="results-grid">
               <div className="result-card">
                 <h4>Equipment Analysis</h4>
@@ -254,14 +254,14 @@ const VisualMaintenance = () => {
                 <p><strong>Damage:</strong> {analysis.ai_analysis?.damage_assessment || 'No damage detected'}</p>
                 <p><strong>Safety:</strong> {analysis.ai_analysis?.safety_concerns || 'No safety concerns'}</p>
               </div>
-              
+
               <div className="result-card">
                 <h4>Maintenance Details</h4>
                 <p><strong>Time Estimate:</strong> {analysis.ai_analysis?.time_estimate || 'Unknown'}</p>
                 <p><strong>Tools Needed:</strong> {analysis.ai_analysis?.tools_needed || 'Standard tools'}</p>
                 <p><strong>Parts Required:</strong> {analysis.parts_lookup?.grainger_parts?.length || 0} items</p>
               </div>
-              
+
               {analysis.purchase_order && (
                 <div className="result-card">
                   <h4>Purchase Order</h4>
