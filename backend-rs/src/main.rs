@@ -51,19 +51,24 @@ async fn main() {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // Build application with pagination-enabled routes
-    let app = Router::new()
-        .route("/", get(handlers::handler))
+    // API v1 routes - versioned for future compatibility
+    let v1_routes = Router::new()
         .route("/equipment", get(handlers::list_equipment))
         .route("/tasks", get(handlers::list_tasks))
         .route("/analyze", post(handlers::analyze_image))
-        .route("/api/workflow/analyze-photo", post(handlers::analyze_photo_workflow))
+        .route("/workflow/analyze-photo", post(handlers::analyze_photo_workflow));
+
+    // Build application with versioned API
+    let app = Router::new()
+        .route("/", get(handlers::handler))
+        .nest("/api/v1", v1_routes)
         .layer(cors)
         .with_state(state);
 
     // Run server
     let addr = SocketAddr::from(([127, 0, 0, 1], 3001));
     tracing::info!("🚀 Starting server on {}", addr);
+    tracing::info!("📍 API v1 available at http://{}/api/v1", addr);
     
     let listener = tokio::net::TcpListener::bind(addr)
         .await

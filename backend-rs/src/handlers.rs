@@ -1,5 +1,5 @@
 use axum::{
-    extract::{State, Multipart},
+    extract::{State, Multipart, Query},
     Json,
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
@@ -7,18 +7,74 @@ use serde_json::json;
 
 use crate::{ai, error::AppError, AppState, models};
 
+/// Pagination query parameters
+#[derive(serde::Deserialize)]
+pub struct PaginationQuery {
+    #[serde(default = "default_limit")]
+    pub limit: i64,
+    #[serde(default)]
+    pub offset: i64,
+}
+
+fn default_limit() -> i64 {
+    20
+}
+
 pub async fn handler() -> &'static str {
     "Hello, Rust Agent! DB Connected. AI Ready."
 }
 
 pub async fn list_equipment(
     State(state): State<AppState>,
-) -> Result<Json<Vec<models::Equipment>>, AppError> {
-    let equipment = sqlx::query_as::<_, models::Equipment>("SELECT * FROM equipment")
+    Query(pagination): Query<PaginationQuery>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let equipment = sqlx::query_as::<_, models::Equipment>(
+        "SELECT * FROM equipment ORDER BY id LIMIT ? OFFSET ?"
+    )
+        .bind(pagination.limit)
+        .bind(pagination.offset)
         .fetch_all(&state.pool)
         .await?;
+    
+    // Get total count for pagination metadata
+    let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM equipment")
+        .fetch_one(&state.pool)
+        .await?;
         
-    Ok(Json(equipment))
+    Ok(Json(json!({
+        "data": equipment,
+        "pagination": {
+            "limit": pagination.limit,
+            "offset": pagination.offset,
+            "total": total.0
+        }
+    })))
+}
+
+pub async fn list_tasks(
+    State(state): State<AppState>,
+    Query(pagination): Query<PaginationQuery>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let tasks = sqlx::query_as::<_, models::MaintenanceTask>(
+        "SELECT * FROM maintenance_tasks ORDER BY id LIMIT ? OFFSET ?"
+    )
+        .bind(pagination.limit)
+        .bind(pagination.offset)
+        .fetch_all(&state.pool)
+        .await?;
+    
+    let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM maintenance_tasks")
+        .fetch_one(&state.pool)
+        .await?;
+        
+    Ok(Json(json!({
+        "data": tasks,
+        "pagination": {
+            "limit": pagination.limit,
+            "offset": pagination.offset,
+            "total": total.0
+        }
+    })))
 }
 
 #[derive(serde::Deserialize)]
@@ -94,4 +150,9 @@ pub async fn analyze_photo_workflow(
     } else {
         Err(AppError::Multipart("No photo provided".to_string()))
     }
+}
+
+#[cfg(test)]
+mod tests {
+    include!("handlers_test.rs");
 }

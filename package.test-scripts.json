@@ -1,0 +1,20 @@
+{
+    "scripts": {
+        "dev": "vite --host --port 3000",
+        "build": "vite build",
+        "preview": "vite preview --host",
+        "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0 --cache",
+        "lint:fix": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0 --cache --fix",
+        "typecheck": "echo 'TypeScript checking not configured for this JavaScript project'",
+        "test": "vitest",
+        "test:ui": "vitest --ui",
+        "test:run": "vitest run",
+        "test:coverage": "vitest run --coverage",
+        "test:watch": "vitest --watch",
+        "test:api": "vitest run tests/api",
+        "backend:rs": "cd backend-rs && cargo run",
+        "backend:test": "cd backend-rs && cargo test",
+        "storybook": "storybook dev -p 6006",
+        "build-storybook": "storybook build"
+    }
+}

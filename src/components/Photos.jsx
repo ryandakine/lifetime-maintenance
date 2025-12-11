@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase, TABLES, API_KEYS } from '../lib/supabase'
-import { 
-  Camera, 
-  Upload, 
-  Check, 
-  X, 
+import { useCamera } from '../hooks/useCamera'
+import {
+  Camera,
+  Upload,
+  Check,
+  X,
   Brain,
   RotateCcw,
   Trash2,
@@ -30,15 +31,21 @@ import {
 
 const Photos = () => {
   console.log('Rendering Photos')
+
+  // Camera hook
+  const camera = useCamera((capturedFile) => {
+    // Callback when photo is captured
+    setPhotoUpload(prev => ({ ...prev, photo: capturedFile }))
+    processPhotoFile(capturedFile, 'camera')
+  })
+
   const [photos, setPhotos] = useState([])
   const [tasks, setTasks] = useState([])
   const [equipment, setEquipment] = useState([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
   const [isOnline, setIsOnline] = useState(navigator.onLine)
-  const videoRef = useRef(null)
-  const canvasRef = useRef(null)
-  
+
   const [photoUpload, setPhotoUpload] = useState({
     photo: null,
     photoUrl: '',
@@ -48,8 +55,6 @@ const Photos = () => {
     loading: false,
     showForm: false,
     cameraMode: false,
-    cameraAvailable: false,
-    stream: null,
     uploadMode: 'file', // 'camera' or 'file'
     uploadType: 'file' // 'camera' or 'file' for database
   })
@@ -78,10 +83,12 @@ const Photos = () => {
   const [currentAnnotation, setCurrentAnnotation] = useState(null)
   const [annotationCanvas, setAnnotationCanvas] = useState(null)
 
-  // Check camera availability on mount
-  useEffect(() => {
-    checkCameraAvailability()
-  }, [])
+  // Pagination state
+  const [photosPage, setPhotosPage] = useState(0)
+  const [hasMorePhotos, setHasMorePhotos] = useState(true)
+  const PHOTOS_PAGE_SIZE = 20
+
+
 
   // Check online status
   useEffect(() => {
@@ -116,38 +123,16 @@ const Photos = () => {
     loadEquipment()
   }, [])
 
-  // Cleanup camera stream on unmount
-  useEffect(() => {
-    return () => {
-      if (photoUpload.stream) {
-        photoUpload.stream.getTracks().forEach(track => track.stop())
-      }
-    }
-  }, [photoUpload.stream])
-
-  const checkCameraAvailability = () => {
-    const hasMediaDevices = navigator.mediaDevices && navigator.mediaDevices.getUserMedia
-    const cameraAvailable = hasMediaDevices && navigator.mediaDevices.enumerateDevices
-    
-    console.log('Camera access: ' + (hasMediaDevices ? 'available' : 'not available'))
-    
-    setPhotoUpload(prev => ({ ...prev, cameraAvailable }))
-    
-    if (!hasMediaDevices) {
-      showMessage('warning', 'Camera not available, upload from files')
-    }
-  }
-
   const handleUploadModeChange = (mode) => {
     console.log('Upload mode: ' + mode)
-    
+
     // Stop camera if switching from camera mode
     if (photoUpload.cameraMode && mode === 'file') {
-      stopCamera()
+      camera.stopCamera()
     }
-    
-    setPhotoUpload(prev => ({ 
-      ...prev, 
+
+    setPhotoUpload(prev => ({
+      ...prev,
       uploadMode: mode,
       uploadType: mode,
       cameraMode: mode === 'camera',
@@ -177,55 +162,31 @@ const Photos = () => {
     }
   }
 
-  const startCamera = async () => {
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Camera API not supported')
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'environment', // Use back camera on mobile
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        } 
-      })
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-      }
-      
-      setPhotoUpload(prev => ({ 
-        ...prev, 
-        cameraMode: true, 
-        stream,
-        showForm: true 
+  const handleStartCamera = async () => {
+    const success = await camera.startCamera()
+    if (success) {
+      setPhotoUpload(prev => ({
+        ...prev,
+        cameraMode: true,
+        showForm: true
       }))
-      
-      console.log('Camera started successfully')
-      
-    } catch (error) {
-      console.error('Camera access error:', error)
+    } else {
       showMessage('error', 'Camera access failed, using file upload instead')
-      setPhotoUpload(prev => ({ 
-        ...prev, 
-        cameraMode: false, 
+      setPhotoUpload(prev => ({
+        ...prev,
+        cameraMode: false,
         uploadMode: 'file',
         uploadType: 'file',
-        showForm: true 
+        showForm: true
       }))
     }
   }
 
-  const stopCamera = () => {
-    if (photoUpload.stream) {
-      photoUpload.stream.getTracks().forEach(track => track.stop())
-    }
-    
-    setPhotoUpload(prev => ({ 
-      ...prev, 
-      cameraMode: false, 
-      stream: null,
+  const handleStopCamera = () => {
+    camera.stopCamera()
+    setPhotoUpload(prev => ({
+      ...prev,
+      cameraMode: false,
       showForm: false,
       photo: null,
       photoUrl: '',
@@ -236,46 +197,17 @@ const Photos = () => {
     }))
   }
 
-  const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) return
-    
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    const context = canvas.getContext('2d')
-    
-    // Set canvas size to match video
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    
-    // Draw video frame to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height)
-    
-    // Convert canvas to blob
-    canvas.toBlob((blob) => {
-      if (blob) {
-        const file = new File([blob], `camera-photo-${Date.now()}.jpg`, { type: 'image/jpeg' })
-        setPhotoUpload(prev => ({ ...prev, photo: file }))
-        
-        // Stop camera after capture
-        stopCamera()
-        
-        // Process the captured photo
-        processPhotoFile(file, 'camera')
-      }
-    }, 'image/jpeg', 0.8)
-  }
-
   const processPhotoFile = async (file, type = 'file') => {
     try {
       setPhotoUpload(prev => ({ ...prev, loading: true }))
-      
+
       // Check if offline and save locally if needed
       if (isOffline) {
         await saveOfflinePhoto(file, photoUpload.purpose)
         setPhotoUpload(prev => ({ ...prev, loading: false }))
         return
       }
-      
+
       // Upload to Supabase Storage
       const fileName = `project-photos/${Date.now()}_${file.name}`
       const { data, error } = await supabase.storage
@@ -289,25 +221,25 @@ const Photos = () => {
         .getPublicUrl(fileName)
 
       setPhotoUpload(prev => ({ ...prev, photoUrl: publicUrl }))
-      
+
       // Analyze photo based on purpose
       if (photoUpload.purpose === 'enhanced_analysis') {
         // Use enhanced AI analysis for equipment recognition and damage detection
         const enhancedResult = await analyzePhotoWithEnhancedAI(publicUrl, type)
-        setPhotoUpload(prev => ({ 
-          ...prev, 
+        setPhotoUpload(prev => ({
+          ...prev,
           analysis: JSON.stringify(enhancedResult, null, 2),
-          loading: false 
+          loading: false
         }))
         showMessage('success', 'Enhanced AI analysis completed successfully')
       } else {
         // Use standard analysis for other purposes
         await analyzePhotoWithGrok(publicUrl, type, photoUpload.purpose)
       }
-      
+
     } catch (error) {
       console.error('Error processing photo:', error)
-      
+
       // If online upload fails, save offline
       if (!isOffline) {
         console.log('Upload failed, saving offline...')
@@ -315,29 +247,51 @@ const Photos = () => {
       } else {
         showMessage('error', 'Failed to process photo')
       }
-      
+
       setPhotoUpload(prev => ({ ...prev, loading: false }))
     }
   }
 
-  const loadPhotos = async () => {
+  const loadPhotos = async (reset = true) => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
+      const page = reset ? 0 : photosPage
+      const from = page * PHOTOS_PAGE_SIZE
+      const to = from + PHOTOS_PAGE_SIZE - 1
+
+      const { data, error, count } = await supabase
         .from('photos')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('user_id', 'current-user') // Replace with actual user ID
         .order('created_at', { ascending: false })
+        .range(from, to)
 
       if (error) throw error
-      setPhotos(data || [])
-      console.log('Photos loaded:', data?.length || 0)
+
+      if (reset) {
+        setPhotos(data || [])
+        setPhotosPage(1)
+      } else {
+        setPhotos(prev => [...prev, ...(data || [])])
+        setPhotosPage(page + 1)
+      }
+
+      // Check if there are more photos to load
+      const totalLoaded = reset ? (data?.length || 0) : (photos.length + (data?.length || 0))
+      setHasMorePhotos(count > totalLoaded)
+
+      console.log(`Photos loaded: ${data?.length || 0} (total: ${count})`)
     } catch (error) {
       console.error('Error loading photos:', error)
       showMessage('error', 'Failed to load photos')
     } finally {
       setLoading(false)
     }
+  }
+
+  const loadMorePhotos = async () => {
+    if (!hasMorePhotos || loading) return
+    await loadPhotos(false)
   }
 
   const loadTasks = async () => {
@@ -381,13 +335,13 @@ const Photos = () => {
   const analyzePhotoWithGrok = async (photoUrl, type = 'file', purpose = 'clarification') => {
     try {
       const grokApiKey = API_KEYS.GROK_PRO
-      
+
       if (!grokApiKey || grokApiKey === 'your-grok-key') {
         console.warn('Grok Pro API key not configured, using fallback analysis')
-        setPhotoUpload({ 
-          ...photoUpload, 
+        setPhotoUpload({
+          ...photoUpload,
           analysis: 'Photo analysis requires Grok Pro API key configuration.',
-          loading: false 
+          loading: false
         })
         return
       }
@@ -647,18 +601,18 @@ Provide comprehensive analysis of the photo including equipment context, damage 
         console.error('Error saving photo analysis:', saveError)
       }
 
-      setPhotoUpload({ 
-        ...photoUpload, 
-        analysis, 
-        loading: false 
+      setPhotoUpload({
+        ...photoUpload,
+        analysis,
+        loading: false
       })
-      
+
       console.log(`Photo uploaded and analyzed with Grok Pro (type: ${type}, purpose: ${purpose})`)
       showMessage('success', 'Photo uploaded and analyzed successfully')
-      
+
       // Reload photos list
       await loadPhotos()
-      
+
     } catch (error) {
       console.error('Error analyzing photo:', error)
       showMessage('error', 'Failed to analyze photo')
@@ -670,7 +624,7 @@ Provide comprehensive analysis of the photo including equipment context, damage 
   const analyzePhotoWithEnhancedAI = async (photoUrl, type = 'file') => {
     try {
       const grokApiKey = API_KEYS.GROK_PRO
-      
+
       if (!grokApiKey || grokApiKey === 'your-grok-key') {
         console.warn('Grok Pro API key not configured, using fallback analysis')
         return {
@@ -845,7 +799,7 @@ Please provide your analysis in the following JSON format:
   const generateTasksFromAnalysis = async (analysis, photoUrl) => {
     try {
       console.log('🔄 Starting automated task generation from photo analysis')
-      
+
       if (!analysis || !analysis.damage || !analysis.analysis) {
         console.warn('Insufficient analysis data for task generation')
         return
@@ -855,7 +809,7 @@ Please provide your analysis in the following JSON format:
       const timestamp = new Date().toISOString()
 
       // Find or create equipment record
-      let equipmentRecord = equipment.find(e => 
+      let equipmentRecord = equipment.find(e =>
         e.name.toLowerCase().includes(analysis.equipment.type.toLowerCase()) ||
         e.type.toLowerCase().includes(analysis.equipment.type.toLowerCase())
       )
@@ -975,7 +929,7 @@ Please provide your analysis in the following JSON format:
         } else {
           console.log(`✅ Successfully generated ${generatedTasks.length} tasks from photo analysis`)
           showMessage('success', `Generated ${generatedTasks.length} maintenance tasks from analysis`)
-          
+
           // Reload tasks list
           await loadTasks()
         }
@@ -1020,7 +974,7 @@ Please provide your analysis in the following JSON format:
         const updatedPhotos = [...offlinePhotos, offlinePhoto]
         setOfflinePhotos(updatedPhotos)
         localStorage.setItem('offlinePhotos', JSON.stringify(updatedPhotos))
-        
+
         console.log('Photo saved offline:', offlinePhoto.id)
         showMessage('success', 'Photo saved offline - will upload when online')
       }
@@ -1035,7 +989,7 @@ Please provide your analysis in the following JSON format:
     if (offlinePhotos.length === 0) return
 
     console.log(`🔄 Syncing ${offlinePhotos.length} offline photos...`)
-    
+
     for (const offlinePhoto of offlinePhotos) {
       try {
         // Convert base64 back to file
@@ -1097,7 +1051,7 @@ Please provide your analysis in the following JSON format:
 
     setAnnotations(prev => [...prev, annotation])
     setCurrentAnnotation(null)
-    
+
     console.log('Annotation added:', annotation)
   }
 
@@ -1182,7 +1136,7 @@ Please provide your analysis in the following JSON format:
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     const recognition = new SpeechRecognition()
-    
+
     recognition.continuous = false
     recognition.interimResults = true
     recognition.lang = 'en-US'
@@ -1239,14 +1193,14 @@ Please provide your analysis in the following JSON format:
     } catch (error) {
       console.log('Recognition already stopped')
     }
-    
+
     setIsListening(false)
     showMessage('info', 'Voice input stopped.')
   }
 
   const processVoiceCommand = (command) => {
     const lowerCommand = command.toLowerCase()
-    
+
     // Voice commands for photo descriptions
     if (lowerCommand.includes('describe') || lowerCommand.includes('analyze')) {
       // Add voice description to photo analysis
@@ -1293,7 +1247,7 @@ Please provide your analysis in the following JSON format:
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     const recognition = new SpeechRecognition()
-    
+
     recognition.continuous = false
     recognition.interimResults = true
     recognition.lang = 'en-US'
@@ -1394,7 +1348,7 @@ Please provide your analysis in the following JSON format:
     if (!searchQuery.trim()) {
       setFilteredPhotos(photos)
     } else {
-      const filtered = photos.filter(photo => 
+      const filtered = photos.filter(photo =>
         photo.analysis?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         photo.purpose?.toLowerCase().includes(searchQuery.toLowerCase())
       )
@@ -1422,15 +1376,15 @@ Please provide your analysis in the following JSON format:
         <p style={{ color: 'var(--secondary-color)', marginBottom: '1rem' }}>
           Upload a photo to get clarification, next steps, or verify if work is done correctly.
         </p>
-        
+
         {!photoUpload.showForm ? (
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            {photoUpload.cameraAvailable && (
+            {camera.isAvailable && (
               <button
                 className="btn"
                 onClick={() => {
                   handleUploadModeChange('camera')
-                  startCamera()
+                  handleStartCamera()
                 }}
                 title="Use camera to take photo"
                 aria-label="Use camera to take photo"
@@ -1459,11 +1413,11 @@ Please provide your analysis in the following JSON format:
                 className="btn btn-secondary"
                 onClick={() => {
                   stopCamera()
-                  setPhotoUpload({ 
-                    ...photoUpload, 
-                    showForm: false, 
-                    photo: null, 
-                    photoUrl: '', 
+                  setPhotoUpload({
+                    ...photoUpload,
+                    showForm: false,
+                    photo: null,
+                    photoUrl: '',
                     analysis: '',
                     selectedTaskId: '',
                     uploadMode: 'file',
@@ -1481,9 +1435,9 @@ Please provide your analysis in the following JSON format:
             <fieldset className="form-group" style={{ marginBottom: '1rem', border: 'none', padding: '0' }}>
               <legend className="form-label" style={{ padding: '0', marginBottom: '0.5rem' }}>Upload Method</legend>
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                <label style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: '0.5rem',
                   cursor: 'pointer',
                   padding: '0.5rem 1rem',
@@ -1505,9 +1459,9 @@ Please provide your analysis in the following JSON format:
                   <Camera size={16} aria-hidden="true" />
                   <span id="camera-option">Use Camera</span>
                 </label>
-                <label style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: '0.5rem',
                   cursor: 'pointer',
                   padding: '0.5rem 1rem',
@@ -1540,7 +1494,7 @@ Please provide your analysis in the following JSON format:
                 name="analysis-purpose"
                 className="form-input"
                 value={photoUpload.purpose}
-                onChange={(e) => setPhotoUpload({...photoUpload, purpose: e.target.value})}
+                onChange={(e) => setPhotoUpload({ ...photoUpload, purpose: e.target.value })}
               >
                 <option value="clarification">
                   🔍 Clarification - Describe the issue
@@ -1553,26 +1507,26 @@ Please provide your analysis in the following JSON format:
                 </option>
               </select>
             </div>
-            
+
             {/* Camera Mode */}
             {photoUpload.cameraMode && (
               <div style={{ marginBottom: '1rem' }}>
                 <video
-                  ref={videoRef}
+                  ref={camera.videoRef}
                   autoPlay
                   playsInline
-                  style={{ 
-                    width: '100%', 
-                    maxWidth: '400px', 
+                  style={{
+                    width: '100%',
+                    maxWidth: '400px',
                     borderRadius: '8px',
                     border: '2px solid var(--border-color)'
                   }}
                 />
-                <canvas ref={canvasRef} style={{ display: 'none' }} />
+                <canvas ref={camera.canvasRef} style={{ display: 'none' }} />
                 <div style={{ marginTop: '1rem' }}>
                   <button
                     className="btn"
-                    onClick={capturePhoto}
+                    onClick={camera.capturePhoto}
                     style={{ marginRight: '1rem' }}
                     title="Capture photo with camera"
                     aria-label="Capture photo with camera"
@@ -1583,7 +1537,7 @@ Please provide your analysis in the following JSON format:
                 </div>
               </div>
             )}
-            
+
             <div className="form-group">
               <label className="form-label" htmlFor="task-select-photos">Link to Task (optional)</label>
               <select
@@ -1591,7 +1545,7 @@ Please provide your analysis in the following JSON format:
                 name="task-select-photos"
                 className="form-input"
                 value={photoUpload.selectedTaskId}
-                onChange={(e) => setPhotoUpload({...photoUpload, selectedTaskId: e.target.value})}
+                onChange={(e) => setPhotoUpload({ ...photoUpload, selectedTaskId: e.target.value })}
               >
                 <option value="">Select a task...</option>
                 {tasks.map(task => (
@@ -1620,9 +1574,9 @@ Please provide your analysis in the following JSON format:
 
             {photoUpload.photo && (
               <div style={{ marginTop: '1rem' }}>
-                <img 
-                  src={URL.createObjectURL(photoUpload.photo)} 
-                  alt="Uploaded" 
+                <img
+                  src={URL.createObjectURL(photoUpload.photo)}
+                  alt="Uploaded"
                   style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }}
                 />
               </div>
@@ -1637,9 +1591,9 @@ Please provide your analysis in the following JSON format:
 
             {photoUpload.analysis && (
               <div style={{ marginTop: '1rem' }}>
-                <div style={{ 
-                  backgroundColor: 'var(--light-color)', 
-                  padding: '1rem', 
+                <div style={{
+                  backgroundColor: 'var(--light-color)',
+                  padding: '1rem',
                   borderRadius: '8px',
                   whiteSpace: 'pre-wrap',
                   fontFamily: 'monospace',
@@ -1669,7 +1623,7 @@ Please provide your analysis in the following JSON format:
             Refresh
           </button>
         </div>
-        
+
         {loading && photos.length === 0 ? (
           <div className="loading">Loading photos...</div>
         ) : photos.length === 0 ? (
@@ -1680,11 +1634,11 @@ Please provide your analysis in the following JSON format:
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {photos.map(photo => {
               const linkedTask = tasks.find(t => t.id === photo.task_id)
-              
+
               return (
-                <div key={photo.id} style={{ 
-                  border: '1px solid var(--border-color)', 
-                  borderRadius: '8px', 
+                <div key={photo.id} style={{
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
                   padding: '1rem',
                   backgroundColor: 'var(--light-color)'
                 }}>
@@ -1692,7 +1646,7 @@ Please provide your analysis in the following JSON format:
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                         {getStatusIcon(photo.response)}
-                        <span style={{ 
+                        <span style={{
                           fontWeight: '600',
                           color: getStatusColor(photo.response)
                         }}>
@@ -1702,11 +1656,11 @@ Please provide your analysis in the following JSON format:
                           {new Date(photo.created_at).toLocaleDateString()}
                         </span>
                         {photo.purpose && (
-                          <span style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
+                          <span style={{
+                            display: 'flex',
+                            alignItems: 'center',
                             gap: '0.25rem',
-                            fontSize: '0.8rem', 
+                            fontSize: '0.8rem',
                             marginLeft: '0.5rem',
                             padding: '0.25rem 0.5rem',
                             backgroundColor: 'var(--primary-color)',
@@ -1718,11 +1672,11 @@ Please provide your analysis in the following JSON format:
                           </span>
                         )}
                         {photo.upload_type && (
-                          <span style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
+                          <span style={{
+                            display: 'flex',
+                            alignItems: 'center',
                             gap: '0.25rem',
-                            fontSize: '0.8rem', 
+                            fontSize: '0.8rem',
                             color: 'var(--primary-color)',
                             marginLeft: '0.5rem'
                           }}>
@@ -1731,10 +1685,10 @@ Please provide your analysis in the following JSON format:
                           </span>
                         )}
                       </div>
-                      
+
                       {linkedTask && (
-                        <div style={{ 
-                          fontSize: '0.9rem', 
+                        <div style={{
+                          fontSize: '0.9rem',
                           color: 'var(--primary-color)',
                           marginBottom: '0.5rem'
                         }}>
@@ -1742,7 +1696,7 @@ Please provide your analysis in the following JSON format:
                         </div>
                       )}
                     </div>
-                    
+
                     <button
                       className="btn btn-danger"
                       onClick={() => deletePhoto(photo.id)}
@@ -1755,22 +1709,22 @@ Please provide your analysis in the following JSON format:
                   </div>
 
                   <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-                    <img 
-                      src={photo.photo_url} 
-                      alt="Project" 
-                      style={{ 
-                        width: '120px', 
-                        height: '120px', 
+                    <img
+                      src={photo.photo_url}
+                      alt="Project"
+                      style={{
+                        width: '120px',
+                        height: '120px',
                         objectFit: 'cover',
                         borderRadius: '6px',
                         border: '2px solid var(--border-color)'
                       }}
                     />
-                    
+
                     <div style={{ flex: 1 }}>
-                      <div style={{ 
-                        backgroundColor: 'white', 
-                        padding: '0.75rem', 
+                      <div style={{
+                        backgroundColor: 'white',
+                        padding: '0.75rem',
                         borderRadius: '6px',
                         whiteSpace: 'pre-wrap',
                         fontFamily: 'monospace',
@@ -1788,19 +1742,36 @@ Please provide your analysis in the following JSON format:
             })}
           </div>
         )}
+
+        {/* Load More Button */}
+        {hasMorePhotos && photos.length > 0 && (
+          <button
+            onClick={loadMorePhotos}
+            disabled={loading}
+            className="btn btn-primary"
+            style={{
+              display: 'block',
+              margin: '1rem auto',
+              padding: '0.75rem 2rem',
+              fontSize: '1rem'
+            }}
+          >
+            {loading ? 'Loading...' : 'Load More Photos'}
+          </button>
+        )}
       </div>
 
       {/* Voice Input Section */}
-      <div style={{ 
-        marginTop: '1rem', 
-        padding: '1rem', 
-        backgroundColor: isListening ? 'var(--warning-color)' : 'var(--light-color)', 
+      <div style={{
+        marginTop: '1rem',
+        padding: '1rem',
+        backgroundColor: isListening ? 'var(--warning-color)' : 'var(--light-color)',
         borderRadius: '8px',
         border: isListening ? '2px solid var(--warning-color)' : '1px solid var(--border-color)',
         textAlign: 'center'
       }}>
-        <h4 style={{ 
-          marginBottom: '0.5rem', 
+        <h4 style={{
+          marginBottom: '0.5rem',
           color: isListening ? 'white' : 'var(--primary-color)',
           display: 'flex',
           alignItems: 'center',
@@ -1810,7 +1781,7 @@ Please provide your analysis in the following JSON format:
           <Mic size={20} />
           Voice Photo Description
         </h4>
-        
+
         {/* Voice Buttons */}
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '1rem' }}>
           <button
@@ -1844,7 +1815,7 @@ Please provide your analysis in the following JSON format:
               </>
             )}
           </button>
-          
+
           <button
             onClick={openVoiceModal}
             style={{
@@ -1866,11 +1837,11 @@ Please provide your analysis in the following JSON format:
             Voice Modal
           </button>
         </div>
-        
+
         {/* Voice Status */}
         {isListening && (
-          <div style={{ 
-            color: 'white', 
+          <div style={{
+            color: 'white',
             fontSize: '0.9rem',
             marginBottom: '0.5rem',
             textAlign: 'center',
@@ -1879,10 +1850,10 @@ Please provide your analysis in the following JSON format:
             🎤 LISTENING - Click "STOP LISTENING" to stop
           </div>
         )}
-        
+
         {/* Voice Transcript */}
         {transcript && (
-          <div style={{ 
+          <div style={{
             marginTop: '0.5rem',
             padding: '0.5rem',
             backgroundColor: 'white',
@@ -1941,13 +1912,13 @@ Please provide your analysis in the following JSON format:
             Get AI Suggestions
           </button>
         </div>
-        
+
         {aiSuggestions.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {aiSuggestions.map((suggestion, index) => (
-              <div key={index} style={{ 
-                padding: '0.75rem', 
-                backgroundColor: 'white', 
+              <div key={index} style={{
+                padding: '0.75rem',
+                backgroundColor: 'white',
                 borderRadius: '6px',
                 border: '1px solid var(--border-color)'
               }}>
@@ -1982,7 +1953,7 @@ Please provide your analysis in the following JSON format:
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
           }}>
             <h3 style={{ marginBottom: '1rem', color: 'var(--primary-color)' }}>🎤 Voice Photo Description</h3>
-            
+
             <div style={{ marginBottom: '1rem' }}>
               <textarea
                 value={voiceModalText}
@@ -1999,7 +1970,7 @@ Please provide your analysis in the following JSON format:
                 }}
               />
             </div>
-            
+
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
               <button
                 onClick={voiceModalListening ? stopVoiceModalListening : startVoiceModalListening}
@@ -2018,7 +1989,7 @@ Please provide your analysis in the following JSON format:
                 {voiceModalListening ? <Square size={16} /> : <Mic size={16} />}
                 {voiceModalListening ? 'Stop' : 'Start'} Recording
               </button>
-              
+
               <button
                 onClick={applyVoiceModalText}
                 disabled={!voiceModalText.trim()}
@@ -2033,7 +2004,7 @@ Please provide your analysis in the following JSON format:
               >
                 Add Description
               </button>
-              
+
               <button
                 onClick={closeVoiceModal}
                 style={{
