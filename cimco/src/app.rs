@@ -12,10 +12,10 @@ pub fn App() -> impl IntoView {
     // Splash Screen State
     let (show_splash, set_show_splash) = create_signal(true);
     
-    // Hide splash after 2.5 seconds
+    // Hide splash after 4.0 seconds (extended to see animation)
     set_timeout(
         move || set_show_splash.set(false),
-        Duration::from_millis(2500),
+        Duration::from_millis(4000),
     );
     
     // Global User State
@@ -33,39 +33,35 @@ pub fn App() -> impl IntoView {
         <div class="min-h-screen bg-slate-900 text-white font-sans">
             // Splash Screen
             <Show when=move || show_splash.get() fallback=|| ()>
-                <div class="fixed inset-0 bg-slate-900 z-50 overflow-hidden isolate">
-                    // Industrial Background - Layer 0
-                    <div class="absolute inset-0 bg-grid-pattern opacity-30 pointer-events-none z-0"></div>
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/80 pointer-events-none z-0"></div>
+                <div class="fixed inset-0 bg-slate-950 z-50 overflow-hidden font-mono">
+                    // Sci-Fi Grid Background
+                    <div class="absolute inset-0 bg-grid-pattern opacity-40 pointer-events-none z-0"></div>
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950 pointer-events-none z-0"></div>
                     
-                    // Logo Centered exactly in viewport - Layer 20
-                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
-                        <img src="public/cimco-logo-official.png" alt="CIMCO" class="w-96 h-auto drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-fade-in" />
-                        <div class="mt-8">
-                             <div class="w-12 h-12 border-4 border-blue-500/50 border-t-blue-400 rounded-full animate-spin shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
+                    // Moving Scanline
+                    <div class="animate-scan z-10 pointer-events-none"></div>
+
+                    // Centered Content
+                    <div class="absolute inset-0 flex flex-col items-center justify-center z-20">
+                        <div class="relative group">
+                            <div class="absolute -inset-1 bg-gradient-to-r from-cyan-400 to-blue-600 rounded-lg blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+                            <img src="public/cimco-logo-official.png" alt="CIMCO" class="relative w-96 h-auto drop-shadow-2xl animate-fade-in neon-glow" />
                         </div>
-                    </div>
-                    
-                    // "RESOURCES" - Piling up at the very bottom - Layer 10 (Letters go higher)
-                    <div class="absolute bottom-4 left-0 w-full h-32 flex justify-center items-end perspective-500 pointer-events-none z-10">
-                        // R - Rust (Base Left)
-                        <span class="text-8xl font-black rust-text animate-drop delay-100 inline-block absolute left-[10%] bottom-0 transform rotate-[-45deg] z-10">"R"</span>
-                         // E - Metal
-                        <span class="text-7xl font-black metal-text animate-drop delay-200 inline-block absolute left-[18%] bottom-2 transform rotate-[15deg] z-20">"E"</span>
-                         // S - Metal
-                        <span class="text-8xl font-black metal-text animate-drop delay-300 inline-block absolute left-[25%] bottom-0 transform rotate-[-10deg] z-10">"S"</span>
-                         // O - Rust
-                        <span class="text-7xl font-black rust-text animate-drop delay-400 inline-block absolute left-[35%] bottom-4 transform rotate-[30deg] z-30">"O"</span>
-                         // U - Heavy Metal Center
-                        <span class="text-9xl font-black metal-text animate-drop delay-500 inline-block absolute left-[45%] bottom-0 transform rotate-[-5deg] z-40">"U"</span>
-                         // R - Metal
-                        <span class="text-8xl font-black metal-text animate-drop delay-300 inline-block absolute left-[55%] bottom-2 transform rotate-[20deg] z-30">"R"</span>
-                         // C - Rust
-                        <span class="text-7xl font-black rust-text animate-drop delay-200 inline-block absolute left-[65%] bottom-0 transform rotate-[-25deg] z-20">"C"</span>
-                         // E - Metal
-                        <span class="text-8xl font-black metal-text animate-drop delay-100 inline-block absolute left-[75%] bottom-4 transform rotate-[40deg] z-10">"E"</span>
-                         // S - Metal (Far Right)
-                        <span class="text-7xl font-black metal-text animate-drop delay-400 inline-block absolute left-[85%] bottom-0 transform rotate-[-15deg] z-10">"S"</span>
+                        
+                        <div class="mt-8 flex flex-col items-center">
+                             // High Tech Spinner
+                             <div class="relative w-16 h-16">
+                                <div class="absolute top-0 left-0 w-full h-full border-4 border-cyan-500/30 rounded-full animate-ping"></div>
+                                <div class="absolute top-0 left-0 w-full h-full border-4 border-t-cyan-400 border-r-transparent border-b-cyan-400 border-l-transparent rounded-full animate-spin"></div>
+                             </div>
+                             
+                             // Terminal Status Text
+                             <div class="mt-6 text-center space-y-1">
+                                <p class="text-cyan-400 text-xl font-bold tracking-[0.2em] animate-pulse">"SYSTEM INITIALIZING..."</p>
+                                <p class="text-cyan-600/80 text-sm">"LOADING MODULES: [HVAC, HYDRAULICS, SAFETY]"</p>
+                                <p class="text-cyan-800/60 text-xs">"v2.0.4 - FUTURE READY"</p>
+                             </div>
+                        </div>
                     </div>
                 </div>
             </Show>

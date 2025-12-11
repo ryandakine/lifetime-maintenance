@@ -94,26 +94,42 @@ body {
     /* Removed opacity: 0 to prevent invisible content on failure */
 }
 
-/* Metallic Text Effect */
-.metal-text {
-    background: linear-gradient(to bottom, #f1f5f9 0%, #94a3b8 50%, #475569 51%, #1e293b 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+/* Futuristic Glow */
+.neon-glow {
+    filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.6)) drop-shadow(0 0 10px rgba(56, 189, 248, 0.4));
 }
 
-.rust-text {
-    background: linear-gradient(to bottom, #fdba74 0%, #c2410c 50%, #7c2d12 51%, #431407 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+.text-neon {
+    color: #38bdf8;
+    /* Sky 400 */
+    text-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
 }
 
-/* Industrial Grid Background */
+/* Scanline Animation */
+@keyframes scan {
+    0% {
+        transform: translateY(-100%);
+    }
+
+    100% {
+        transform: translateY(100vh);
+    }
+}
+
+.animate-scan {
+    animation: scan 2s linear infinite;
+    background: linear-gradient(to bottom, transparent, rgba(56, 189, 248, 0.5), transparent);
+    height: 100px;
+    width: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0.3;
+}
+
+/* Industrial Grid Background (Darker) */
 .bg-grid-pattern {
-    background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-image: linear-gradient(rgba(56, 189, 248, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.1) 1px, transparent 1px);
     background-size: 40px 40px;
 }
