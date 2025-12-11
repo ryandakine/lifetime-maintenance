@@ -181,13 +181,15 @@ pub fn App() -> impl IntoView {
                     fallback=|| ()
                 >
                     <Router>
-                        <Routes>
-                            <Route path="/" view=move || view! { <MainApp user=user.get().unwrap() /> } />
-                            <Route path="/showcase" view=Showcase />
-                            <Route path="/equipment" view=EquipmentList />
-                            <Route path="/tasks" view=Tasks />
-                            <Route path="/scale" view=Scale />
-                        </Routes>
+                        <main>
+                            <Routes>
+                                <Route path="/" view=move || view! { <MainApp user=user.get().unwrap() /> } />
+                                <Route path="/showcase" view=Showcase />
+                                <Route path="/equipment" view=EquipmentList />
+                                <Route path="/tasks" view=Tasks />
+                                <Route path="/scale" view=Scale />
+                            </Routes>
+                        </main>
                     </Router>
                 </Show>
             </Show>
