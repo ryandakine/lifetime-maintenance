@@ -102,6 +102,17 @@ fn get_offline_logs(state: State<AppState>) -> Result<Vec<db::OfflineLog>, Strin
     db::get_logs(&state)
 }
 
+// Knowledge Loop Commands
+#[tauri::command]
+fn save_task_resolution(state: State<AppState>, description: String, category: String, solution: String) -> Result<String, String> {
+    db::save_resolution(&state, description, category, solution)
+}
+
+#[tauri::command]
+fn find_similar_fixes(state: State<AppState>, query: String) -> Result<Vec<db::TaskResolution>, String> {
+    db::find_similar_resolutions(&state, query)
+}
+
 // Scale Logic
 struct ScaleState(Mutex<ScaleData>);
 
@@ -185,7 +196,9 @@ fn main() {
             get_connected_cameras,
             save_offline_log,
             get_offline_logs,
-            read_scale_weight
+            read_scale_weight,
+            save_task_resolution,
+            find_similar_fixes
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -41,6 +41,15 @@ pub struct Equipment {
     pub health_score: f32,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TaskResolution {
+    pub id: i32,
+    pub original_description: String,
+    pub category: String,
+    pub solution_steps: String,
+    pub created_at: String,
+}
+
 pub fn init() -> Result<AppState, Box<dyn std::error::Error>> {
     let mut path = std::path::PathBuf::from("cimco_offline.db");
     
@@ -96,6 +105,18 @@ pub fn init() -> Result<AppState, Box<dyn std::error::Error>> {
             priority INTEGER NOT NULL,
             category TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'pending',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )",
+        [],
+    )?;
+
+    // Create task_resolutions table (AI Knowledge Loop)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS task_resolutions (
+            id INTEGER PRIMARY KEY,
+            original_description TEXT NOT NULL,
+            category TEXT NOT NULL,
+            solution_steps TEXT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )",
         [],
@@ -293,4 +314,52 @@ pub fn get_logs(state: &AppState) -> Result<Vec<OfflineLog>, String> {
         }
     }
     Ok(logs)
+}
+
+// ==========================================
+// AI Knowledge Loop CRUD
+// ==========================================
+
+/// Save a resolution when a task is completed
+pub fn save_resolution(state: &AppState, description: String, category: String, solution: String) -> Result<String, String> {
+    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    conn.execute(
+        "INSERT INTO task_resolutions (original_description, category, solution_steps) VALUES (?1, ?2, ?3)",
+        params![description, category, solution],
+    ).map_err(|e| format!("Failed to save resolution: {}", e))?;
+    Ok("Resolution saved to knowledge base 🧠".to_string())
+}
+
+/// Find similar past resolutions using keyword matching
+pub fn find_similar_resolutions(state: &AppState, query: String) -> Result<Vec<TaskResolution>, String> {
+    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    
+    // Simple LIKE-based search (can be upgraded to FTS5 later)
+    let search_term = format!("%{}%", query.to_lowercase());
+    
+    let mut stmt = conn.prepare(
+        "SELECT id, original_description, category, solution_steps, created_at 
+         FROM task_resolutions 
+         WHERE LOWER(original_description) LIKE ?1 OR LOWER(category) LIKE ?1
+         ORDER BY created_at DESC
+         LIMIT 5"
+    ).map_err(|e| format!("Failed to prepare query: {}", e))?;
+    
+    let iter = stmt.query_map(params![search_term], |row| {
+        Ok(TaskResolution {
+            id: row.get(0)?,
+            original_description: row.get(1)?,
+            category: row.get(2)?,
+            solution_steps: row.get(3)?,
+            created_at: row.get(4)?,
+        })
+    }).map_err(|e| format!("Failed to execute query: {}", e))?;
+
+    let mut results = Vec::new();
+    for item in iter {
+        if let Ok(r) = item {
+            results.push(r);
+        }
+    }
+    Ok(results)
 }

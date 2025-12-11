@@ -2,7 +2,7 @@ use leptos::*;
 use crate::api::get_stats;
 
 #[component]
-pub fn Dashboard() -> impl IntoView {
+pub fn Dashboard(#[prop(default = false)] is_admin: bool) -> impl IntoView {
     let stats = create_resource(
         || (),
         |_| async move { get_stats().await }
@@ -24,10 +24,13 @@ pub fn Dashboard() -> impl IntoView {
                             <div class="md:col-span-2">
                                  <crate::components::chart::HealthChart />
                             </div>
-                             <div class="bg-slate-800 p-4 rounded-lg shadow-lg flex flex-col justify-center items-center">
-                                <h3 class="text-gray-400 uppercase text-xs font-bold mb-2">"System Health Score"</h3>
-                                <div class="text-5xl font-bold text-blue-400">{format!("{:.1}%", data.average_health)}</div>
-                             </div>
+                             // Only Admins see the sensitive "System Health Score"
+                             <Show when=move || is_admin fallback=|| ()>
+                                 <div class="bg-slate-800 p-4 rounded-lg shadow-lg flex flex-col justify-center items-center">
+                                    <h3 class="text-gray-400 uppercase text-xs font-bold mb-2">"System Health Score"</h3>
+                                    <div class="text-5xl font-bold text-blue-400">{format!("{:.1}%", data.average_health)}</div>
+                                 </div>
+                             </Show>
                         </div>
                     }.into_view(),
                     Err(_) => view! { <p class="text-red-500">"Error loading stats"</p> }.into_view()

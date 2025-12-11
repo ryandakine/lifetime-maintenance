@@ -160,3 +160,37 @@ pub async fn toggle_task(id: i32) -> Result<String, String> {
 pub async fn delete_task(id: i32) -> Result<String, String> {
     invoke_command("delete_task", &TaskIdArgs { id }).await
 }
+
+// ==========================================
+// AI Knowledge Loop
+// ==========================================
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskResolution {
+    pub id: i32,
+    pub original_description: String,
+    pub category: String,
+    pub solution_steps: String,
+    pub created_at: String,
+}
+
+#[derive(Serialize)]
+struct SaveResolutionArgs {
+    description: String,
+    category: String,
+    solution: String,
+}
+
+#[derive(Serialize)]
+struct FindSimilarArgs {
+    query: String,
+}
+
+/// Save a resolution when completing a task
+pub async fn save_resolution(description: String, category: String, solution: String) -> Result<String, String> {
+    invoke_command("save_task_resolution", &SaveResolutionArgs { description, category, solution }).await
+}
+
+/// Find similar past resolutions based on a search query
+pub async fn find_similar_resolutions(query: String) -> Result<Vec<TaskResolution>, String> {
+    invoke_command("find_similar_fixes", &FindSimilarArgs { query }).await
+}

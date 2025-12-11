@@ -1,6 +1,6 @@
 use leptos::*;
 use leptos_router::A;
-use crate::api::{get_tasks, add_task, toggle_task, delete_task};
+use crate::api::{get_tasks, add_task, toggle_task, delete_task, save_resolution, find_similar_resolutions, TaskResolution};
 
 #[component]
 pub fn Tasks() -> impl IntoView {
@@ -17,6 +17,13 @@ pub fn Tasks() -> impl IntoView {
     let (priority_val, set_priority_val) = create_signal(2); // Default Medium
     let (category_val, set_category_val) = create_signal("General".to_string());
 
+    // Knowledge Loop State
+    let (suggestions, set_suggestions) = create_signal(Vec::<TaskResolution>::new());
+    let (show_modal, set_show_modal) = create_signal(false);
+    let (modal_task_desc, set_modal_task_desc) = create_signal(String::new());
+    let (modal_task_cat, set_modal_task_cat) = create_signal(String::new());
+    let (solution_input, set_solution_input) = create_signal(String::new());
+
     let categories = vec!["General", "HVAC", "Plumbing", "Electrical", "Safety", "Hydraulics"];
 
     // Handlers
@@ -26,15 +33,31 @@ pub fn Tasks() -> impl IntoView {
                 let _ = add_task(input_val.get(), priority_val.get(), category_val.get()).await;
                 set_refresh.update(|n| *n += 1);
                 set_input_val.set(String::new());
+                set_suggestions.set(vec![]);
             }
         });
     };
 
-    let on_toggle = move |id| {
-        spawn_local(async move {
-            let _ = toggle_task(id).await;
-            set_refresh.update(|n| *n += 1);
-        });
+    // Modified toggle to show modal for pending tasks
+    let on_toggle = move |id: i32, desc: String, cat: String, is_done: bool| {
+        if !is_done {
+            // Task is being marked complete - prompt for solution
+            set_modal_task_desc.set(desc);
+            set_modal_task_cat.set(cat);
+            set_show_modal.set(true);
+            
+            // Also toggle the task
+            spawn_local(async move {
+                let _ = toggle_task(id).await;
+                set_refresh.update(|n| *n += 1);
+            });
+        } else {
+            // Task is being marked incomplete - just toggle
+            spawn_local(async move {
+                let _ = toggle_task(id).await;
+                set_refresh.update(|n| *n += 1);
+            });
+        }
     };
 
     let on_delete = move |id| {
@@ -54,8 +77,71 @@ pub fn Tasks() -> impl IntoView {
         });
     };
 
+    // Knowledge Loop: Search for suggestions when input changes
+    let on_input_change = move |val: String| {
+        set_input_val.set(val.clone());
+        if val.len() > 3 {
+            spawn_local(async move {
+                if let Ok(results) = find_similar_resolutions(val).await {
+                    set_suggestions.set(results);
+                }
+            });
+        } else {
+            set_suggestions.set(vec![]);
+        }
+    };
+
+    // Save Resolution Handler
+    let on_save_resolution = move || {
+        let desc = modal_task_desc.get();
+        let cat = modal_task_cat.get();
+        let sol = solution_input.get();
+        
+        if !sol.is_empty() {
+            spawn_local(async move {
+                let _ = save_resolution(desc, cat, sol).await;
+            });
+        }
+        
+        set_show_modal.set(false);
+        set_solution_input.set(String::new());
+    };
+
     view! {
         <div class="p-6 text-white min-h-screen max-w-5xl mx-auto">
+            // Resolution Modal
+            <Show when=move || show_modal.get() fallback=|| ()>
+                <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+                    <div class="bg-slate-800 p-6 rounded-xl max-w-md w-full border border-slate-600 shadow-2xl">
+                        <h3 class="text-xl font-bold mb-2">"🧠 Knowledge Capture"</h3>
+                        <p class="text-gray-400 text-sm mb-4">"How did you fix this? Future techs will thank you!"</p>
+                        
+                        <div class="bg-slate-900 p-3 rounded mb-4">
+                            <span class="text-xs text-blue-400 uppercase">{move || modal_task_cat.get()}</span>
+                            <p class="font-medium">{move || modal_task_desc.get()}</p>
+                        </div>
+                        
+                        <textarea
+                            class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg text-white mb-4 h-24"
+                            placeholder="What steps did you take? What fixed it?"
+                            prop:value=solution_input
+                            on:input=move |ev| set_solution_input.set(event_target_value(&ev))
+                        ></textarea>
+                        
+                        <div class="flex gap-3">
+                            <button
+                                on:click=move |_| set_show_modal.set(false)
+                                class="flex-1 bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition"
+                            >"Skip"</button>
+                            <button
+                                on:click=move |_| on_save_resolution()
+                                class="flex-1 bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg font-bold transition"
+                            >"Save to Knowledge Base"</button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
+
              <div class="flex justify-between items-center mb-6">
                 <div>
                     <h2 class="text-3xl font-bold">"Maintenance Tasks"</h2>
@@ -90,14 +176,32 @@ pub fn Tasks() -> impl IntoView {
             // Input Area
             <div class="bg-slate-800 p-6 rounded-xl mb-8 shadow-lg border border-slate-700">
                 <div class="flex flex-col md:flex-row gap-4">
-                    <div class="flex-1">
+                    <div class="flex-1 relative">
                         <input type="text" 
                             class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg text-white focus:border-blue-500 focus:outline-none"
                             prop:value=input_val
-                            on:input=move |ev| set_input_val.set(event_target_value(&ev))
+                            on:input=move |ev| on_input_change(event_target_value(&ev))
                             on:keydown=move |ev| if ev.key() == "Enter" { on_add() }
                             placeholder="Describe new task..."
                         />
+                        
+                        // Knowledge Loop: Suggestions Dropdown
+                        <Show when=move || !suggestions.get().is_empty() fallback=|| ()>
+                            <div class="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-blue-500 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                                <div class="px-3 py-2 border-b border-slate-700 flex items-center gap-2">
+                                    <span class="text-yellow-400">"💡"</span>
+                                    <span class="text-xs text-gray-400 uppercase">"Previous Fixes Found"</span>
+                                </div>
+                                {move || suggestions.get().into_iter().map(|s| {
+                                    view! {
+                                        <div class="px-3 py-2 hover:bg-slate-700 cursor-pointer border-b border-slate-700/50">
+                                            <div class="text-sm text-gray-300">{s.original_description}</div>
+                                            <div class="text-xs text-emerald-400 mt-1">"✅ " {s.solution_steps}</div>
+                                        </div>
+                                    }
+                                }).collect_view()}
+                            </div>
+                        </Show>
                     </div>
                     
                     // Priority Select
@@ -160,12 +264,14 @@ pub fn Tasks() -> impl IntoView {
                                     
                                     let item_id = item.id;
                                     let item_id_del = item.id;
+                                    let item_desc = item.description.clone();
+                                    let item_cat = item.category.clone();
 
                                     view! {
                                         <div class={format!("bg-slate-800 p-4 rounded-lg shadow flex items-center justify-between group transition hover:bg-slate-750 {} {}", prio_color, opacity)}>
                                             <div class="flex items-center gap-4 flex-1">
                                                 <button 
-                                                    on:click=move |_| on_toggle(item_id)
+                                                    on:click=move |_| on_toggle(item_id, item_desc.clone(), item_cat.clone(), is_done)
                                                     class={format!("w-6 h-6 rounded border flex items-center justify-center transition {}", if is_done { "bg-green-600 border-green-600" } else { "border-gray-500 hover:border-blue-400" })}
                                                 >
                                                     {if is_done { "✓" } else { "" }}
