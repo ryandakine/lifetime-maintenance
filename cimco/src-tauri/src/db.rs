@@ -23,9 +23,6 @@ pub struct EquipmentStats {
     pub average_health: f32,
 }
 
-pub fn init() -> Result<AppState, Box<dyn std::error::Error>> {
-    let conn = Connection::open("cimco_offline.db")?;
-    
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Task {
     pub id: i32,
@@ -34,6 +31,14 @@ pub struct Task {
     pub category: String,
     pub status: String, // "pending", "complete"
     pub created_at: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Equipment {
+    pub id: i32,
+    pub name: String,
+    pub status: String,
+    pub health_score: f32,
 }
 
 pub fn init() -> Result<AppState, Box<dyn std::error::Error>> {
@@ -123,7 +128,76 @@ pub fn init() -> Result<AppState, Box<dyn std::error::Error>> {
     })
 }
 
-// ... existing equipment functions ...
+// Equipment CRUD
+pub fn get_stats(state: &AppState) -> Result<EquipmentStats, String> {
+    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    
+    // Calculate stats using SQL aggregation
+    let total: i32 = conn.query_row("SELECT COUNT(*) FROM equipment", [], |row| row.get(0)).unwrap_or(0);
+    let active: i32 = conn.query_row("SELECT COUNT(*) FROM equipment WHERE status = 'active'", [], |row| row.get(0)).unwrap_or(0);
+    let maintenance: i32 = conn.query_row("SELECT COUNT(*) FROM equipment WHERE status = 'maintenance'", [], |row| row.get(0)).unwrap_or(0);
+    let down: i32 = conn.query_row("SELECT COUNT(*) FROM equipment WHERE status = 'down'", [], |row| row.get(0)).unwrap_or(0);
+    let avg_health: f32 = conn.query_row("SELECT AVG(health_score) FROM equipment", [], |row| row.get(0)).unwrap_or(0.0);
+
+    Ok(EquipmentStats {
+        total_equipment: total,
+        active_count: active,
+        maintenance_count: maintenance,
+        down_count: down,
+        average_health: avg_health,
+    })
+}
+
+pub fn get_all_equipment(state: &AppState) -> Result<Vec<Equipment>, String> {
+    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    
+    let mut stmt = conn.prepare("SELECT id, name, status, health_score FROM equipment ORDER BY id DESC")
+        .map_err(|e| format!("Failed to prepare query: {}", e))?;
+        
+    let iter = stmt.query_map([], |row| {
+        Ok(Equipment {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            status: row.get(2)?,
+            health_score: row.get(3)?,
+        })
+    }).map_err(|e| format!("Failed to execute query: {}", e))?;
+
+    let mut items = Vec::new();
+    for i in iter {
+        if let Ok(item) = i {
+            items.push(item);
+        }
+    }
+    Ok(items)
+}
+
+pub fn create_equipment(state: &AppState, name: String, status: String, health: f32) -> Result<String, String> {
+    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    conn.execute(
+        "INSERT INTO equipment (name, status, health_score) VALUES (?1, ?2, ?3)",
+        params![name, status, health],
+    ).map_err(|e| format!("Failed to insert equipment: {}", e))?;
+    Ok("Success".to_string())
+}
+
+pub fn update_equipment_status(state: &AppState, id: i32, status: String) -> Result<String, String> {
+    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    conn.execute(
+        "UPDATE equipment SET status = ?1 WHERE id = ?2",
+        params![status, id],
+    ).map_err(|e| format!("Failed to update equipment: {}", e))?;
+    Ok("Success".to_string())
+}
+
+pub fn delete_equipment(state: &AppState, id: i32) -> Result<String, String> {
+    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
+    conn.execute(
+        "DELETE FROM equipment WHERE id = ?1",
+        params![id],
+    ).map_err(|e| format!("Failed to delete equipment: {}", e))?;
+    Ok("Success".to_string())
+}
 
 // Task CRUD
 pub fn get_tasks(state: &AppState) -> Result<Vec<Task>, String> {
@@ -185,6 +259,7 @@ pub fn delete_task(state: &AppState, id: i32) -> Result<String, String> {
     Ok("Success".to_string())
 }
 
+// Log CRUD
 pub fn save_log(state: &AppState, equipment_id: String, action: String) -> Result<String, String> {
     let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
     
@@ -218,82 +293,4 @@ pub fn get_logs(state: &AppState) -> Result<Vec<OfflineLog>, String> {
         }
     }
     Ok(logs)
-}
-
-pub fn get_stats(state: &AppState) -> Result<EquipmentStats, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
-    
-    // Calculate stats using SQL aggregation
-    let total: i32 = conn.query_row("SELECT COUNT(*) FROM equipment", [], |row| row.get(0)).unwrap_or(0);
-    let active: i32 = conn.query_row("SELECT COUNT(*) FROM equipment WHERE status = 'active'", [], |row| row.get(0)).unwrap_or(0);
-    let maintenance: i32 = conn.query_row("SELECT COUNT(*) FROM equipment WHERE status = 'maintenance'", [], |row| row.get(0)).unwrap_or(0);
-    let down: i32 = conn.query_row("SELECT COUNT(*) FROM equipment WHERE status = 'down'", [], |row| row.get(0)).unwrap_or(0);
-    let avg_health: f32 = conn.query_row("SELECT AVG(health_score) FROM equipment", [], |row| row.get(0)).unwrap_or(0.0);
-
-    Ok(EquipmentStats {
-        total_equipment: total,
-        active_count: active,
-        maintenance_count: maintenance,
-        down_count: down,
-        average_health: avg_health,
-    })
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Equipment {
-    pub id: i32,
-    pub name: String,
-    pub status: String,
-    pub health_score: f32,
-}
-
-pub fn get_all_equipment(state: &AppState) -> Result<Vec<Equipment>, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
-    
-    let mut stmt = conn.prepare("SELECT id, name, status, health_score FROM equipment ORDER BY id DESC")
-        .map_err(|e| format!("Failed to prepare query: {}", e))?;
-        
-    let iter = stmt.query_map([], |row| {
-        Ok(Equipment {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            status: row.get(2)?,
-            health_score: row.get(3)?,
-        })
-    }).map_err(|e| format!("Failed to execute query: {}", e))?;
-
-    let mut items = Vec::new();
-    for i in iter {
-        if let Ok(item) = i {
-            items.push(item);
-        }
-    }
-    Ok(items)
-}
-
-pub fn create_equipment(state: &AppState, name: String, status: String, health: f32) -> Result<String, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
-    conn.execute(
-        "INSERT INTO equipment (name, status, health_score) VALUES (?1, ?2, ?3)",
-        params![name, status, health],
-    ).map_err(|e| format!("Failed to insert equipment: {}", e))?;
-    Ok("Success".to_string())
-}
-
-pub fn update_equipment_status(state: &AppState, id: i32, status: String) -> Result<String, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
-    conn.execute(
-        "UPDATE equipment SET status = ?1 WHERE id = ?2",
-        params![status, id],
-    ).map_err(|e| format!("Failed to update equipment: {}", e))?;
-    Ok("Success".to_string())
-}
-
-pub fn delete_equipment(state: &AppState, id: i32) -> Result<String, String> {
-    let conn = state.db.lock().map_err(|e| format!("Database lock failed: {}", e))?;
-    conn.execute(
-        "DELETE FROM equipment WHERE id = ?1",
-        params![id],
-    ).map_err(|e| format!("Failed to delete equipment: {}", e))?;
-    Ok("Success".to_string())
 }
