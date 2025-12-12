@@ -180,15 +180,7 @@ pub fn App() -> impl IntoView {
                     when=move || user.get().is_some()
                     fallback=|| ()
                 >
-                    <Router>
-                        <Routes>
-                            <Route path="/" view=move || view! { <MainApp user=user.get().unwrap() /> } />
-                            <Route path="/showcase" view=Showcase />
-                            <Route path="/equipment" view=EquipmentList />
-                            <Route path="/tasks" view=Tasks />
-                            <Route path="/scale" view=Scale />
-                        </Routes>
-                    </Router>
+                    <MainApp user=user.get().unwrap() />
                 </Show>
             </Show>
         </div>
@@ -198,6 +190,9 @@ pub fn App() -> impl IntoView {
 #[component]
 fn MainApp(user: User) -> impl IntoView {
     let is_admin = user.role == UserRole::Admin;
+    
+    // Simple navigation state - just show/hide sections
+    let (current_page, set_current_page) = create_signal("dashboard".to_string());
     
     // Get time-based greeting
     let greeting = {
@@ -235,35 +230,85 @@ fn MainApp(user: User) -> impl IntoView {
                     </div>
                 </div>
                 <div class="flex gap-4">
-                    <A href="/tasks" class="text-base !text-white bg-emerald-700 px-6 py-2 rounded-lg hover:bg-emerald-600 border border-emerald-600 font-bold shadow-md transition-transform hover:scale-105 flex items-center gap-2">
+                    <button 
+                        on:click=move |_| set_current_page.set("dashboard".to_string())
+                        class=move || format!(
+                            "text-base text-white px-6 py-2 rounded-lg border font-bold shadow-md transition-transform hover:scale-105 {}",
+                            if current_page.get() == "dashboard" { "bg-blue-700 border-blue-600" } else { "bg-slate-700 border-slate-600" }
+                        )
+                    >
+                        "🏠 Dashboard"
+                    </button>
+                    <button 
+                        on:click=move |_| set_current_page.set("tasks".to_string())
+                        class=move || format!(
+                            "text-base text-white px-6 py-2 rounded-lg border font-bold shadow-md transition-transform hover:scale-105 {}",
+                            if current_page.get() == "tasks" { "bg-emerald-700 border-emerald-600" } else { "bg-slate-700 border-slate-600" }
+                        )
+                    >
                         "📋 Tasks"
-                    </A>
-                    <A href="/scale" class="text-base !text-white bg-purple-700 px-6 py-2 rounded-lg hover:bg-purple-600 border border-purple-600 font-bold shadow-md transition-transform hover:scale-105 flex items-center gap-2">
-                         "⚖️ Scale"
-                    </A>
+                    </button>
+                    <button 
+                        on:click=move |_| set_current_page.set("scale".to_string())
+                        class=move || format!(
+                            "text-base text-white px-6 py-2 rounded-lg border font-bold shadow-md transition-transform hover:scale-105 {}",
+                            if current_page.get() == "scale" { "bg-purple-700 border-purple-600" } else { "bg-slate-700 border-slate-600" }
+                        )
+                    >
+                        "⚖️ Scale"
+                    </button>
                     
                     // RBAC: Only Admin sees Equipment Management
                     <Show when=move || is_admin fallback=|| ()>
-                        <A href="/equipment" class="text-base !text-white bg-blue-700 px-6 py-2 rounded-lg hover:bg-blue-600 border border-blue-600 font-bold shadow-md transition-transform hover:scale-105">
-                            "🏗️ Manage Equipment"
-                        </A>
+                        <button 
+                            on:click=move |_| set_current_page.set("equipment".to_string())
+                            class=move || format!(
+                                "text-base text-white px-6 py-2 rounded-lg border font-bold shadow-md transition-transform hover:scale-105 {}",
+                                if current_page.get() == "equipment" { "bg-blue-700 border-blue-600" } else { "bg-slate-700 border-slate-600" }
+                            )
+                        >
+                            "🏗️ Equipment"
+                        </button>
                     </Show>
 
-                    <A href="/showcase" class="text-base !text-white bg-slate-700 px-6 py-2 rounded-lg hover:bg-slate-600 border border-slate-600 font-bold shadow-md transition-transform hover:scale-105">
+                    <button 
+                        on:click=move |_| set_current_page.set("showcase".to_string())
+                        class=move || format!(
+                            "text-base text-white px-6 py-2 rounded-lg border font-bold shadow-md transition-transform hover:scale-105 {}",
+                            if current_page.get() == "showcase" { "bg-slate-700 border-slate-600" } else { "bg-slate-600 border-slate-500" }
+                        )
+                    >
                         "🛠️ Showcase"
-                    </A>
+                    </button>
                 </div>
             </header>
+            
             <main class="p-5">
-                <crate::components::dashboard::Dashboard is_admin=is_admin />
+                // Show different content based on current_page
+                <Show when=move || current_page.get() == "dashboard" fallback=|| ()>
+                    <crate::components::dashboard::Dashboard is_admin=is_admin />
+                    <div class="grid grid-cols-1 gap-4 mb-4 mt-4">
+                        <crate::components::camera::Camera />
+                    </div>
+                    <Show when=move || is_admin fallback=|| ()>
+                        <crate::components::logs::Logs />
+                    </Show>
+                </Show>
                 
-                <div class="grid grid-cols-1 gap-4 mb-4">
-                     <crate::components::camera::Camera />
-                </div>
+                <Show when=move || current_page.get() == "tasks" fallback=|| ()>
+                    <Tasks />
+                </Show>
                 
-                // RBAC: Only Admin sees Logs
-                <Show when=move || is_admin fallback=|| ()>
-                    <crate::components::logs::Logs />
+                <Show when=move || current_page.get() == "scale" fallback=|| ()>
+                    <Scale />
+                </Show>
+                
+                <Show when=move || current_page.get() == "equipment" fallback=|| ()>
+                    <EquipmentList />
+                </Show>
+                
+                <Show when=move || current_page.get() == "showcase" fallback=|| ()>
+                    <Showcase />
                 </Show>
             </main>
         </div>
