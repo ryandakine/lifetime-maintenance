@@ -199,7 +199,7 @@ pub async fn find_similar_resolutions(query: String) -> Result<Vec<TaskResolutio
 // Parts Inventory API
 // ==========================================
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Part {
     pub id: i32,
     pub name: String,

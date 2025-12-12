@@ -7,3 +7,4 @@ pub mod chart;
 pub mod tasks;
 pub mod login;
 pub mod inventory;
+pub mod voice_input;

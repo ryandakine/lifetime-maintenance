@@ -1,5 +1,6 @@
 use leptos::*;
 use crate::api::{get_parts, add_part, update_part_quantity, delete_part, get_incoming_orders, Part, IncomingOrder};
+use crate::components::voice_input::VoiceInput;
 
 #[component]
 pub fn Inventory() -> impl IntoView {
@@ -62,6 +63,19 @@ pub fn Inventory() -> impl IntoView {
         });
     };
 
+    // Voice command handler
+    let on_voice_command = Callback::new(move |(part_id, qty_change): (i32, i32)| {
+        spawn_local(async move {
+            let _ = update_part_quantity(part_id, qty_change).await;
+            set_refresh.update(|n| *n += 1);
+        });
+    });
+
+    // Signal for parts list to pass to VoiceInput
+    let parts_signal = create_memo(move |_| {
+        parts.get().map(|r| r.unwrap_or_default()).unwrap_or_default()
+    });
+
     view! {
         <div class="p-6 text-white min-h-screen">
             // Header
@@ -80,6 +94,12 @@ pub fn Inventory() -> impl IntoView {
                     {move || if show_add_form.get() { "✕ Cancel" } else { "➕ Add Part" }}
                 </button>
             </div>
+
+            // Voice Command Input
+            <VoiceInput 
+                on_voice_update=on_voice_command
+                parts=parts_signal.into()
+            />
 
             // Stats Row
             <div class="grid grid-cols-4 gap-4 mb-6">
