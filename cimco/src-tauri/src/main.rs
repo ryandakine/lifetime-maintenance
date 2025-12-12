@@ -47,6 +47,13 @@ fn main() {
             // Knowledge Loop
             commands::save_task_resolution,
             commands::find_similar_fixes,
+            // Parts Inventory
+            commands::get_parts,
+            commands::add_part,
+            commands::update_part_quantity,
+            commands::delete_part,
+            commands::get_incoming_orders,
+            commands::get_low_stock_parts,
             // Hardware
             hardware::get_connected_cameras,
             hardware::read_scale_weight

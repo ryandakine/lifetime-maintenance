@@ -127,6 +127,9 @@ pub fn init() -> Result<AppState, Box<dyn std::error::Error>> {
         [],
     )?;
 
+    // Create parts inventory tables
+    init_parts_table(&conn)?;
+
     // Seed Data (if empty)
     let count: i32 = conn.query_row("SELECT COUNT(*) FROM equipment", [], |row| row.get(0))?;
     if count == 0 {
@@ -367,4 +370,216 @@ pub fn find_similar_resolutions(state: &AppState, query: String) -> Result<Vec<T
         }
     }
     Ok(results)
+}
+
+// ==========================================
+// Parts Inventory CRUD
+// ==========================================
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Part {
+    pub id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub category: String,
+    pub part_number: Option<String>,
+    pub quantity: i32,
+    pub min_quantity: i32,
+    pub location: Option<String>,
+    pub unit_cost: Option<f64>,
+    pub supplier: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IncomingOrder {
+    pub id: i32,
+    pub part_name: Option<String>,
+    pub order_number: Option<String>,
+    pub tracking_number: Option<String>,
+    pub supplier: Option<String>,
+    pub quantity: i32,
+    pub status: String,
+    pub order_date: Option<String>,
+    pub expected_delivery: Option<String>,
+}
+
+/// Initialize parts table (call from init())
+pub fn init_parts_table(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS parts (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            category TEXT NOT NULL,
+            part_number TEXT,
+            quantity INTEGER DEFAULT 0,
+            min_quantity INTEGER DEFAULT 1,
+            location TEXT,
+            unit_cost REAL,
+            supplier TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS incoming_orders (
+            id INTEGER PRIMARY KEY,
+            part_id INTEGER,
+            part_name TEXT,
+            order_number TEXT,
+            tracking_number TEXT,
+            supplier TEXT,
+            quantity INTEGER DEFAULT 1,
+            status TEXT DEFAULT 'ordered',
+            order_date DATE,
+            expected_delivery DATE,
+            email_subject TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )",
+        [],
+    )?;
+    
+    // Seed some sample parts if table is empty
+    let count: i32 = conn.query_row("SELECT COUNT(*) FROM parts", [], |row| row.get(0))?;
+    if count == 0 {
+        let samples = vec![
+            ("Shredder Hammer - Heavy Duty", "Shredder", 12, 5, "Bin A-1", 89.99, "SSI Shredding"),
+            ("Shredder Hammer - Standard", "Shredder", 8, 4, "Bin A-2", 65.00, "SSI Shredding"),
+            ("Hydraulic Pump - Main", "Hydraulics", 2, 1, "Shelf B-1", 450.00, "Grainger"),
+            ("Hydraulic Cylinder Seal Kit", "Hydraulics", 6, 3, "Bin B-3", 35.00, "Amazon"),
+            ("Conveyor Belt - 24 inch", "General", 3, 1, "Rack C-1", 280.00, "MSC Direct"),
+            ("Motor Bearing 6205", "Electrical", 10, 4, "Bin D-2", 18.50, "Amazon"),
+        ];
+        
+        for (name, cat, qty, min_qty, loc, cost, supplier) in samples {
+            conn.execute(
+                "INSERT INTO parts (name, category, quantity, min_quantity, location, unit_cost, supplier) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![name, cat, qty, min_qty, loc, cost, supplier],
+            )?;
+        }
+        println!("🌱 Seeded parts table with sample inventory");
+    }
+    
+    Ok(())
+}
+
+pub fn get_all_parts(state: &AppState) -> Result<Vec<Part>, String> {
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
+    
+    let mut stmt = conn.prepare(
+        "SELECT id, name, description, category, part_number, quantity, min_quantity, location, unit_cost, supplier 
+         FROM parts ORDER BY category, name"
+    ).map_err(|e| format!("Failed to prepare query: {}", e))?;
+    
+    let iter = stmt.query_map([], |row| {
+        Ok(Part {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            description: row.get(2)?,
+            category: row.get(3)?,
+            part_number: row.get(4)?,
+            quantity: row.get(5)?,
+            min_quantity: row.get(6)?,
+            location: row.get(7)?,
+            unit_cost: row.get(8)?,
+            supplier: row.get(9)?,
+        })
+    }).map_err(|e| format!("Failed to execute query: {}", e))?;
+
+    let mut items = Vec::new();
+    for item in iter {
+        if let Ok(p) = item {
+            items.push(p);
+        }
+    }
+    Ok(items)
+}
+
+pub fn create_part(state: &AppState, name: String, category: String, quantity: i32, min_quantity: i32, location: String) -> Result<String, String> {
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
+    conn.execute(
+        "INSERT INTO parts (name, category, quantity, min_quantity, location) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![name, category, quantity, min_quantity, location],
+    ).map_err(|e| format!("Failed to insert part: {}", e))?;
+    Ok("Part added ✅".to_string())
+}
+
+pub fn update_part_quantity(state: &AppState, id: i32, quantity_change: i32) -> Result<String, String> {
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
+    conn.execute(
+        "UPDATE parts SET quantity = quantity + ?1 WHERE id = ?2",
+        params![quantity_change, id],
+    ).map_err(|e| format!("Failed to update quantity: {}", e))?;
+    Ok("Quantity updated".to_string())
+}
+
+pub fn delete_part(state: &AppState, id: i32) -> Result<String, String> {
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
+    conn.execute("DELETE FROM parts WHERE id = ?1", params![id])
+        .map_err(|e| format!("Failed to delete part: {}", e))?;
+    Ok("Part deleted".to_string())
+}
+
+pub fn get_low_stock_parts(state: &AppState) -> Result<Vec<Part>, String> {
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
+    
+    let mut stmt = conn.prepare(
+        "SELECT id, name, description, category, part_number, quantity, min_quantity, location, unit_cost, supplier 
+         FROM parts WHERE quantity <= min_quantity ORDER BY quantity ASC"
+    ).map_err(|e| format!("Failed to prepare query: {}", e))?;
+    
+    let iter = stmt.query_map([], |row| {
+        Ok(Part {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            description: row.get(2)?,
+            category: row.get(3)?,
+            part_number: row.get(4)?,
+            quantity: row.get(5)?,
+            min_quantity: row.get(6)?,
+            location: row.get(7)?,
+            unit_cost: row.get(8)?,
+            supplier: row.get(9)?,
+        })
+    }).map_err(|e| format!("Failed to execute query: {}", e))?;
+
+    let mut items = Vec::new();
+    for item in iter {
+        if let Ok(p) = item {
+            items.push(p);
+        }
+    }
+    Ok(items)
+}
+
+pub fn get_incoming_orders(state: &AppState) -> Result<Vec<IncomingOrder>, String> {
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
+    
+    let mut stmt = conn.prepare(
+        "SELECT id, part_name, order_number, tracking_number, supplier, quantity, status, order_date, expected_delivery 
+         FROM incoming_orders WHERE status != 'delivered' ORDER BY expected_delivery ASC"
+    ).map_err(|e| format!("Failed to prepare query: {}", e))?;
+    
+    let iter = stmt.query_map([], |row| {
+        Ok(IncomingOrder {
+            id: row.get(0)?,
+            part_name: row.get(1)?,
+            order_number: row.get(2)?,
+            tracking_number: row.get(3)?,
+            supplier: row.get(4)?,
+            quantity: row.get(5)?,
+            status: row.get(6)?,
+            order_date: row.get(7)?,
+            expected_delivery: row.get(8)?,
+        })
+    }).map_err(|e| format!("Failed to execute query: {}", e))?;
+
+    let mut items = Vec::new();
+    for item in iter {
+        if let Ok(o) = item {
+            items.push(o);
+        }
+    }
+    Ok(items)
 }

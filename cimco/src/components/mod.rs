@@ -6,3 +6,4 @@ pub mod equipment_list;
 pub mod chart;
 pub mod tasks;
 pub mod login;
+pub mod inventory;

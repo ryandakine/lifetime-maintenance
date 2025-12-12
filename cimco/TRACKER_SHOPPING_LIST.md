@@ -4,7 +4,7 @@
 
 Copy this shopping list! Total cost: **~$70 for 2 working trackers**
 
----
+---`
 
 ## AMAZON PRIME (Fast Delivery - 2 Days)
 

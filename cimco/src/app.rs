@@ -8,6 +8,7 @@ use crate::showcase::Showcase;
 use crate::components::equipment_list::EquipmentList;
 use crate::components::tasks::Tasks;
 use crate::components::scale::Scale;
+use crate::components::inventory::Inventory;
 use crate::components::login::{Login, User, UserRole};
 
 #[component]
@@ -272,6 +273,16 @@ fn MainApp(user: User) -> impl IntoView {
                     </Show>
 
                     <button 
+                        on:click=move |_| set_current_page.set("inventory".to_string())
+                        class=move || format!(
+                            "text-base text-white px-6 py-2 rounded-lg border font-bold shadow-md transition-transform hover:scale-105 {}",
+                            if current_page.get() == "inventory" { "bg-orange-700 border-orange-600" } else { "bg-slate-700 border-slate-600" }
+                        )
+                    >
+                        "📦 Inventory"
+                    </button>
+
+                    <button 
                         on:click=move |_| set_current_page.set("showcase".to_string())
                         class=move || format!(
                             "text-base text-white px-6 py-2 rounded-lg border font-bold shadow-md transition-transform hover:scale-105 {}",
@@ -309,6 +320,10 @@ fn MainApp(user: User) -> impl IntoView {
                 
                 <Show when=move || current_page.get() == "showcase" fallback=|| ()>
                     <Showcase />
+                </Show>
+                
+                <Show when=move || current_page.get() == "inventory" fallback=|| ()>
+                    <Inventory />
                 </Show>
             </main>
         </div>

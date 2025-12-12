@@ -194,3 +194,78 @@ pub async fn save_resolution(description: String, category: String, solution: St
 pub async fn find_similar_resolutions(query: String) -> Result<Vec<TaskResolution>, String> {
     invoke_command("find_similar_fixes", &FindSimilarArgs { query }).await
 }
+
+// ==========================================
+// Parts Inventory API
+// ==========================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Part {
+    pub id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub category: String,
+    pub part_number: Option<String>,
+    pub quantity: i32,
+    pub min_quantity: i32,
+    pub location: Option<String>,
+    pub unit_cost: Option<f32>,
+    pub supplier: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IncomingOrder {
+    pub id: i32,
+    pub part_name: Option<String>,
+    pub order_number: Option<String>,
+    pub tracking_number: Option<String>,
+    pub supplier: Option<String>,
+    pub quantity: i32,
+    pub status: String,
+    pub order_date: Option<String>,
+    pub expected_delivery: Option<String>,
+}
+
+#[derive(Serialize)]
+struct AddPartArgs {
+    name: String,
+    category: String,
+    quantity: i32,
+    min_quantity: i32,
+    location: String,
+}
+
+#[derive(Serialize)]
+struct UpdatePartQtyArgs {
+    id: i32,
+    quantity_change: i32,
+}
+
+#[derive(Serialize)]
+struct PartIdArgs {
+    id: i32,
+}
+
+pub async fn get_parts() -> Result<Vec<Part>, String> {
+    invoke_command("get_parts", &()).await
+}
+
+pub async fn add_part(name: String, category: String, quantity: i32, min_quantity: i32, location: String) -> Result<String, String> {
+    invoke_command("add_part", &AddPartArgs { name, category, quantity, min_quantity, location }).await
+}
+
+pub async fn update_part_quantity(id: i32, quantity_change: i32) -> Result<String, String> {
+    invoke_command("update_part_quantity", &UpdatePartQtyArgs { id, quantity_change }).await
+}
+
+pub async fn delete_part(id: i32) -> Result<String, String> {
+    invoke_command("delete_part", &PartIdArgs { id }).await
+}
+
+pub async fn get_incoming_orders() -> Result<Vec<IncomingOrder>, String> {
+    invoke_command("get_incoming_orders", &()).await
+}
+
+pub async fn get_low_stock_parts() -> Result<Vec<Part>, String> {
+    invoke_command("get_low_stock_parts", &()).await
+}

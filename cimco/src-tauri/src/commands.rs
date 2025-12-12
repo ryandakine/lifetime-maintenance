@@ -68,3 +68,37 @@ pub fn save_task_resolution(state: State<AppState>, description: String, categor
 pub fn find_similar_fixes(state: State<AppState>, query: String) -> Result<Vec<TaskResolution>, String> {
     db::find_similar_resolutions(&state, query)
 }
+
+// ==========================================
+// Parts Inventory Commands
+// ==========================================
+
+#[tauri::command]
+pub fn get_parts(state: State<AppState>) -> Result<Vec<db::Part>, String> {
+    db::get_all_parts(&state)
+}
+
+#[tauri::command]
+pub fn add_part(state: State<AppState>, name: String, category: String, quantity: i32, min_quantity: i32, location: String) -> Result<String, String> {
+    db::create_part(&state, name, category, quantity, min_quantity, location)
+}
+
+#[tauri::command]
+pub fn update_part_quantity(state: State<AppState>, id: i32, quantity_change: i32) -> Result<String, String> {
+    db::update_part_quantity(&state, id, quantity_change)
+}
+
+#[tauri::command]
+pub fn delete_part(state: State<AppState>, id: i32) -> Result<String, String> {
+    db::delete_part(&state, id)
+}
+
+#[tauri::command]
+pub fn get_incoming_orders(state: State<AppState>) -> Result<Vec<db::IncomingOrder>, String> {
+    db::get_incoming_orders(&state)
+}
+
+#[tauri::command]
+pub fn get_low_stock_parts(state: State<AppState>) -> Result<Vec<db::Part>, String> {
+    db::get_low_stock_parts(&state)
+}
