@@ -376,12 +376,18 @@ pub fn find_similar_resolutions(state: &AppState, query: String) -> Result<Vec<T
 // Parts Inventory CRUD
 // ==========================================
 
+// ==========================================
+// Parts Inventory CRUD
+// ==========================================
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Part {
     pub id: i32,
     pub name: String,
     pub description: Option<String>,
     pub category: String,
+    pub part_type: Option<String>,    // New: Upper, Lower, Wear Part
+    pub manufacturer: Option<String>,  // New: Metzo, Linden
     pub part_number: Option<String>,
     pub quantity: i32,
     pub min_quantity: i32,
@@ -405,12 +411,15 @@ pub struct IncomingOrder {
 
 /// Initialize parts table (call from init())
 pub fn init_parts_table(conn: &Connection) -> Result<(), rusqlite::Error> {
+    // 1. Create table with FULL schema if it doesn't exist
     conn.execute(
         "CREATE TABLE IF NOT EXISTS parts (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
             description TEXT,
             category TEXT NOT NULL,
+            part_type TEXT,
+            manufacturer TEXT,
             part_number TEXT,
             quantity INTEGER DEFAULT 0,
             min_quantity INTEGER DEFAULT 1,
@@ -422,6 +431,22 @@ pub fn init_parts_table(conn: &Connection) -> Result<(), rusqlite::Error> {
         [],
     )?;
     
+    // 2. Migration: Check for missing columns in existing table
+    // We use PRAGMA table_info to get current columns
+    let mut stmt = conn.prepare("PRAGMA table_info(parts)")?;
+    let columns: Vec<String> = stmt.query_map([], |row| row.get(1))?
+        .collect::<Result<Vec<String>, _>>()?;
+
+    if !columns.contains(&"part_type".to_string()) {
+        println!("Migrating DB: Adding part_type column to parts table 📦");
+        conn.execute("ALTER TABLE parts ADD COLUMN part_type TEXT", [])?;
+    }
+    
+    if !columns.contains(&"manufacturer".to_string()) {
+        println!("Migrating DB: Adding manufacturer column to parts table 🏭");
+        conn.execute("ALTER TABLE parts ADD COLUMN manufacturer TEXT", [])?;
+    }
+
     conn.execute(
         "CREATE TABLE IF NOT EXISTS incoming_orders (
             id INTEGER PRIMARY KEY,
@@ -444,21 +469,21 @@ pub fn init_parts_table(conn: &Connection) -> Result<(), rusqlite::Error> {
     let count: i32 = conn.query_row("SELECT COUNT(*) FROM parts", [], |row| row.get(0))?;
     if count == 0 {
         let samples = vec![
-            ("Shredder Hammer - Heavy Duty", "Shredder", 12, 5, "Bin A-1", 89.99, "SSI Shredding"),
-            ("Shredder Hammer - Standard", "Shredder", 8, 4, "Bin A-2", 65.00, "SSI Shredding"),
-            ("Hydraulic Pump - Main", "Hydraulics", 2, 1, "Shelf B-1", 450.00, "Grainger"),
-            ("Hydraulic Cylinder Seal Kit", "Hydraulics", 6, 3, "Bin B-3", 35.00, "Amazon"),
-            ("Conveyor Belt - 24 inch", "General", 3, 1, "Rack C-1", 280.00, "MSC Direct"),
-            ("Motor Bearing 6205", "Electrical", 10, 4, "Bin D-2", 18.50, "Amazon"),
+            ("Shredder Hammer - Heavy Duty", "Shredder", "Hammer", "Metzo", 12, 5, "Bin A-1", 89.99, "SSI Shredding"),
+            ("Shredder Hammer - Standard", "Shredder", "Hammer", "Linden", 8, 4, "Bin A-2", 65.00, "SSI Shredding"),
+            ("Hydraulic Pump - Main", "Hydraulics", "Pump", "Metzo", 2, 1, "Shelf B-1", 450.00, "Grainger"),
+            ("Hydraulic Cylinder Seal Kit", "Hydraulics", "Seal Kit", "Generic", 6, 3, "Bin B-3", 35.00, "Amazon"),
+            ("Conveyor Belt - 24 inch", "General", "Wear Part", "Generic", 3, 1, "Rack C-1", 280.00, "MSC Direct"),
+            ("Motor Bearing 6205", "Electrical", "Bearing", "SKF", 10, 4, "Bin D-2", 18.50, "Amazon"),
         ];
         
-        for (name, cat, qty, min_qty, loc, cost, supplier) in samples {
+        for (name, cat, p_type, mfr, qty, min_qty, loc, cost, supplier) in samples {
             conn.execute(
-                "INSERT INTO parts (name, category, quantity, min_quantity, location, unit_cost, supplier) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![name, cat, qty, min_qty, loc, cost, supplier],
+                "INSERT INTO parts (name, category, part_type, manufacturer, quantity, min_quantity, location, unit_cost, supplier) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![name, cat, p_type, mfr, qty, min_qty, loc, cost, supplier],
             )?;
         }
-        println!("🌱 Seeded parts table with sample inventory");
+        println!("🌱 Seeded parts table with sample inventory (New Schema)");
     }
     
     Ok(())
@@ -468,7 +493,7 @@ pub fn get_all_parts(state: &AppState) -> Result<Vec<Part>, String> {
     let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     
     let mut stmt = conn.prepare(
-        "SELECT id, name, description, category, part_number, quantity, min_quantity, location, unit_cost, supplier 
+        "SELECT id, name, description, category, part_type, manufacturer, part_number, quantity, min_quantity, location, unit_cost, supplier 
          FROM parts ORDER BY category, name"
     ).map_err(|e| format!("Failed to prepare query: {}", e))?;
     
@@ -478,12 +503,14 @@ pub fn get_all_parts(state: &AppState) -> Result<Vec<Part>, String> {
             name: row.get(1)?,
             description: row.get(2)?,
             category: row.get(3)?,
-            part_number: row.get(4)?,
-            quantity: row.get(5)?,
-            min_quantity: row.get(6)?,
-            location: row.get(7)?,
-            unit_cost: row.get(8)?,
-            supplier: row.get(9)?,
+            part_type: row.get(4)?,
+            manufacturer: row.get(5)?,
+            part_number: row.get(6)?,
+            quantity: row.get(7)?,
+            min_quantity: row.get(8)?,
+            location: row.get(9)?,
+            unit_cost: row.get(10)?,
+            supplier: row.get(11)?,
         })
     }).map_err(|e| format!("Failed to execute query: {}", e))?;
 
@@ -496,11 +523,21 @@ pub fn get_all_parts(state: &AppState) -> Result<Vec<Part>, String> {
     Ok(items)
 }
 
-pub fn create_part(state: &AppState, name: String, category: String, quantity: i32, min_quantity: i32, location: String) -> Result<String, String> {
+pub fn create_part(
+    state: &AppState, 
+    name: String, 
+    category: String, 
+    part_type: Option<String>,
+    manufacturer: Option<String>,
+    part_number: Option<String>,
+    quantity: i32, 
+    min_quantity: i32, 
+    location: String
+) -> Result<String, String> {
     let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     conn.execute(
-        "INSERT INTO parts (name, category, quantity, min_quantity, location) VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![name, category, quantity, min_quantity, location],
+        "INSERT INTO parts (name, category, part_type, manufacturer, part_number, quantity, min_quantity, location) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![name, category, part_type, manufacturer, part_number, quantity, min_quantity, location],
     ).map_err(|e| format!("Failed to insert part: {}", e))?;
     Ok("Part added ✅".to_string())
 }
@@ -525,7 +562,7 @@ pub fn get_low_stock_parts(state: &AppState) -> Result<Vec<Part>, String> {
     let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     
     let mut stmt = conn.prepare(
-        "SELECT id, name, description, category, part_number, quantity, min_quantity, location, unit_cost, supplier 
+        "SELECT id, name, description, category, part_type, manufacturer, part_number, quantity, min_quantity, location, unit_cost, supplier 
          FROM parts WHERE quantity <= min_quantity ORDER BY quantity ASC"
     ).map_err(|e| format!("Failed to prepare query: {}", e))?;
     
@@ -535,12 +572,14 @@ pub fn get_low_stock_parts(state: &AppState) -> Result<Vec<Part>, String> {
             name: row.get(1)?,
             description: row.get(2)?,
             category: row.get(3)?,
-            part_number: row.get(4)?,
-            quantity: row.get(5)?,
-            min_quantity: row.get(6)?,
-            location: row.get(7)?,
-            unit_cost: row.get(8)?,
-            supplier: row.get(9)?,
+            part_type: row.get(4)?,
+            manufacturer: row.get(5)?,
+            part_number: row.get(6)?,
+            quantity: row.get(7)?,
+            min_quantity: row.get(8)?,
+            location: row.get(9)?,
+            unit_cost: row.get(10)?,
+            supplier: row.get(11)?,
         })
     }).map_err(|e| format!("Failed to execute query: {}", e))?;
 

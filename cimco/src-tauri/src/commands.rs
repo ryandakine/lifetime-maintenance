@@ -79,8 +79,18 @@ pub fn get_parts(state: State<AppState>) -> Result<Vec<db::Part>, String> {
 }
 
 #[tauri::command]
-pub fn add_part(state: State<AppState>, name: String, category: String, quantity: i32, min_quantity: i32, location: String) -> Result<String, String> {
-    db::create_part(&state, name, category, quantity, min_quantity, location)
+pub fn add_part(
+    state: State<AppState>, 
+    name: String, 
+    category: String, 
+    part_type: Option<String>,
+    manufacturer: Option<String>,
+    part_number: Option<String>,
+    quantity: i32, 
+    min_quantity: i32, 
+    location: String
+) -> Result<String, String> {
+    db::create_part(&state, name, category, part_type, manufacturer, part_number, quantity, min_quantity, location)
 }
 
 #[tauri::command]

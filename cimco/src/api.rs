@@ -205,6 +205,8 @@ pub struct Part {
     pub name: String,
     pub description: Option<String>,
     pub category: String,
+    pub part_type: Option<String>,
+    pub manufacturer: Option<String>,
     pub part_number: Option<String>,
     pub quantity: i32,
     pub min_quantity: i32,
@@ -230,6 +232,9 @@ pub struct IncomingOrder {
 struct AddPartArgs {
     name: String,
     category: String,
+    part_type: Option<String>,
+    manufacturer: Option<String>,
+    part_number: Option<String>,
     quantity: i32,
     min_quantity: i32,
     location: String,
@@ -250,8 +255,26 @@ pub async fn get_parts() -> Result<Vec<Part>, String> {
     invoke_command("get_parts", &()).await
 }
 
-pub async fn add_part(name: String, category: String, quantity: i32, min_quantity: i32, location: String) -> Result<String, String> {
-    invoke_command("add_part", &AddPartArgs { name, category, quantity, min_quantity, location }).await
+pub async fn add_part(
+    name: String, 
+    category: String, 
+    part_type: Option<String>,
+    manufacturer: Option<String>,
+    part_number: Option<String>,
+    quantity: i32, 
+    min_quantity: i32, 
+    location: String
+) -> Result<String, String> {
+    invoke_command("add_part", &AddPartArgs { 
+        name, 
+        category, 
+        part_type,
+        manufacturer,
+        part_number,
+        quantity, 
+        min_quantity, 
+        location 
+    }).await
 }
 
 pub async fn update_part_quantity(id: i32, quantity_change: i32) -> Result<String, String> {

@@ -24,25 +24,38 @@ pub fn Inventory() -> impl IntoView {
     // Form Signals
     let (new_name, set_new_name) = create_signal(String::new());
     let (new_category, set_new_category) = create_signal("Shredder".to_string());
+    let (new_part_type, set_new_part_type) = create_signal("Wear Part".to_string());
+    let (new_manufacturer, set_new_manufacturer) = create_signal("Metzo".to_string());
+    let (new_part_number, set_new_part_number) = create_signal(String::new());
     let (new_quantity, set_new_quantity) = create_signal(1_i32);
     let (new_min_qty, set_new_min_qty) = create_signal(1_i32);
     let (new_location, set_new_location) = create_signal(String::new());
 
-    let categories: &'static [&'static str] = &["Shredder", "Hydraulics", "Electrical", "General"];
+    let categories = ["Shredder", "Hydraulics", "Electrical", "General"];
+    let part_types = ["Upper", "Lower", "Wear Part", "Hammer", "Spider Cap", "Pump", "Valve", "Bearing", "Other"];
+    let manufacturers = ["Metzo", "Linden", "SSI", "Generic", "SKF", "Timken", "Other"];
 
     // Handlers
     let on_add_part = move |_| {
         spawn_local(async move {
             if !new_name.get().is_empty() {
+                let pn = new_part_number.get();
+                let pn_opt = if pn.is_empty() { None } else { Some(pn) };
+                
                 let _ = add_part(
                     new_name.get(), 
                     new_category.get(), 
+                    Some(new_part_type.get()),
+                    Some(new_manufacturer.get()),
+                    pn_opt,
                     new_quantity.get(), 
                     new_min_qty.get(), 
                     new_location.get()
                 ).await;
                 set_refresh.update(|n| *n += 1);
+                // Reset basic fields
                 set_new_name.set(String::new());
+                set_new_part_number.set(String::new());
                 set_new_location.set(String::new());
                 set_show_add_form.set(false);
             }
@@ -85,7 +98,7 @@ pub fn Inventory() -> impl IntoView {
                         <span class="text-4xl">"📦"</span>
                         "Parts Inventory"
                     </h2>
-                    <p class="text-gray-400 mt-1">"Track shredder parts, hydraulics, and supplies"</p>
+                    <p class="text-gray-400 mt-1">"Track Metzo/Linden shredder parts, hydraulics, and supplies"</p>
                 </div>
                 <button 
                     on:click=move |_| set_show_add_form.update(|v| *v = !*v)
@@ -139,11 +152,11 @@ pub fn Inventory() -> impl IntoView {
             <Show when=move || show_add_form.get() fallback=|| ()>
                 <div class="bg-slate-800 p-6 rounded-xl mb-6 border border-blue-500/50 shadow-lg">
                     <h3 class="text-xl font-bold mb-4 text-blue-400">"Add New Part"</h3>
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="col-span-2">
                             <label class="block text-xs text-gray-400 uppercase mb-1">"Part Name"</label>
                             <input type="text" 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg"
+                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
                                 prop:value=new_name
                                 on:input=move |ev| set_new_name.set(event_target_value(&ev))
                                 placeholder="e.g., Shredder Hammer"
@@ -152,16 +165,43 @@ pub fn Inventory() -> impl IntoView {
                         <div>
                             <label class="block text-xs text-gray-400 uppercase mb-1">"Category"</label>
                             <select 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg"
+                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
                                 on:change=move |ev| set_new_category.set(event_target_value(&ev))
                             >
                                 {categories.iter().map(|cat| view! { <option value=*cat>{*cat}</option> }).collect_view()}
                             </select>
                         </div>
                         <div>
+                            <label class="block text-xs text-gray-400 uppercase mb-1">"Type"</label>
+                            <select 
+                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
+                                on:change=move |ev| set_new_part_type.set(event_target_value(&ev))
+                            >
+                                {part_types.iter().map(|t| view! { <option value=*t>{*t}</option> }).collect_view()}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 uppercase mb-1">"Manufacturer"</label>
+                            <select 
+                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
+                                on:change=move |ev| set_new_manufacturer.set(event_target_value(&ev))
+                            >
+                                {manufacturers.iter().map(|m| view! { <option value=*m>{*m}</option> }).collect_view()}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 uppercase mb-1">"Part Number"</label>
+                            <input type="text" 
+                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
+                                prop:value=new_part_number
+                                on:input=move |ev| set_new_part_number.set(event_target_value(&ev))
+                                placeholder="Optional"
+                            />
+                        </div>
+                        <div>
                             <label class="block text-xs text-gray-400 uppercase mb-1">"Quantity"</label>
                             <input type="number" 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg"
+                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
                                 prop:value=new_quantity
                                 on:input=move |ev| set_new_quantity.set(event_target_value(&ev).parse().unwrap_or(1))
                             />
@@ -169,26 +209,26 @@ pub fn Inventory() -> impl IntoView {
                         <div>
                             <label class="block text-xs text-gray-400 uppercase mb-1">"Min Stock"</label>
                             <input type="number" 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg"
+                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
                                 prop:value=new_min_qty
                                 on:input=move |ev| set_new_min_qty.set(event_target_value(&ev).parse().unwrap_or(1))
                             />
                         </div>
                         <div class="col-span-2">
-                            <label class="block text-xs text-gray-400 uppercase mb-1">"Location"</label>
+                             <label class="block text-xs text-gray-400 uppercase mb-1">"Location"</label>
                             <input type="text" 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg"
+                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
                                 prop:value=new_location
                                 on:input=move |ev| set_new_location.set(event_target_value(&ev))
                                 placeholder="e.g., Bin A-1"
                             />
                         </div>
-                        <div class="col-span-3 flex justify-end">
+                        <div class="col-span-2 flex justify-end items-end">
                             <button 
-                                class="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-bold transition"
+                                class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-bold transition flex items-center justify-center gap-2"
                                 on:click=on_add_part
                             >
-                                "Save Part"
+                                "Save New Part"
                             </button>
                         </div>
                     </div>
@@ -274,6 +314,7 @@ pub fn Inventory() -> impl IntoView {
                         <tr>
                             <th class="p-4">"Part Name"</th>
                             <th class="p-4">"Category"</th>
+                            <th class="p-4">"Type / Mfr"</th>
                             <th class="p-4">"Location"</th>
                             <th class="p-4 text-center">"Stock"</th>
                             <th class="p-4 text-center">"Status"</th>
@@ -306,6 +347,10 @@ pub fn Inventory() -> impl IntoView {
                                                     </td>
                                                     <td class="p-4">
                                                         <span class="px-2 py-1 bg-slate-700 rounded text-xs uppercase">{item.category.clone()}</span>
+                                                    </td>
+                                                    <td class="p-4">
+                                                        <div class="font-bold text-xs">{item.part_type.clone().unwrap_or("-".to_string())}</div>
+                                                        <div class="text-xs text-gray-500">{item.manufacturer.clone().unwrap_or("-".to_string())}</div>
                                                     </td>
                                                     <td class="p-4 text-gray-400">{item.location.clone().unwrap_or("-".to_string())}</td>
                                                     <td class="p-4 text-center">

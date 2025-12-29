@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS parts (
     name TEXT NOT NULL,
     description TEXT,
     category TEXT,           -- 'Shredder', 'Hydraulics', 'Electrical', 'General'
+    part_type TEXT,          -- 'Upper', 'Lower', 'Wear Part', 'Spider Cap', 'Hammer'
+    manufacturer TEXT,       -- 'Metzo', 'Linden', etc.
     part_number TEXT,
     quantity INTEGER DEFAULT 0,
     min_quantity INTEGER DEFAULT 1,  -- Reorder level
