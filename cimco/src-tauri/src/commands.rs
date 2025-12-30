@@ -88,9 +88,10 @@ pub fn add_part(
     part_number: Option<String>,
     quantity: i32, 
     min_quantity: i32, 
+    lead_time_days: i32,
     location: String
 ) -> Result<String, String> {
-    db::create_part(&state, name, category, part_type, manufacturer, part_number, quantity, min_quantity, location)
+    db::create_part(&state, name, category, part_type, manufacturer, part_number, quantity, min_quantity, lead_time_days, location)
 }
 
 #[tauri::command]

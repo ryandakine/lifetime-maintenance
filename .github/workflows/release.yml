@@ -42,11 +42,10 @@ jobs:
 
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
-        with:
-          projectPath: cimco
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          projectPath: cimco
           tagName: v__VERSION__ # the action automatically uses the version from tauri.conf.json
           releaseName: 'CIMCO App v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'

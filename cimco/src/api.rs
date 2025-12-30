@@ -210,8 +210,9 @@ pub struct Part {
     pub part_number: Option<String>,
     pub quantity: i32,
     pub min_quantity: i32,
+    pub lead_time_days: i32,
     pub location: Option<String>,
-    pub unit_cost: Option<f32>,
+    pub unit_cost: Option<f64>,
     pub supplier: Option<String>,
 }
 
@@ -237,6 +238,7 @@ struct AddPartArgs {
     part_number: Option<String>,
     quantity: i32,
     min_quantity: i32,
+    lead_time_days: i32,
     location: String,
 }
 
@@ -263,6 +265,7 @@ pub async fn add_part(
     part_number: Option<String>,
     quantity: i32, 
     min_quantity: i32, 
+    lead_time_days: i32,
     location: String
 ) -> Result<String, String> {
     invoke_command("add_part", &AddPartArgs { 
@@ -273,6 +276,7 @@ pub async fn add_part(
         part_number,
         quantity, 
         min_quantity, 
+        lead_time_days,
         location 
     }).await
 }

@@ -3,7 +3,7 @@
     "id": "1",
     "title": "Backup Database",
     "prompt": "Create a safety backup of cimco_offline.db before applying any schema migrations.",
-    "status": "pending",
+    "status": "done",
     "priority": "high",
     "complexity": "low"
   },
@@ -11,7 +11,7 @@
     "id": "2",
     "title": "Update Rust Backend Structs",
     "prompt": "Update `Part` struct and `AddPartArgs` in `api.rs` and `db.rs` to include `part_type`, `manufacturer`, `part_number`, and `lifespan_estimate`.",
-    "status": "pending",
+    "status": "done",
     "priority": "high",
     "complexity": "medium"
   },
@@ -19,7 +19,7 @@
     "id": "3",
     "title": "Implement Schema Migration Logic",
     "prompt": "Modify `db::init_parts_table` to check for missing columns and run `ALTER TABLE` commands if necessary to add `part_type`, `manufacturer`, etc.",
-    "status": "pending",
+    "status": "done",
     "priority": "critical",
     "complexity": "high"
   },
@@ -27,7 +27,7 @@
     "id": "4",
     "title": "Update Tauri Commands",
     "prompt": "Update `add_part` and `get_parts` commands in `commands.rs` and local `db` functions to handle the new fields.",
-    "status": "pending",
+    "status": "done",
     "priority": "high",
     "complexity": "medium"
   },
@@ -35,7 +35,7 @@
     "id": "5",
     "title": "Update Inventory Frontend UI",
     "prompt": "Update `inventory.rs` to show new columns (Manufacturer, Type) in the table and include them in the Add Part form.",
-    "status": "pending",
+    "status": "done",
     "priority": "medium",
     "complexity": "high"
   },
@@ -43,7 +43,7 @@
     "id": "6",
     "title": "Excel Data Import Strategy",
     "prompt": "Research/Implement a way to parse 'metso shredder parts.xlsx' (e.g., using `calamine` crate) to bulk import parts.",
-    "status": "pending",
+    "status": "done",
     "priority": "medium",
     "complexity": "high"
   },

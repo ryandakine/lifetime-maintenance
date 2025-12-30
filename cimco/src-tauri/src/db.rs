@@ -391,6 +391,7 @@ pub struct Part {
     pub part_number: Option<String>,
     pub quantity: i32,
     pub min_quantity: i32,
+    pub lead_time_days: i32,          // New: For automated ordering triggers
     pub location: Option<String>,
     pub unit_cost: Option<f64>,
     pub supplier: Option<String>,
@@ -423,6 +424,7 @@ pub fn init_parts_table(conn: &Connection) -> Result<(), rusqlite::Error> {
             part_number TEXT,
             quantity INTEGER DEFAULT 0,
             min_quantity INTEGER DEFAULT 1,
+            lead_time_days INTEGER DEFAULT 7,
             location TEXT,
             unit_cost REAL,
             supplier TEXT,
@@ -445,6 +447,11 @@ pub fn init_parts_table(conn: &Connection) -> Result<(), rusqlite::Error> {
     if !columns.contains(&"manufacturer".to_string()) {
         println!("Migrating DB: Adding manufacturer column to parts table 🏭");
         conn.execute("ALTER TABLE parts ADD COLUMN manufacturer TEXT", [])?;
+    }
+    
+    if !columns.contains(&"lead_time_days".to_string()) {
+        println!("Migrating DB: Adding lead_time_days column to parts table ⏳");
+        conn.execute("ALTER TABLE parts ADD COLUMN lead_time_days INTEGER DEFAULT 7", [])?;
     }
 
     conn.execute(
@@ -493,7 +500,7 @@ pub fn get_all_parts(state: &AppState) -> Result<Vec<Part>, String> {
     let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     
     let mut stmt = conn.prepare(
-        "SELECT id, name, description, category, part_type, manufacturer, part_number, quantity, min_quantity, location, unit_cost, supplier 
+        "SELECT id, name, description, category, part_type, manufacturer, part_number, quantity, min_quantity, lead_time_days, location, unit_cost, supplier 
          FROM parts ORDER BY category, name"
     ).map_err(|e| format!("Failed to prepare query: {}", e))?;
     
@@ -508,9 +515,10 @@ pub fn get_all_parts(state: &AppState) -> Result<Vec<Part>, String> {
             part_number: row.get(6)?,
             quantity: row.get(7)?,
             min_quantity: row.get(8)?,
-            location: row.get(9)?,
-            unit_cost: row.get(10)?,
-            supplier: row.get(11)?,
+            lead_time_days: row.get(9)?,
+            location: row.get(10)?,
+            unit_cost: row.get(11)?,
+            supplier: row.get(12)?,
         })
     }).map_err(|e| format!("Failed to execute query: {}", e))?;
 
@@ -532,12 +540,13 @@ pub fn create_part(
     part_number: Option<String>,
     quantity: i32, 
     min_quantity: i32, 
+    lead_time_days: i32,
     location: String
 ) -> Result<String, String> {
     let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     conn.execute(
-        "INSERT INTO parts (name, category, part_type, manufacturer, part_number, quantity, min_quantity, location) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![name, category, part_type, manufacturer, part_number, quantity, min_quantity, location],
+        "INSERT INTO parts (name, category, part_type, manufacturer, part_number, quantity, min_quantity, lead_time_days, location) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![name, category, part_type, manufacturer, part_number, quantity, min_quantity, lead_time_days, location],
     ).map_err(|e| format!("Failed to insert part: {}", e))?;
     Ok("Part added ✅".to_string())
 }

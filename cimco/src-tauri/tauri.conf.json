@@ -1,5 +1,5 @@
 {
-    "productName": "Cimco Tracker",
+    "productName": "Cimco Inventory",
     "version": "0.1.0",
     "identifier": "com.cimco.app",
     "build": {
@@ -12,7 +12,7 @@
         "withGlobalTauri": true,
         "windows": [
             {
-                "title": "Cimco Equipment Tracker",
+                "title": "Cimco Inventory - Powered by OSI",
                 "width": 1200,
                 "height": 800
             }

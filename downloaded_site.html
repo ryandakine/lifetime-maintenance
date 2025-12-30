@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>On-Site Intelligence | AI Defense & Enterprise Software</title>
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --text-color: #e0e0e0;
+            --accent-color: #00ff41;
+            /* Cyber green */
+            --secondary-color: #444;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Courier New', Courier, monospace;
+            /* Terminal vibe */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at center, #111 0%, #000 100%);
+        }
+
+        .container {
+            text-align: center;
+            max-width: 800px;
+            padding: 2rem;
+            border: 1px solid #333;
+            background: rgba(0, 0, 0, 0.8);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            color: #fff;
+        }
+
+        .tagline {
+            font-size: 1.2rem;
+            color: var(--accent-color);
+            margin-bottom: 2rem;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2rem;
+            background-color: var(--accent-color);
+            animation: blink 1s infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0;
+            }
+        }
+
+        .services {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .service-item {
+            border-top: 2px solid var(--secondary-color);
+            padding-top: 1rem;
+            width: 200px;
+        }
+
+        .service-item h3 {
+            color: #fff;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .service-item p {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .footer {
+            margin-top: 4rem;
+            font-size: 0.8rem;
+            color: #555;
+        }
+
+        a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>OSI<span style="color:var(--accent-color)">.</span>CYBER</h1>
+        <div class="tagline">ACTIVE AI DEFENSE // OFFENSIVE SECURITY // ENTERPRISE AUTOMATION<span
+                class="cursor"></span></div>
+
+        <p style="line-height: 1.6; color: #bbb;">
+            Securing critical infrastructure through intelligence. <br>
+            We deploy autonomous AI sentinels to guard your network and build custom software to run your business.
+        </p>
+
+        <div class="services">
+            <div class="service-item">
+                <h3>PENETRATION TESTING</h3>
+                <p>Identifying vulnerabilities before the enemy does.</p>
+            </div>
+            <div class="service-item">
+                <h3>ACTIVE AI DEFENSE</h3>
+                <p>Autonomous neural networks that intercept threats in real-time.</p>
+            </div>
+            <div class="service-item">
+                <h3>CUSTOM SOFTWARE</h3>
+                <p>Bespoke automation for inventory, logistics, and data.</p>
+            </div>
+            <div class="service-item">
+                <h3>PRIVATE & CUSTOM LLMs</h3>
+                <p>Secure, local AI models trained on your proprietary data.</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            &copy; 2025 On-Site Intelligence LLC. Denver, CO.<br>
+            <br>
+            <a href="mailto:info@osi-cyber.com">info@osi-cyber.com</a>
+        </div>
+    </div>
+
+</body>
+
+</html>

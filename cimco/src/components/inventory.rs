@@ -28,18 +28,19 @@ pub fn Inventory() -> impl IntoView {
     let (new_manufacturer, set_new_manufacturer) = create_signal("Metzo".to_string());
     let (new_part_number, set_new_part_number) = create_signal(String::new());
     let (new_quantity, set_new_quantity) = create_signal(1_i32);
-    let (new_min_qty, set_new_min_qty) = create_signal(1_i32);
+    let (new_min_quantity, set_new_min_quantity) = create_signal(1);
+    let (new_lead_time, set_new_lead_time) = create_signal(7);
     let (new_location, set_new_location) = create_signal(String::new());
 
     let categories = ["Shredder", "Hydraulics", "Electrical", "General"];
     let part_types = ["Upper", "Lower", "Wear Part", "Hammer", "Spider Cap", "Pump", "Valve", "Bearing", "Other"];
-    let manufacturers = ["Metzo", "Linden", "SSI", "Generic", "SKF", "Timken", "Other"];
+    let manufacturers = ["Lindemann", "SSI", "Generic", "SKF", "Timken", "Metso", "Other"];
 
     // Handlers
     let on_add_part = move |_| {
         spawn_local(async move {
             if !new_name.get().is_empty() {
-                let pn = new_part_number.get();
+                let pn = new_part_number.get_untracked();
                 let pn_opt = if pn.is_empty() { None } else { Some(pn) };
                 
                 let _ = add_part(
@@ -48,9 +49,10 @@ pub fn Inventory() -> impl IntoView {
                     Some(new_part_type.get()),
                     Some(new_manufacturer.get()),
                     pn_opt,
-                    new_quantity.get(), 
-                    new_min_qty.get(), 
-                    new_location.get()
+                    new_quantity.get_untracked(), 
+                    new_min_quantity.get_untracked(), 
+                    new_lead_time.get_untracked(),
+                    new_location.get_untracked(),
                 ).await;
                 set_refresh.update(|n| *n += 1);
                 // Reset basic fields
@@ -96,9 +98,9 @@ pub fn Inventory() -> impl IntoView {
                 <div>
                     <h2 class="text-3xl font-bold flex items-center gap-3">
                         <span class="text-4xl">"📦"</span>
-                        "Parts Inventory"
+                        "Cimco Inventory"
                     </h2>
-                    <p class="text-gray-400 mt-1">"Track Metzo/Linden shredder parts, hydraulics, and supplies"</p>
+                    <p class="text-gray-400 mt-1">"Track Metso/Lindemann parts • Powered by On-Site Intelligence LLC"</p>
                 </div>
                 <button 
                     on:click=move |_| set_show_add_form.update(|v| *v = !*v)
@@ -122,7 +124,7 @@ pub fn Inventory() -> impl IntoView {
                             let total = data.len();
                             let low_stock = data.iter().filter(|p| p.quantity <= p.min_quantity).count();
                             let categories_count = data.iter().map(|p| p.category.clone()).collect::<std::collections::HashSet<_>>().len();
-                            let total_value: f32 = data.iter().filter_map(|p| p.unit_cost.map(|c| c * p.quantity as f32)).sum();
+                            let total_value: f64 = data.iter().filter_map(|p| p.unit_cost.map(|c| c * p.quantity as f64)).sum();
                             
                             view! {
                                 <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
@@ -210,8 +212,19 @@ pub fn Inventory() -> impl IntoView {
                             <label class="block text-xs text-gray-400 uppercase mb-1">"Min Stock"</label>
                             <input type="number" 
                                 class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
-                                prop:value=new_min_qty
-                                on:input=move |ev| set_new_min_qty.set(event_target_value(&ev).parse().unwrap_or(1))
+                                prop:value=new_min_quantity
+                                on:input=move |ev| set_new_min_quantity.set(event_target_value(&ev).parse().unwrap_or(1))
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 uppercase mb-1">"Lead Time (Days)"</label>
+                            <input 
+                                type="number" 
+                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
+                                prop:value=new_lead_time
+                                on:input=move |ev| set_new_lead_time.set(event_target_value(&ev).parse().unwrap_or(7))
+                                placeholder="7"
+                                min="0"
                             />
                         </div>
                         <div class="col-span-2">
