@@ -10,6 +10,7 @@ use crate::components::tasks::Tasks;
 use crate::components::scale::Scale;
 use crate::components::inventory::Inventory;
 use crate::components::login::{Login, User, UserRole};
+use crate::components::system_map::SystemMap;
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -44,7 +45,7 @@ pub fn App() -> impl IntoView {
     ]);
 
     // Callback for login
-    let on_login = create_action(move |u: &User| {
+    let _on_login = create_action(move |u: &User| {
         let u = u.clone();
         async move {
             set_user.set(Some(u));
@@ -273,6 +274,16 @@ fn MainApp(user: User) -> impl IntoView {
                     </Show>
 
                     <button 
+                        on:click=move |_| set_current_page.set("map".to_string())
+                        class=move || format!(
+                            "text-base text-white px-6 py-2 rounded-lg border font-bold shadow-md transition-transform hover:scale-105 {}",
+                            if current_page.get() == "map" { "bg-cyan-700 border-cyan-600" } else { "bg-slate-700 border-slate-600" }
+                        )
+                    >
+                        "🌐 Map"
+                    </button>
+
+                    <button 
                         on:click=move |_| set_current_page.set("inventory".to_string())
                         class=move || format!(
                             "text-base text-white px-6 py-2 rounded-lg border font-bold shadow-md transition-transform hover:scale-105 {}",
@@ -320,6 +331,10 @@ fn MainApp(user: User) -> impl IntoView {
                 
                 <Show when=move || current_page.get() == "showcase" fallback=|| ()>
                     <Showcase />
+                </Show>
+
+                <Show when=move || current_page.get() == "map" fallback=|| ()>
+                    <SystemMap />
                 </Show>
                 
                 <Show when=move || current_page.get() == "inventory" fallback=|| ()>

@@ -2,19 +2,19 @@
   "models": {
     "main": {
       "provider": "anthropic",
-      "modelId": "claude-3-7-sonnet-20250219",
+      "modelId": "anthropic/claude-3-5-sonnet",
       "maxTokens": 120000,
       "temperature": 0.2
     },
     "research": {
-      "provider": "perplexity",
-      "modelId": "sonar-pro",
+      "provider": "anthropic",
+      "modelId": "perplexity/sonar-reasoning",
       "maxTokens": 8700,
       "temperature": 0.1
     },
     "fallback": {
       "provider": "anthropic",
-      "modelId": "claude-3-7-sonnet-20250219",
+      "modelId": "anthropic/claude-3-haiku",
       "maxTokens": 120000,
       "temperature": 0.2
     }
@@ -29,9 +29,19 @@
     "ollamaBaseURL": "http://localhost:11434/api",
     "bedrockBaseURL": "https://bedrock.us-east-1.amazonaws.com",
     "responseLanguage": "English",
+    "enableCodebaseAnalysis": true,
+    "enableProxy": false,
+    "anonymousTelemetry": true,
+    "anthropicBaseURL": "https://openrouter.ai/api/v1",
     "defaultTag": "master",
     "azureOpenaiBaseURL": "https://your-endpoint.openai.azure.com/",
     "userId": "1234567890"
   },
-  "claudeCode": {}
+  "claudeCode": {},
+  "codexCli": {},
+  "grokCli": {
+    "timeout": 120000,
+    "workingDirectory": null,
+    "defaultModel": "grok-4-latest"
+  }
 }

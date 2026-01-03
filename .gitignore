@@ -64,9 +64,37 @@ src-tauri/target/
 **/*.db
 **/*.db-shm
 **/*.db-wal
+**/*.sqlite3
 **/tailwindcss
 **/node_modules/
 cimco/dist/
 cimco/input/
 cimco/cimco_offline.db
 .cursor/
+
+exploitdb/
+
+# Task files
+# tasks.json
+# tasks/ 
+
+# Python / Virtual Envs
+venv/
+**/venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# OSI Pentest Artifacts
+osi-pentest/osi_vision_db/
+osi-pentest/generated_documents/
+osi-pentest/pentesting_log.json
+osi-pentest/competitors.json
+osi-pentest/generated_documents/
+osi-pentest/templates/
+osi-pentest/local_data/
+
+# Generated Markdown
+OSI_*_COMPLETE.md
+PENTESTING_*.md
+START_HERE_FOR_BEGINNERS.md

@@ -5,7 +5,7 @@
     "build": {
         "beforeDevCommand": "trunk serve",
         "beforeBuildCommand": "trunk build",
-        "devUrl": "http://localhost:8080",
+        "devUrl": "http://localhost:8081",
         "frontendDist": "../dist"
     },
     "app": {

@@ -1,0 +1,49 @@
+# PRD: OSI Intelligence Platform (OSI-IP)
+# On-Site Intelligence LLC - Enterprise Cybersecurity & AI Suite
+
+## 1. Executive Summary
+The OSI Intelligence Platform is a modular, air-gapped security and AI system designed for high-sensitivity environments (Defense, Healthcare, Industrial). It consolidates offensive security (Pen Testing), passive defense (Network Monitoring), and operational intelligence (AI Cameras + Private LLMs) into a single deployed hardware ecosystem.
+
+## 2. Core Modules
+
+### 2.1 OSI Scout (Offensive Security)
+A containerized penetration testing engine enabling standardized, repeatable assessments.
+- **Discovery**: Automated Nmap/Masscan aggregation.
+- **Web**: Nikto/Nuclei integration for app vulnerability scanning.
+- **AI Analysis**: Local LLM (Llama3/Mistral) analysis of scan data to generate "Hacker Perspective" reports.
+- **5G/GTP Audit**: Specialized mode for Private 5G networks (GTP-U/TEID checking).
+- **Reporting**: Auto-generation of white-labeled PDF reports with OSI branding.
+
+### 2.2 OSI Sentinel (Network Defense)
+An AI-powered passive network monitor deployed on-premise.
+- **Traffic Baseline**: Learns "normal" patterns (NetFlow/Packet Capture) over 7 days.
+- **Anomaly Detection**: Alerts on new devices, unusual data volume, or unauthorized connections.
+- **Threat Intel**: Local signature matching against known C2 IPs.
+- **Dashboards**: Real-time Kibana/Grafana view of network health.
+
+### 2.3 OSI Vision (Physical Intelligence)
+An edge-computing video analytics layer for existing camera systems.
+- **Integration**: RTSP stream ingestion from legacy NVRs.
+- **AI Detection**: Local processing (YOLO/JEPA) for weapons, unauthorized access, or safety gear compliance.
+- **Natural Language Search**: "Show me who entered the server room last night."
+- **Privacy**: Face blurring and on-premise storage (No Cloud).
+
+### 2.4 OSI Cortex (Private AI)
+A hardened LLM deployment pipeline for secure enterprise data.
+- **Air-Gapped**: Runs entirely offline on OSI Hardware (M4 Studio or GPU Cluster).
+- **RAG Engine**: Indexing of client documents (PDF/Docx) for secure query.
+- **Role-Based Access**: Department-level data isolation.
+
+## 3. Deployment Architecture
+- **Hardware**: Standardized "OSI Nodes" (High-performance Mini-PCs or Edge Servers) running Linux (Mint/Debian).
+- **Containerization**: All modules run as Docker containers for easy update/rollback.
+- **Management**: Local-first CLI with optional secure VPN backhaul for managed support.
+
+## 4. User Experience
+- **Consultant Mode**: CLI tools for OSI engineers performing audits.
+- **Client Mode**: Web Dashboard (React/Django) for clients to view status, alerts, and reports.
+
+## 5. Success Metrics
+- **Speed**: Pen test reports generated in < 5 minutes after scan.
+- **Accuracy**: AI analysis reduces false positives by 40% vs raw scanners.
+- **Safety**: Zero data exfiltration to cloud providers.

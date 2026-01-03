@@ -96,7 +96,13 @@ pub fn add_part(
 
 #[tauri::command]
 pub fn update_part_quantity(state: State<AppState>, id: i32, quantity_change: i32) -> Result<String, String> {
+    println!("update_part_quantity called: id={}, change={}", id, quantity_change);
     db::update_part_quantity(&state, id, quantity_change)
+}
+
+#[tauri::command]
+pub fn update_part_location(state: State<AppState>, id: i32, location: String) -> Result<String, String> {
+    db::update_part_location(&state, id, location)
 }
 
 #[tauri::command]
@@ -112,4 +118,9 @@ pub fn get_incoming_orders(state: State<AppState>) -> Result<Vec<db::IncomingOrd
 #[tauri::command]
 pub fn get_low_stock_parts(state: State<AppState>) -> Result<Vec<db::Part>, String> {
     db::get_low_stock_parts(&state)
+}
+
+#[tauri::command]
+pub fn receive_order(state: State<AppState>, id: i32) -> Result<String, String> {
+    db::receive_order(&state, id)
 }

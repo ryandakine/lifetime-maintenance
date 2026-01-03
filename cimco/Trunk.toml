@@ -5,3 +5,7 @@ public_url = "./"
 
 [watch]
 ignore = ["./src-tauri"]
+
+[serve]
+port = 8081
+open = false

@@ -1,5 +1,5 @@
 use leptos::*;
-use crate::api::{get_parts, add_part, update_part_quantity, delete_part, get_incoming_orders, Part, IncomingOrder};
+use crate::api::{get_parts, add_part, update_part_quantity, update_part_location, delete_part, get_incoming_orders, receive_order, Part, IncomingOrder};
 use crate::components::voice_input::VoiceInput;
 
 #[component]
@@ -8,6 +8,8 @@ pub fn Inventory() -> impl IntoView {
     let (show_add_form, set_show_add_form) = create_signal(false);
     let (filter_category, set_filter_category) = create_signal("All".to_string());
     let (search_query, set_search_query) = create_signal(String::new());
+    let (sort_by, set_sort_by) = create_signal("stock".to_string());
+    let (sort_desc, set_sort_desc) = create_signal(false); // false = ascending (low stock first)
     
     // Fetch Parts
     let parts = create_resource(
@@ -64,16 +66,56 @@ pub fn Inventory() -> impl IntoView {
         });
     };
 
-    let on_quantity_change = move |id: i32, change: i32| {
-        spawn_local(async move {
-            let _ = update_part_quantity(id, change).await;
+    // Use create_action for quantity updates - more reliable in Leptos
+    let quantity_action = create_action(move |input: &(i32, i32)| {
+        let (id, change) = *input;
+        async move {
+            leptos::logging::log!("Action dispatched: id={}, change={}", id, change);
+            update_part_quantity(id, change).await
+        }
+    });
+
+    let location_action = create_action(move |input: &(i32, String)| {
+        let (id, location) = input.clone();
+        async move {
+            leptos::logging::log!("Updating location: id={}, loc={}", id, location);
+            update_part_location(id, location).await
+        }
+    });
+    
+    // Store it so it's Copy-able in closures
+    let stored_action = store_value(quantity_action);
+    let stored_loc_action = store_value(location_action);
+    
+    // When action completes, refresh the list
+    create_effect(move |_| {
+        if stored_action.get_value().value().get().is_some() || stored_loc_action.get_value().value().get().is_some() {
             set_refresh.update(|n| *n += 1);
+        }
+    });
+
+    let _on_quantity_change = move |id: i32, change: i32| {
+        leptos::logging::log!("Button clicked! Dispatching action...");
+        stored_action.get_value().dispatch((id, change));
+    };
+
+    let _on_delete = move |id: i32| {
+        spawn_local(async move {
+            match delete_part(id).await {
+                Ok(_) => {
+                    leptos::logging::log!("Part {} deleted", id);
+                    set_refresh.update(|n| *n += 1);
+                }
+                Err(e) => {
+                    leptos::logging::log!("Error deleting part: {}", e);
+                }
+            }
         });
     };
 
-    let on_delete = move |id: i32| {
+    let on_receive = move |id| {
         spawn_local(async move {
-            let _ = delete_part(id).await;
+            let _ = receive_order(id).await;
             set_refresh.update(|n| *n += 1);
         });
     };
@@ -117,7 +159,7 @@ pub fn Inventory() -> impl IntoView {
             />
 
             // Stats Row
-            <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <Suspense fallback=|| ()>
                     {move || parts.get().map(|result| match result {
                         Ok(data) => {
@@ -127,25 +169,48 @@ pub fn Inventory() -> impl IntoView {
                             let total_value: f64 = data.iter().filter_map(|p| p.unit_cost.map(|c| c * p.quantity as f64)).sum();
                             
                             view! {
-                                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                                    <div class="text-3xl font-bold text-blue-400">{total}</div>
-                                    <div class="text-gray-400 text-sm">"Total Parts"</div>
+                                // Total Parts Card
+                                <div class="relative isolate overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 p-5 rounded-xl border border-slate-700/50 shadow-lg group hover:border-cyan-500/50 transition duration-300">
+                                    <div class="absolute right-0 bottom-0 opacity-10 text-7xl rotate-12 translate-x-2 translate-y-4 pointer-events-none group-hover:opacity-20 transition z-0">"📦"</div>
+                                    <div class="relative z-10">
+                                        <div class="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">"Total Inventory"</div>
+                                        <div class="text-3xl font-black text-white tracking-tight">{total}</div>
+                                        <div class="text-[10px] text-slate-500 mt-1 font-mono">"ACTIVE SKUs"</div>
+                                    </div>
                                 </div>
-                                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                                    <div class="text-3xl font-bold text-red-400">{low_stock}</div>
-                                    <div class="text-gray-400 text-sm">"Low Stock"</div>
+
+                                // Low Stock Card
+                                <div class="relative isolate overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 p-5 rounded-xl border border-slate-700/50 shadow-lg group hover:border-red-500/50 transition duration-300">
+                                    <div class="absolute right-0 bottom-0 opacity-10 text-7xl rotate-12 translate-x-2 translate-y-4 pointer-events-none group-hover:opacity-20 transition z-0">"⚠️"</div>
+                                    <div class="relative z-10">
+                                        <div class="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">"Critical Stock"</div>
+                                        <div class="text-3xl font-black text-red-500 tracking-tight">{low_stock}</div>
+                                        <div class="text-[10px] text-red-500/50 mt-1 font-mono">"ACTION REQUIRED"</div>
+                                    </div>
                                 </div>
-                                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                                    <div class="text-3xl font-bold text-purple-400">{categories_count}</div>
-                                    <div class="text-gray-400 text-sm">"Categories"</div>
+
+                                // Categories Card
+                                <div class="relative isolate overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 p-5 rounded-xl border border-slate-700/50 shadow-lg group hover:border-fuchsia-500/50 transition duration-300">
+                                    <div class="absolute right-0 bottom-0 opacity-10 text-7xl rotate-12 translate-x-2 translate-y-4 pointer-events-none group-hover:opacity-20 transition z-0">"🏷️"</div>
+                                    <div class="relative z-10">
+                                        <div class="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">"Categories"</div>
+                                        <div class="text-3xl font-black text-fuchsia-500 tracking-tight">{categories_count}</div>
+                                        <div class="text-[10px] text-slate-500 mt-1 font-mono">"GROUPS"</div>
+                                    </div>
                                 </div>
-                                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                                    <div class="text-3xl font-bold text-emerald-400">"$"{format!("{:.0}", total_value)}</div>
-                                    <div class="text-gray-400 text-sm">"Total Value"</div>
+
+                                // Value Card
+                                <div class="relative isolate overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 p-5 rounded-xl border border-slate-700/50 shadow-lg group hover:border-emerald-500/50 transition duration-300">
+                                    <div class="absolute right-0 bottom-0 opacity-10 text-7xl rotate-12 translate-x-2 translate-y-4 pointer-events-none group-hover:opacity-20 transition z-0">"💰"</div>
+                                    <div class="relative z-10">
+                                        <div class="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">"Total Value"</div>
+                                        <div class="text-3xl font-black text-emerald-400 tracking-tight">"$"{format!("{:.0}", total_value)}</div>
+                                        <div class="text-[10px] text-slate-500 mt-1 font-mono">"ESTIMATED"</div>
+                                    </div>
                                 </div>
                             }.into_view()
                         },
-                        Err(_) => view! { <div class="text-red-500">"Error"</div> }.into_view()
+                        Err(_) => view! { <div class="text-red-500 p-4 border border-red-500/50 bg-red-500/10 rounded-lg">"Error loading stats"</div> }.into_view()
                     })}
                 </Suspense>
             </div>
@@ -306,9 +371,23 @@ pub fn Inventory() -> impl IntoView {
                                                 <code class="text-xs bg-slate-900 px-2 py-1 rounded">
                                                     {order.tracking_number.clone().unwrap_or_else(|| "N/A".to_string())}
                                                 </code>
-                                                <span class={format!("px-3 py-1 rounded-full text-xs font-bold uppercase border {}", status_color)}>
-                                                    {order.status.clone()}
-                                                </span>
+                                                {
+                                                    let status = order.status.clone();
+                                                    let id = order.id;
+                                                    if status == "delivered" {
+                                                        view! { <span class="px-3 py-1 rounded-full text-xs font-bold uppercase border bg-emerald-500/20 text-emerald-300 border-emerald-500/50">"DELIVERED"</span> }.into_view()
+                                                    } else {
+                                                        view! { 
+                                                            <button 
+                                                                on:click=move |_| on_receive(id)
+                                                                class={format!("px-3 py-1 rounded-full text-xs font-bold uppercase border cursor-pointer hover:scale-110 active:scale-95 transition shadow-lg hover:shadow-cyan-500/50 {}", status_color)}
+                                                                title="Click to Receive Part"
+                                                            >
+                                                                {status}
+                                                            </button> 
+                                                        }.into_view()
+                                                    }
+                                                }
                                             </div>
                                         </div>
                                     }
@@ -320,88 +399,190 @@ pub fn Inventory() -> impl IntoView {
                 </Suspense>
             </div>
 
+            // Parts List Section Header
+            <div class="flex items-center justify-between mb-4 mt-8">
+                <h3 class="text-xl font-bold flex items-center gap-2">
+                    <span class="text-2xl">"📋"</span>
+                    "Parts Inventory"
+                </h3>
+                <div class="flex items-center gap-2 text-xs text-gray-500 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700">
+                    <span class="text-cyan-400">"🔮"</span>
+                    <span>"Predictive Maintenance: Coming Soon"</span>
+                </div>
+            </div>
+
             // Parts List
-            <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
-                <table class="w-full text-left">
-                    <thead class="bg-slate-900 text-gray-400 uppercase text-xs">
-                        <tr>
-                            <th class="p-4">"Part Name"</th>
-                            <th class="p-4">"Category"</th>
-                            <th class="p-4">"Type / Mfr"</th>
-                            <th class="p-4">"Location"</th>
-                            <th class="p-4 text-center">"Stock"</th>
-                            <th class="p-4 text-center">"Status"</th>
-                            <th class="p-4 text-right">"Actions"</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-700">
-                        <Suspense fallback=|| view! { <tr><td colspan="6" class="p-4 text-center">"Loading..."</td></tr> }>
-                            {move || parts.get().map(|result| match result {
-                                Ok(data) => {
-                                    let search = search_query.get().to_lowercase();
-                                    let cat_filter = filter_category.get();
-                                    
-                                    data.into_iter()
-                                        .filter(|p| {
-                                            let matches_search = search.is_empty() || p.name.to_lowercase().contains(&search);
-                                            let matches_cat = cat_filter == "All" || p.category == cat_filter;
-                                            matches_search && matches_cat
-                                        })
-                                        .map(|item| {
-                                            let is_low = item.quantity <= item.min_quantity;
-                                            let row_class = if is_low { "bg-red-900/20" } else { "" };
+            <div class="bg-slate-900/50 backdrop-blur rounded-xl overflow-hidden border border-slate-700 shadow-2xl relative">
+                <div class="absolute inset-0 bg-grid-slate-800/[0.05] pointer-events-none"></div>
+                <div class="max-h-[600px] overflow-y-auto custom-scrollbar">
+                    <table class="w-full text-left text-sm relative z-0">
+                        <thead class="bg-slate-950/90 text-xs uppercase font-bold text-slate-400 tracking-wider sticky top-0 z-10 backdrop-blur-md shadow-sm">
+                            <tr>
+                                <th class="py-4 px-6 text-left border-b border-r border-slate-800 cursor-pointer hover:text-white hover:bg-slate-800/50 transition group select-none"
+                                    on:click=move |_| {
+                                        if sort_by.get() == "name" { set_sort_desc.update(|d| *d = !*d); }
+                                        else { set_sort_by.set("name".to_string()); set_sort_desc.set(false); }
+                                    }
+                                >
+                                    <div class="flex items-center gap-2">
+                                        "Part Name"
+                                        <span class="opacity-30 group-hover:opacity-100 transition text-cyan-400 text-[10px]">{move || if sort_by.get() == "name" { if sort_desc.get() { "▼" } else { "▲" } } else { "↕" }}</span>
+                                    </div>
+                                </th>
+                                <th class="py-4 px-6 text-left border-b border-r border-slate-800 cursor-pointer hover:text-white hover:bg-slate-800/50 transition group select-none"
+                                    on:click=move |_| {
+                                        if sort_by.get() == "category" { set_sort_desc.update(|d| *d = !*d); }
+                                        else { set_sort_by.set("category".to_string()); set_sort_desc.set(false); }
+                                    }
+                                >
+                                    <div class="flex items-center gap-2">
+                                        "Category"
+                                        <span class="opacity-30 group-hover:opacity-100 transition text-cyan-400 text-[10px]">{move || if sort_by.get() == "category" { if sort_desc.get() { "▼" } else { "▲" } } else { "↕" }}</span>
+                                    </div>
+                                </th>
+                                <th class="py-4 px-6 text-left border-b border-r border-slate-800 cursor-pointer hover:text-white hover:bg-slate-800/50 transition group select-none"
+                                    on:click=move |_| {
+                                        if sort_by.get() == "location" { set_sort_desc.update(|d| *d = !*d); }
+                                        else { set_sort_by.set("location".to_string()); set_sort_desc.set(false); }
+                                    }
+                                >
+                                    <div class="flex items-center gap-2">
+                                        "Location"
+                                        <span class="opacity-30 group-hover:opacity-100 transition text-cyan-400 text-[10px]">{move || if sort_by.get() == "location" { if sort_desc.get() { "▼" } else { "▲" } } else { "↕" }}</span>
+                                    </div>
+                                </th>
+                                <th class="py-4 px-6 text-center border-b border-r border-slate-800 cursor-pointer hover:text-white hover:bg-slate-800/50 transition group select-none"
+                                    on:click=move |_| {
+                                        if sort_by.get() == "stock" { set_sort_desc.update(|d| *d = !*d); }
+                                        else { set_sort_by.set("stock".to_string()); set_sort_desc.set(false); }
+                                    }
+                                >
+                                    <div class="flex items-center gap-2 justify-center">
+                                        "Stock"
+                                        <span class="opacity-30 group-hover:opacity-100 transition text-cyan-400 text-[10px]">{move || if sort_by.get() == "stock" { if sort_desc.get() { "▼" } else { "▲" } } else { "↕" }}</span>
+                                    </div>
+                                </th>
+                                <th class="py-4 px-6 text-center border-b border-slate-800">"Status"</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/50">
+                            <Suspense fallback=|| view! { <tr><td colspan="5" class="p-8 text-center text-slate-500 animate-pulse">"Loading inventory..."</td></tr> }>
+                                {move || parts.get().map(|result| match result {
+                                    Ok(data) => {
+                                        let search = search_query.get().to_lowercase();
+                                        let cat_filter = filter_category.get();
+                                        
+                                        // 1. Filter
+                                        let mut filtered: Vec<_> = data.into_iter()
+                                            .filter(|p| {
+                                                let matches_search = search.is_empty() || p.name.to_lowercase().contains(&search);
+                                                let matches_cat = cat_filter == "All" || p.category == cat_filter;
+                                                matches_search && matches_cat
+                                            })
+                                            .collect();
+
+                                        // 2. Sort
+                                        filtered.sort_by(|a, b| {
+                                            let cmp = match sort_by.get().as_str() {
+                                                "name" => a.name.cmp(&b.name),
+                                                "category" => a.category.cmp(&b.category),
+                                                "location" => a.location.cmp(&b.location),
+                                                _ => a.quantity.cmp(&b.quantity),
+                                            };
+                                            if sort_desc.get() { cmp.reverse() } else { cmp }
+                                        });
+
+                                        // 3. Render
+                                        filtered.into_iter().map(|item| {
+                                            let qty = item.quantity;
+                                            let min = item.min_quantity;
+                                            let is_order = qty <= min;
+                                            let is_low = !is_order && qty <= (min as f32 * 1.5).ceil() as i32;
+                                            let row_bg = if is_order { "bg-red-500/5 hover:bg-red-500/10" } else { "hover:bg-slate-800/50" };
+                                            let border_color = if is_order { "border-red-500/20" } else { "border-slate-800" };
                                             let id = item.id;
                                             
                                             view! {
-                                                <tr class={format!("hover:bg-slate-750 transition {}", row_class)}>
-                                                    <td class="p-4">
-                                                        <div class="font-bold">{item.name.clone()}</div>
-                                                        <code class="text-xs text-gray-500">{item.part_number.clone().unwrap_or_default()}</code>
-                                                    </td>
-                                                    <td class="p-4">
-                                                        <span class="px-2 py-1 bg-slate-700 rounded text-xs uppercase">{item.category.clone()}</span>
-                                                    </td>
-                                                    <td class="p-4">
-                                                        <div class="font-bold text-xs">{item.part_type.clone().unwrap_or("-".to_string())}</div>
-                                                        <div class="text-xs text-gray-500">{item.manufacturer.clone().unwrap_or("-".to_string())}</div>
-                                                    </td>
-                                                    <td class="p-4 text-gray-400">{item.location.clone().unwrap_or("-".to_string())}</td>
-                                                    <td class="p-4 text-center">
-                                                        <div class="flex items-center justify-center gap-2">
-                                                            <button 
-                                                                on:click=move |_| on_quantity_change(id, -1)
-                                                                class="w-8 h-8 bg-slate-700 hover:bg-red-600 rounded transition font-bold"
-                                                            >"-"</button>
-                                                            <span class="text-xl font-bold min-w-12">{item.quantity}</span>
-                                                            <button 
-                                                                on:click=move |_| on_quantity_change(id, 1)
-                                                                class="w-8 h-8 bg-slate-700 hover:bg-emerald-600 rounded transition font-bold"
-                                                            >"+"</button>
+                                                <tr class={format!("group transition border-b {} {}", border_color, row_bg)}>
+                                                    <td class="py-4 px-6 border-r border-slate-800 relative">
+                                                        <div class="text-sm text-white font-bold tracking-wide">{item.name.clone()}</div>
+                                                        <div class="flex items-center gap-2 mt-1.5 opacity-60 group-hover:opacity-100 transition">
+                                                            <code class="text-[10px] text-cyan-300 bg-cyan-950/30 border border-cyan-800/50 px-1.5 py-0.5 rounded font-mono">{item.part_number.clone().unwrap_or_default()}</code>
+                                                            {if let Some(mfr) = &item.manufacturer {
+                                                                if !mfr.is_empty() {
+                                                                    view! { <span class="text-[10px] text-slate-400 uppercase tracking-widest">{mfr}</span> }.into_view()
+                                                                } else {
+                                                                    view! { <span></span> }.into_view() 
+                                                                }
+                                                            } else {
+                                                                view! { <span></span> }.into_view()
+                                                            }}
                                                         </div>
-                                                    </td>
-                                                    <td class="p-4 text-center">
-                                                        {if is_low {
-                                                            view! { <span class="px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs font-bold">"LOW STOCK"</span> }
+                                                        {if is_order {
+                                                            view! { <div class="absolute left-0 top-0 bottom-0 w-1 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]"></div> }
+                                                        } else if is_low {
+                                                            view! { <div class="absolute left-0 top-0 bottom-0 w-1 bg-yellow-500"></div> }
                                                         } else {
-                                                            view! { <span class="px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded text-xs font-bold">"OK"</span> }
+                                                            view! { <div class="hidden"></div> }
                                                         }}
                                                     </td>
-                                                    <td class="p-4 text-right">
-                                                        <button 
-                                                            on:click=move |_| on_delete(id)
-                                                            class="text-gray-500 hover:text-red-400 transition"
-                                                            title="Delete"
-                                                        >"🗑️"</button>
+                                                    <td class="py-4 px-6 border-r border-slate-800 text-xs text-slate-400 font-medium">
+                                                        {item.category.clone()}
+                                                    </td>
+                                                    <td class="py-4 px-6 border-r border-slate-800">
+                                                        <input 
+                                                            type="text"
+                                                            value={item.location.clone().unwrap_or_default()}
+                                                            placeholder="📍 Loc..."
+                                                            on:change=move |ev| {
+                                                                use leptos::ev::Event;
+                                                                let new_loc = event_target_value(&ev);
+                                                                stored_loc_action.get_value().dispatch((id, new_loc));
+                                                            }
+                                                            class="w-full bg-transparent border-b border-dashed border-slate-600 focus:border-cyan-500 focus:bg-slate-900 rounded-t px-2 py-1 text-xs text-yellow-500 font-mono text-center outline-none transition placeholder-slate-600"
+                                                        />
+                                                    </td>
+                                                    <td class="py-4 px-6 border-r border-slate-800 text-center">
+                                                        <input 
+                                                            type="number"
+                                                            min="0"
+                                                            value={qty}
+                                                            on:change=move |ev| {
+                                                                use leptos::ev::Event;
+                                                                let new_val: i32 = event_target_value(&ev).parse().unwrap_or(qty);
+                                                                let change = new_val - qty;
+                                                                if change != 0 {
+                                                                    stored_action.get_value().dispatch((id, change));
+                                                                }
+                                                            }
+                                                            class={format!("w-24 text-center border-2 rounded-lg px-2 py-2 text-xl font-black text-black shadow-lg transition transform focus:scale-110 outline-none {}", 
+                                                                if is_order { "bg-red-400 border-red-500 shadow-red-500/20" } 
+                                                                else if is_low { "bg-yellow-400 border-yellow-500 shadow-yellow-500/20" } 
+                                                                else { "bg-emerald-400 border-emerald-500 shadow-emerald-500/20" }
+                                                            )}
+                                                        />
+                                                    </td>
+                                                    <td class="py-4 px-6 text-center">
+                                                        {if qty == 0 {
+                                                            view! { <span class="px-3 py-1 bg-red-500 text-white rounded-full text-[10px] uppercase tracking-wider font-bold shadow-lg shadow-red-500/30 animate-pulse">"Empty"</span> }
+                                                        } else if is_order {
+                                                            view! { <span class="px-3 py-1 bg-red-950 text-red-400 rounded-full text-[10px] uppercase tracking-wider font-bold border border-red-900">"Order"</span> }
+                                                        } else if is_low {
+                                                             view! { <span class="px-3 py-1 bg-yellow-950 text-yellow-400 rounded-full text-[10px] uppercase tracking-wider font-bold border border-yellow-900">"Low"</span> }
+                                                        } else {
+                                                             view! { <span class="px-3 py-1 bg-emerald-950 text-emerald-400 rounded-full text-[10px] uppercase tracking-wider font-bold border border-emerald-900">"Good"</span> }
+                                                        }}
                                                     </td>
                                                 </tr>
                                             }
                                         }).collect_view()
-                                },
-                                Err(_) => view! { <tr><td colspan="6" class="p-4 text-red-500">"Error loading parts"</td></tr> }.into_view()
-                            })}
-                        </Suspense>
-                    </tbody>
-                </table>
+                                    },
+                                    Err(_) => view! { <tr><td colspan="5" class="p-8 text-center text-red-500 bg-red-950/20">"⚠️ Error loading parts"</td></tr> }.into_view()
+                                })}
+                            </Suspense>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     }

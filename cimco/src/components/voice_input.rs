@@ -116,6 +116,86 @@ pub fn VoiceInput(
         }
     };
 
+    // Start voice recognition
+    let start_listening = move |_| {
+        set_is_listening.set(true);
+        set_status_text.set("🔴 Listening...".to_string());
+        set_result_text.set(String::new());
+        
+        // Use JavaScript for Speech Recognition (more reliable in WebView)
+        let set_manual = set_manual_input.clone();
+        let set_listening = set_is_listening.clone();
+        let set_status = set_status_text.clone();
+        
+        spawn_local(async move {
+            use wasm_bindgen::JsCast;
+            use js_sys::Reflect;
+            
+            let window = web_sys::window().unwrap();
+            
+            // Check if SpeechRecognition is available
+            let speech_recognition = Reflect::get(&window, &"webkitSpeechRecognition".into())
+                .or_else(|_| Reflect::get(&window, &"SpeechRecognition".into()));
+            
+            match speech_recognition {
+                Ok(sr_constructor) if !sr_constructor.is_undefined() => {
+                    // Create recognition instance via JavaScript
+                    let js_code = r#"
+                        (function() {
+                            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                            const recognition = new SpeechRecognition();
+                            recognition.lang = 'en-US';
+                            recognition.continuous = false;
+                            recognition.interimResults = false;
+                            
+                            return new Promise((resolve, reject) => {
+                                recognition.onresult = (event) => {
+                                    const transcript = event.results[0][0].transcript;
+                                    resolve(transcript);
+                                };
+                                recognition.onerror = (event) => {
+                                    reject(event.error);
+                                };
+                                recognition.onend = () => {
+                                    // If no result, resolve with empty
+                                };
+                                recognition.start();
+                            });
+                        })()
+                    "#;
+                    
+                    let promise = js_sys::eval(js_code);
+                    match promise {
+                        Ok(p) => {
+                            let promise: js_sys::Promise = p.unchecked_into();
+                            match wasm_bindgen_futures::JsFuture::from(promise).await {
+                                Ok(result) => {
+                                    if let Some(text) = result.as_string() {
+                                        set_manual.set(text);
+                                        set_status.set("✅ Heard you! Click Execute.".to_string());
+                                    }
+                                }
+                                Err(e) => {
+                                    log(&format!("Speech error: {:?}", e));
+                                    set_status.set("❌ Speech error. Type instead.".to_string());
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            set_status.set("❌ Speech not available".to_string());
+                        }
+                    }
+                }
+                _ => {
+                    set_status.set("❌ Speech recognition not supported".to_string());
+                }
+            }
+            
+            set_listening.set(false);
+        });
+    };
+
+
     view! {
         <div class="bg-gradient-to-r from-purple-900/40 to-blue-900/40 p-5 rounded-xl border border-purple-500/30 mb-6">
             <div class="flex items-center gap-4 mb-4">
@@ -139,11 +219,27 @@ pub fn VoiceInput(
                     on:keydown=move |ev| if ev.key() == "Enter" { process_input() }
                 />
                 <button 
+                    class={move || if is_listening.get() { 
+                        "px-4 py-3 bg-red-500 animate-pulse rounded-lg font-bold transition text-xl" 
+                    } else { 
+                        "px-4 py-3 bg-red-600 hover:bg-red-500 rounded-lg font-bold transition text-xl" 
+                    }}
+                    on:click=start_listening
+                    title="Click to speak"
+                >
+                    "🎤"
+                </button>
+                <button 
                     class="px-6 py-3 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold transition"
                     on:click=move |_| process_input()
                 >
                     "Execute"
                 </button>
+            </div>
+            
+            // Status display
+            <div class="mt-4 mb-2 text-sm text-cyan-400 font-medium min-h-[20px]">
+                {move || status_text.get()}
             </div>
             
             // Result display
@@ -154,11 +250,11 @@ pub fn VoiceInput(
             </Show>
             
             // Example commands
-            <div class="mt-3 text-xs text-gray-500 flex gap-4">
-                <span>"Examples:"</span>
-                <code class="bg-slate-800 px-1 rounded">"used 4 hammers"</code>
-                <code class="bg-slate-800 px-1 rounded">"received 10 seals"</code>
-                <code class="bg-slate-800 px-1 rounded">"added 2 pumps"</code>
+            <div class="mt-4 text-xs text-gray-500 flex flex-wrap items-center gap-3">
+                <span class="uppercase tracking-wider font-bold text-purple-400">"Examples:"</span>
+                <code class="bg-slate-800 text-purple-300 px-2 py-1 rounded border border-purple-500/20">"used 4 hammers"</code>
+                <code class="bg-slate-800 text-blue-300 px-2 py-1 rounded border border-blue-500/20">"received 10 seals"</code>
+                <code class="bg-slate-800 text-emerald-300 px-2 py-1 rounded border border-emerald-500/20">"added 2 pumps"</code>
             </div>
         </div>
     }

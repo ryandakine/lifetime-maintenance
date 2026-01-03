@@ -214,6 +214,7 @@ pub struct Part {
     pub location: Option<String>,
     pub unit_cost: Option<f64>,
     pub supplier: Option<String>,
+    pub wear_rating: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -246,6 +247,12 @@ struct AddPartArgs {
 struct UpdatePartQtyArgs {
     id: i32,
     quantity_change: i32,
+}
+
+#[derive(Serialize)]
+struct UpdatePartLocArgs {
+    id: i32,
+    location: String,
 }
 
 #[derive(Serialize)]
@@ -285,6 +292,10 @@ pub async fn update_part_quantity(id: i32, quantity_change: i32) -> Result<Strin
     invoke_command("update_part_quantity", &UpdatePartQtyArgs { id, quantity_change }).await
 }
 
+pub async fn update_part_location(id: i32, location: String) -> Result<String, String> {
+    invoke_command("update_part_location", &UpdatePartLocArgs { id, location }).await
+}
+
 pub async fn delete_part(id: i32) -> Result<String, String> {
     invoke_command("delete_part", &PartIdArgs { id }).await
 }
@@ -293,6 +304,16 @@ pub async fn get_incoming_orders() -> Result<Vec<IncomingOrder>, String> {
     invoke_command("get_incoming_orders", &()).await
 }
 
+#[allow(dead_code)]
 pub async fn get_low_stock_parts() -> Result<Vec<Part>, String> {
     invoke_command("get_low_stock_parts", &()).await
+}
+
+#[derive(Serialize)]
+struct OrderIdArgs {
+    id: i32,
+}
+
+pub async fn receive_order(id: i32) -> Result<String, String> {
+    invoke_command("receive_order", &OrderIdArgs { id }).await
 }

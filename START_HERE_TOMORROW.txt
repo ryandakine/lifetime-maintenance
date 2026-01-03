@@ -1,0 +1,18 @@
+☀️ GOOD MORNING COMMANDER
+
+To launch the OSI Mission Control Dashboard, run this command in your Linux terminal:
+
+    cd ~/lifetime-maintenance/osi-pentest && ./launch_osi.sh
+
+Then open your browser on your Gaming Rig to:
+    http://<YOUR_LINUX_IP>:8501
+
+Security Clearance Code:
+    osi2025
+
+Today's Mission:
+1. Read 'OSI_TRAINING_MANUAL.md'
+2. Run your first self-scan.
+3. Check 'OSI_HARDWARE_WISHLIST.md' for next upgrades.
+
+Good hunting.

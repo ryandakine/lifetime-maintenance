@@ -51,9 +51,11 @@ fn main() {
             commands::get_parts,
             commands::add_part,
             commands::update_part_quantity,
+            commands::update_part_location,
             commands::delete_part,
             commands::get_incoming_orders,
             commands::get_low_stock_parts,
+            commands::receive_order,
             // Hardware
             hardware::get_connected_cameras,
             hardware::read_scale_weight

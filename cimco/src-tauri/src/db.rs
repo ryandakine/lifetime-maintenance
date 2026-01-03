@@ -392,6 +392,7 @@ pub struct Part {
     pub quantity: i32,
     pub min_quantity: i32,
     pub lead_time_days: i32,          // New: For automated ordering triggers
+    pub wear_rating: Option<i32>,     // New: 1-10 Scale
     pub location: Option<String>,
     pub unit_cost: Option<f64>,
     pub supplier: Option<String>,
@@ -500,7 +501,7 @@ pub fn get_all_parts(state: &AppState) -> Result<Vec<Part>, String> {
     let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     
     let mut stmt = conn.prepare(
-        "SELECT id, name, description, category, part_type, manufacturer, part_number, quantity, min_quantity, lead_time_days, location, unit_cost, supplier 
+        "SELECT id, name, description, category, part_type, manufacturer, part_number, quantity, min_quantity, lead_time_days, wear_rating, location, unit_cost, supplier 
          FROM parts ORDER BY category, name"
     ).map_err(|e| format!("Failed to prepare query: {}", e))?;
     
@@ -516,9 +517,10 @@ pub fn get_all_parts(state: &AppState) -> Result<Vec<Part>, String> {
             quantity: row.get(7)?,
             min_quantity: row.get(8)?,
             lead_time_days: row.get(9)?,
-            location: row.get(10)?,
-            unit_cost: row.get(11)?,
-            supplier: row.get(12)?,
+            wear_rating: row.get(10)?,
+            location: row.get(11)?,
+            unit_cost: row.get(12)?,
+            supplier: row.get(13)?,
         })
     }).map_err(|e| format!("Failed to execute query: {}", e))?;
 
@@ -560,6 +562,15 @@ pub fn update_part_quantity(state: &AppState, id: i32, quantity_change: i32) -> 
     Ok("Quantity updated".to_string())
 }
 
+pub fn update_part_location(state: &AppState, id: i32, location: String) -> Result<String, String> {
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
+    conn.execute(
+        "UPDATE parts SET location = ?1 WHERE id = ?2",
+        params![location, id],
+    ).map_err(|e| format!("Failed to update location: {}", e))?;
+    Ok("Location updated".to_string())
+}
+
 pub fn delete_part(state: &AppState, id: i32) -> Result<String, String> {
     let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     conn.execute("DELETE FROM parts WHERE id = ?1", params![id])
@@ -571,7 +582,7 @@ pub fn get_low_stock_parts(state: &AppState) -> Result<Vec<Part>, String> {
     let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
     
     let mut stmt = conn.prepare(
-        "SELECT id, name, description, category, part_type, manufacturer, part_number, quantity, min_quantity, location, unit_cost, supplier 
+        "SELECT id, name, description, category, part_type, manufacturer, part_number, quantity, min_quantity, lead_time_days, wear_rating, location, unit_cost, supplier 
          FROM parts WHERE quantity <= min_quantity ORDER BY quantity ASC"
     ).map_err(|e| format!("Failed to prepare query: {}", e))?;
     
@@ -586,9 +597,11 @@ pub fn get_low_stock_parts(state: &AppState) -> Result<Vec<Part>, String> {
             part_number: row.get(6)?,
             quantity: row.get(7)?,
             min_quantity: row.get(8)?,
-            location: row.get(9)?,
-            unit_cost: row.get(10)?,
-            supplier: row.get(11)?,
+            lead_time_days: row.get(9)?,
+            wear_rating: row.get(10)?,
+            location: row.get(11)?,
+            unit_cost: row.get(12)?,
+            supplier: row.get(13)?,
         })
     }).map_err(|e| format!("Failed to execute query: {}", e))?;
 
@@ -630,4 +643,15 @@ pub fn get_incoming_orders(state: &AppState) -> Result<Vec<IncomingOrder>, Strin
         }
     }
     Ok(items)
+}
+
+pub fn receive_order(state: &AppState, id: i32) -> Result<String, String> {
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
+    
+    conn.execute(
+        "UPDATE incoming_orders SET status = 'delivered' WHERE id = ?1",
+        params![id],
+    ).map_err(|e| format!("Failed to update order: {}", e))?;
+    
+    Ok("Order marked as delivered".to_string())
 }

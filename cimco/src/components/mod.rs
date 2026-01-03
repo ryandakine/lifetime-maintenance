@@ -8,3 +8,4 @@ pub mod tasks;
 pub mod login;
 pub mod inventory;
 pub mod voice_input;
+pub mod system_map;

@@ -1,58 +1,58 @@
 [
   {
     "id": "1",
-    "title": "Backup Database",
-    "prompt": "Create a safety backup of cimco_offline.db before applying any schema migrations.",
+    "title": "OSI Scout: Core Scanner",
+    "prompt": "Implement Python wrapper around Dockerized Kali Linux to run Nmap and Nikto scans automatically.",
     "status": "done",
-    "priority": "high",
-    "complexity": "low"
-  },
-  {
-    "id": "2",
-    "title": "Update Rust Backend Structs",
-    "prompt": "Update `Part` struct and `AddPartArgs` in `api.rs` and `db.rs` to include `part_type`, `manufacturer`, `part_number`, and `lifespan_estimate`.",
-    "status": "done",
-    "priority": "high",
+    "priority": "critical",
     "complexity": "medium"
   },
   {
-    "id": "3",
-    "title": "Implement Schema Migration Logic",
-    "prompt": "Modify `db::init_parts_table` to check for missing columns and run `ALTER TABLE` commands if necessary to add `part_type`, `manufacturer`, etc.",
+    "id": "2",
+    "title": "OSI Scout: AI Analysis",
+    "prompt": "Integrate Local Ollama (Llama 3) to analyze Nmap/Nikto scan results and generate 'Hacker Perspective' insights.",
     "status": "done",
     "priority": "critical",
     "complexity": "high"
   },
   {
-    "id": "4",
-    "title": "Update Tauri Commands",
-    "prompt": "Update `add_part` and `get_parts` commands in `commands.rs` and local `db` functions to handle the new fields.",
+    "id": "3",
+    "title": "OSI Scout: 5G Audit Module",
+    "prompt": "Implement 'Phase 2: GTP-U Vulnerabilty Assessment' module in `osi_scanner.py` using Scapy to check for exposed TEID/GTP ports (UDP 2152, 2123).",
     "status": "done",
     "priority": "high",
+    "complexity": "critical"
+  },
+  {
+    "id": "4",
+    "title": "OSI Vision: Camera AI Prototype",
+    "prompt": "Create `osi_vision.py` using YOLOv8 (Ultralytics) to process a local video stream/webcam and detect objects (Person, Cell Phone, etc) in real-time.",
+    "status": "pending",
+    "priority": "medium",
     "complexity": "medium"
   },
   {
     "id": "5",
-    "title": "Update Inventory Frontend UI",
-    "prompt": "Update `inventory.rs` to show new columns (Manufacturer, Type) in the table and include them in the Add Part form.",
-    "status": "done",
+    "title": "OSI Cortex: Private LLM Service",
+    "prompt": "Prototype the 'Private LLM' offering by creating a web UI (Streamlit or standard OpenWebUI) for the local Ollama instance to serve as a 'Private ChatGPT'.",
+    "status": "pending",
     "priority": "medium",
-    "complexity": "high"
+    "complexity": "medium"
   },
   {
     "id": "6",
-    "title": "Excel Data Import Strategy",
-    "prompt": "Research/Implement a way to parse 'metso shredder parts.xlsx' (e.g., using `calamine` crate) to bulk import parts.",
-    "status": "done",
-    "priority": "medium",
+    "title": "OSI Sentinel: Network Monitor",
+    "prompt": "Create `osi_sentinel.py` to listen on a network interface (Scapy/PyShark) and log unique MAC addresses and high-bandwidth connections (Passive Monitoring).",
+    "status": "pending",
+    "priority": "low",
     "complexity": "high"
   },
   {
     "id": "7",
-    "title": "Verify Migration",
-    "prompt": "Run the app, verify DB migration worked, and ensure existing data is preserved.",
+    "title": "Integration: Unified CLI",
+    "prompt": "Create a master `osi_cli.py` that allows selecting between Scout, Vision, Cortex, and Sentinel modes from a single command.",
     "status": "pending",
-    "priority": "high",
+    "priority": "low",
     "complexity": "medium"
   }
 ]

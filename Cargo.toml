@@ -2,6 +2,6 @@
 members = [
     "backend-rs",
     "cimco",
-    "cimco/src-tauri",
+    "cimco/src-tauri", "osi-pentest/osi-agent", "osi-pentest/osi-dojo",
 ]
 resolver = "2"
