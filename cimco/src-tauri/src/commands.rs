@@ -17,6 +17,11 @@ pub fn reset_database(state: State<AppState>) -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn switch_demo_mode(state: State<AppState>, enable: bool) -> Result<String, String> {
+    crate::db_seeds::switch_demo_mode(&state, enable)
+}
+
+#[tauri::command]
 pub fn get_equipment_stats(state: State<AppState>) -> Result<EquipmentStats, String> {
     db::get_stats(&state)
 }

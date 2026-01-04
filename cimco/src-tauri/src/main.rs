@@ -64,7 +64,8 @@ fn main() {
             // Demo Tools
             commands::seed_database,
             commands::seed_production_database,
-            commands::reset_database
+            commands::reset_database,
+            commands::switch_demo_mode
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
