@@ -22,6 +22,20 @@ pub fn App() -> impl IntoView {
         move || set_show_splash.set(false),
         Duration::from_millis(4000),
     );
+
+    // Auto-detect Demo Mode based on Domain
+    create_effect(move |_| {
+        if let Some(w) = window() {
+            if let Ok(hostname) = w.location().hostname() {
+                if hostname.to_lowercase().contains("demo") {
+                    spawn_local(async move {
+                        let _ = crate::api::set_demo_mode(true).await;
+                        leptos::logging::log!("🌍 Environment detected: DEMO MODE (hostname: {})", hostname);
+                    });
+                }
+            }
+        }
+    });
     
     // Global User State
     let (user, set_user) = create_signal::<Option<User>>(None);
