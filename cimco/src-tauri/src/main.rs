@@ -12,16 +12,20 @@ mod commands;
 
 use hardware::{ScaleState, ScaleData};
 
-fn main() {
-    // Initialize Database
-    let app_state = match db::init() {
+#[tokio::main]
+async fn main() {
+    // Initialize PostgreSQL Database
+    let app_state = match db::init().await {
         Ok(state) => state,
         Err(e) => {
-            eprintln!("Failed to initialize database: {}", e);
-            // Panic here is acceptable as the app cannot function without DB
+            eprintln!("❌ Failed to initialize PostgreSQL database: {}", e);
+            eprintln!("💡 Make sure PostgreSQL is running and DATABASE_URL is set");
+            eprintln!("   Example: DATABASE_URL=postgres://cimco:cimco@localhost/cimco_inventory");
             panic!("Database initialization failed");
         }
     };
+
+    println!("🚀 Starting Tauri application with PostgreSQL backend...");
 
     tauri::Builder::default()
         .manage(app_state)
