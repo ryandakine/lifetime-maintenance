@@ -6,6 +6,7 @@
 use std::sync::Mutex;
 
 mod db;
+mod db_seeds;
 mod hardware;
 mod commands;
 
@@ -56,9 +57,14 @@ fn main() {
             commands::get_incoming_orders,
             commands::get_low_stock_parts,
             commands::receive_order,
+            commands::export_inventory_csv,
             // Hardware
             hardware::get_connected_cameras,
-            hardware::read_scale_weight
+            hardware::read_scale_weight,
+            // Demo Tools
+            commands::seed_database,
+            commands::seed_production_database,
+            commands::reset_database
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

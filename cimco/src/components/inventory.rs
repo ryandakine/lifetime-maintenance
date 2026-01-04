@@ -1,5 +1,5 @@
 use leptos::*;
-use crate::api::{get_parts, add_part, update_part_quantity, update_part_location, delete_part, get_incoming_orders, receive_order, Part, IncomingOrder};
+use crate::api::{get_parts, add_part, update_part_quantity, update_part_location, delete_part, get_incoming_orders, receive_order, export_inventory_csv};
 use crate::components::voice_input::VoiceInput;
 
 #[component]
@@ -39,7 +39,7 @@ pub fn Inventory() -> impl IntoView {
     let manufacturers = ["Lindemann", "SSI", "Generic", "SKF", "Timken", "Metso", "Other"];
 
     // Handlers
-    let on_add_part = move |_| {
+    let on_add_part = move |_: web_sys::MouseEvent| {
         spawn_local(async move {
             if !new_name.get().is_empty() {
                 let pn = new_part_number.get_untracked();
@@ -80,6 +80,30 @@ pub fn Inventory() -> impl IntoView {
         async move {
             leptos::logging::log!("Updating location: id={}, loc={}", id, location);
             update_part_location(id, location).await
+        }
+    });
+
+    let export_action = create_action(move |_| async move {
+        if let Ok(csv) = export_inventory_csv().await {
+             // Simple JS download trigger
+             // Escaping backticks to be safe in template literal
+             let safe_csv = csv.replace("`", "\\`"); 
+             let script = format!("
+                const data = `
+{}
+`;
+                const blob = new Blob([data], {{ type: 'text/csv' }});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'cimco_inventory.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+             ", safe_csv);
+             
+             let _ = js_sys::eval(&script);
         }
     });
     
@@ -139,7 +163,9 @@ pub fn Inventory() -> impl IntoView {
             <div class="flex justify-between items-center mb-6">
                 <div>
                     <h2 class="text-3xl font-bold flex items-center gap-3">
-                        <span class="text-4xl">"📦"</span>
+                        <span class="text-blue-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                        </span>
                         "Cimco Inventory"
                     </h2>
                     <p class="text-gray-400 mt-1">"Track Metso/Lindemann parts • Powered by On-Site Intelligence LLC"</p>
@@ -152,180 +178,23 @@ pub fn Inventory() -> impl IntoView {
                 </button>
             </div>
 
-            // Voice Command Input
-            <VoiceInput 
-                on_voice_update=on_voice_command
-                parts=parts_signal.into()
-            />
-
-            // Stats Row
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <Suspense fallback=|| ()>
-                    {move || parts.get().map(|result| match result {
-                        Ok(data) => {
-                            let total = data.len();
-                            let low_stock = data.iter().filter(|p| p.quantity <= p.min_quantity).count();
-                            let categories_count = data.iter().map(|p| p.category.clone()).collect::<std::collections::HashSet<_>>().len();
-                            let total_value: f64 = data.iter().filter_map(|p| p.unit_cost.map(|c| c * p.quantity as f64)).sum();
-                            
-                            view! {
-                                // Total Parts Card
-                                <div class="relative isolate overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 p-5 rounded-xl border border-slate-700/50 shadow-lg group hover:border-cyan-500/50 transition duration-300">
-                                    <div class="absolute right-0 bottom-0 opacity-10 text-7xl rotate-12 translate-x-2 translate-y-4 pointer-events-none group-hover:opacity-20 transition z-0">"📦"</div>
-                                    <div class="relative z-10">
-                                        <div class="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">"Total Inventory"</div>
-                                        <div class="text-3xl font-black text-white tracking-tight">{total}</div>
-                                        <div class="text-[10px] text-slate-500 mt-1 font-mono">"ACTIVE SKUs"</div>
-                                    </div>
-                                </div>
-
-                                // Low Stock Card
-                                <div class="relative isolate overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 p-5 rounded-xl border border-slate-700/50 shadow-lg group hover:border-red-500/50 transition duration-300">
-                                    <div class="absolute right-0 bottom-0 opacity-10 text-7xl rotate-12 translate-x-2 translate-y-4 pointer-events-none group-hover:opacity-20 transition z-0">"⚠️"</div>
-                                    <div class="relative z-10">
-                                        <div class="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">"Critical Stock"</div>
-                                        <div class="text-3xl font-black text-red-500 tracking-tight">{low_stock}</div>
-                                        <div class="text-[10px] text-red-500/50 mt-1 font-mono">"ACTION REQUIRED"</div>
-                                    </div>
-                                </div>
-
-                                // Categories Card
-                                <div class="relative isolate overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 p-5 rounded-xl border border-slate-700/50 shadow-lg group hover:border-fuchsia-500/50 transition duration-300">
-                                    <div class="absolute right-0 bottom-0 opacity-10 text-7xl rotate-12 translate-x-2 translate-y-4 pointer-events-none group-hover:opacity-20 transition z-0">"🏷️"</div>
-                                    <div class="relative z-10">
-                                        <div class="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">"Categories"</div>
-                                        <div class="text-3xl font-black text-fuchsia-500 tracking-tight">{categories_count}</div>
-                                        <div class="text-[10px] text-slate-500 mt-1 font-mono">"GROUPS"</div>
-                                    </div>
-                                </div>
-
-                                // Value Card
-                                <div class="relative isolate overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 p-5 rounded-xl border border-slate-700/50 shadow-lg group hover:border-emerald-500/50 transition duration-300">
-                                    <div class="absolute right-0 bottom-0 opacity-10 text-7xl rotate-12 translate-x-2 translate-y-4 pointer-events-none group-hover:opacity-20 transition z-0">"💰"</div>
-                                    <div class="relative z-10">
-                                        <div class="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">"Total Value"</div>
-                                        <div class="text-3xl font-black text-emerald-400 tracking-tight">"$"{format!("{:.0}", total_value)}</div>
-                                        <div class="text-[10px] text-slate-500 mt-1 font-mono">"ESTIMATED"</div>
-                                    </div>
-                                </div>
-                            }.into_view()
-                        },
-                        Err(_) => view! { <div class="text-red-500 p-4 border border-red-500/50 bg-red-500/10 rounded-lg">"Error loading stats"</div> }.into_view()
-                    })}
-                </Suspense>
+            // Omni-Search & Command Bar (Replaces old text boxes)
+            <div class="mb-8">
+                <VoiceInput 
+                    on_voice_update=on_voice_command
+                    on_search_update=Callback::new(move |query: String| set_search_query.set(query))
+                    parts=parts_signal.into()
+                />
             </div>
 
-            // Add Part Form
-            <Show when=move || show_add_form.get() fallback=|| ()>
-                <div class="bg-slate-800 p-6 rounded-xl mb-6 border border-blue-500/50 shadow-lg">
-                    <h3 class="text-xl font-bold mb-4 text-blue-400">"Add New Part"</h3>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div class="col-span-2">
-                            <label class="block text-xs text-gray-400 uppercase mb-1">"Part Name"</label>
-                            <input type="text" 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
-                                prop:value=new_name
-                                on:input=move |ev| set_new_name.set(event_target_value(&ev))
-                                placeholder="e.g., Shredder Hammer"
-                            />
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-400 uppercase mb-1">"Category"</label>
-                            <select 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
-                                on:change=move |ev| set_new_category.set(event_target_value(&ev))
-                            >
-                                {categories.iter().map(|cat| view! { <option value=*cat>{*cat}</option> }).collect_view()}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-400 uppercase mb-1">"Type"</label>
-                            <select 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
-                                on:change=move |ev| set_new_part_type.set(event_target_value(&ev))
-                            >
-                                {part_types.iter().map(|t| view! { <option value=*t>{*t}</option> }).collect_view()}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-400 uppercase mb-1">"Manufacturer"</label>
-                            <select 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
-                                on:change=move |ev| set_new_manufacturer.set(event_target_value(&ev))
-                            >
-                                {manufacturers.iter().map(|m| view! { <option value=*m>{*m}</option> }).collect_view()}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-400 uppercase mb-1">"Part Number"</label>
-                            <input type="text" 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
-                                prop:value=new_part_number
-                                on:input=move |ev| set_new_part_number.set(event_target_value(&ev))
-                                placeholder="Optional"
-                            />
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-400 uppercase mb-1">"Quantity"</label>
-                            <input type="number" 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
-                                prop:value=new_quantity
-                                on:input=move |ev| set_new_quantity.set(event_target_value(&ev).parse().unwrap_or(1))
-                            />
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-400 uppercase mb-1">"Min Stock"</label>
-                            <input type="number" 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
-                                prop:value=new_min_quantity
-                                on:input=move |ev| set_new_min_quantity.set(event_target_value(&ev).parse().unwrap_or(1))
-                            />
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-400 uppercase mb-1">"Lead Time (Days)"</label>
-                            <input 
-                                type="number" 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
-                                prop:value=new_lead_time
-                                on:input=move |ev| set_new_lead_time.set(event_target_value(&ev).parse().unwrap_or(7))
-                                placeholder="7"
-                                min="0"
-                            />
-                        </div>
-                        <div class="col-span-2">
-                             <label class="block text-xs text-gray-400 uppercase mb-1">"Location"</label>
-                            <input type="text" 
-                                class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:border-blue-500 outline-none"
-                                prop:value=new_location
-                                on:input=move |ev| set_new_location.set(event_target_value(&ev))
-                                placeholder="e.g., Bin A-1"
-                            />
-                        </div>
-                        <div class="col-span-2 flex justify-end items-end">
-                            <button 
-                                class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-bold transition flex items-center justify-center gap-2"
-                                on:click=on_add_part
-                            >
-                                "Save New Part"
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </Show>
-
-            // Filter Bar
-            <div class="flex gap-4 mb-6">
-                <input type="text" 
-                    class="flex-1 bg-slate-800 border border-slate-700 p-3 rounded-lg"
-                    prop:value=search_query
-                    on:input=move |ev| set_search_query.set(event_target_value(&ev))
-                    placeholder="🔍 Search parts..."
-                />
+            // Category Filter (moved from old filter bar)
+            <div class="flex justify-end mb-4">
                 <select 
-                    class="bg-slate-800 border border-slate-700 p-3 rounded-lg min-w-40"
+                    class="bg-slate-800 border border-slate-700 p-2 rounded-lg text-sm text-gray-400 focus:text-white focus:border-cyan-500 outline-none transition"
                     on:change=move |ev| set_filter_category.set(event_target_value(&ev))
                 >
-                    <option value="All">"All Categories"</option>
+                    <option value="All">"Filter: All Categories"</option>
+                    <option value="High Wear Parts" class="text-yellow-400 font-bold">"⚠️ Filter: High Wear Parts"</option>
                     {categories.iter().map(|cat| view! { <option value=*cat>{*cat}</option> }).collect_view()}
                 </select>
             </div>
@@ -405,9 +274,18 @@ pub fn Inventory() -> impl IntoView {
                     <span class="text-2xl">"📋"</span>
                     "Parts Inventory"
                 </h3>
-                <div class="flex items-center gap-2 text-xs text-gray-500 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700">
-                    <span class="text-cyan-400">"🔮"</span>
-                    <span>"Predictive Maintenance: Coming Soon"</span>
+                <div class="flex items-center gap-4">
+                    <button
+                        on:click=move |_| export_action.dispatch(())
+                        class="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-sm text-cyan-400 font-bold transition shadow-sm hover:shadow-cyan-900/20"
+                        title="Download CSV Report"
+                    >
+                        "⬇️ Export Data"
+                    </button>
+                    <div class="flex items-center gap-2 text-xs text-gray-500 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700">
+                        <span class="text-cyan-400">"🔮"</span>
+                        <span>"Predictive Maintenance: Coming Soon"</span>
+                    </div>
                 </div>
             </div>
 
@@ -476,7 +354,27 @@ pub fn Inventory() -> impl IntoView {
                                         let mut filtered: Vec<_> = data.into_iter()
                                             .filter(|p| {
                                                 let matches_search = search.is_empty() || p.name.to_lowercase().contains(&search);
-                                                let matches_cat = cat_filter == "All" || p.category == cat_filter;
+                                                
+                                                // Enhanced Category Filter Logic
+                                                let matches_cat = if cat_filter == "All" {
+                                                    true
+                                                } else if cat_filter == "High Wear Parts" {
+                                                    // Check wear rating OR part type string
+                                                    let rating = p.wear_rating.unwrap_or(0);
+                                                    let p_type = p.part_type.clone().unwrap_or_default();
+                                                    
+                                                    rating >= 7 || 
+                                                    p_type.contains("Hammer") || 
+                                                    p_type.contains("Cap") || 
+                                                    p_type.contains("Liner") || 
+                                                    p_type.contains("Blade") ||
+                                                    p_type.contains("Hose") ||
+                                                    p.name.contains("Hose") ||
+                                                    p.name.contains("Hydraulic")
+                                                } else {
+                                                    p.category == cat_filter
+                                                };
+                                                
                                                 matches_search && matches_cat
                                             })
                                             .collect();
@@ -535,7 +433,7 @@ pub fn Inventory() -> impl IntoView {
                                                             value={item.location.clone().unwrap_or_default()}
                                                             placeholder="📍 Loc..."
                                                             on:change=move |ev| {
-                                                                use leptos::ev::Event;
+
                                                                 let new_loc = event_target_value(&ev);
                                                                 stored_loc_action.get_value().dispatch((id, new_loc));
                                                             }
@@ -548,7 +446,7 @@ pub fn Inventory() -> impl IntoView {
                                                             min="0"
                                                             value={qty}
                                                             on:change=move |ev| {
-                                                                use leptos::ev::Event;
+
                                                                 let new_val: i32 = event_target_value(&ev).parse().unwrap_or(qty);
                                                                 let change = new_val - qty;
                                                                 if change != 0 {
@@ -577,8 +475,9 @@ pub fn Inventory() -> impl IntoView {
                                             }
                                         }).collect_view()
                                     },
-                                    Err(_) => view! { <tr><td colspan="5" class="p-8 text-center text-red-500 bg-red-950/20">"⚠️ Error loading parts"</td></tr> }.into_view()
-                                })}
+                                    Err(e) => view! { <tr><td colspan="5" class="p-8 text-center text-red-500 bg-red-950/20">{format!("⚠️ Error loading parts: {:?}", e)}</td></tr> }.into_view()
+                                })
+                                }
                             </Suspense>
                         </tbody>
                     </table>

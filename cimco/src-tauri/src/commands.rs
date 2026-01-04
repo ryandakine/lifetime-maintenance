@@ -1,5 +1,20 @@
 use tauri::State;
-use crate::db::{self, AppState, Equipment, Task, OfflineLog, TaskResolution, EquipmentStats};
+use crate::db::{self, AppState, Equipment, OfflineLog, TaskResolution, EquipmentStats};
+
+#[tauri::command]
+pub fn seed_database(state: State<AppState>) -> Result<String, String> {
+    crate::db_seeds::seed_demo_data(&state)
+}
+
+#[tauri::command]
+pub fn seed_production_database(state: State<AppState>) -> Result<String, String> {
+    crate::db_seeds::seed_production_data(&state)
+}
+
+#[tauri::command]
+pub fn reset_database(state: State<AppState>) -> Result<String, String> {
+    crate::db_seeds::clear_all_data(&state)
+}
 
 #[tauri::command]
 pub fn get_equipment_stats(state: State<AppState>) -> Result<EquipmentStats, String> {
@@ -123,4 +138,32 @@ pub fn get_low_stock_parts(state: State<AppState>) -> Result<Vec<db::Part>, Stri
 #[tauri::command]
 pub fn receive_order(state: State<AppState>, id: i32) -> Result<String, String> {
     db::receive_order(&state, id)
+}
+
+#[tauri::command]
+pub fn export_inventory_csv(state: State<AppState>) -> Result<String, String> {
+    let parts = db::get_all_parts(&state)?;
+    
+    let mut wtr = csv::Writer::from_writer(vec![]);
+    
+    // Header
+    wtr.write_record(&["ID", "Name", "Part Number", "Category", "Location", "Quantity", "Min Stock", "Manufacturer", "Cost", "Supplier"]).map_err(|e| e.to_string())?;
+
+    for p in parts {
+        wtr.write_record(&[
+            p.id.to_string(),
+            p.name,
+            p.part_number.unwrap_or_default(),
+            p.category,
+            p.location.unwrap_or_default(),
+            p.quantity.to_string(),
+            p.min_quantity.to_string(),
+            p.manufacturer.unwrap_or_default(),
+            p.unit_cost.map(|c| c.to_string()).unwrap_or_default(),
+            p.supplier.unwrap_or_default(),
+        ]).map_err(|e| e.to_string())?;
+    }
+
+    let data = String::from_utf8(wtr.into_inner().map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    Ok(data)
 }

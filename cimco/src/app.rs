@@ -1,6 +1,6 @@
 use leptos::*;
-use leptos_router::*;
-use leptos::logging::log;
+
+
 use wasm_bindgen::prelude::*;
 use web_sys::window;
 use std::time::Duration;
@@ -9,7 +9,7 @@ use crate::components::equipment_list::EquipmentList;
 use crate::components::tasks::Tasks;
 use crate::components::scale::Scale;
 use crate::components::inventory::Inventory;
-use crate::components::login::{Login, User, UserRole};
+use crate::components::login::{User, UserRole};
 use crate::components::system_map::SystemMap;
 
 #[component]

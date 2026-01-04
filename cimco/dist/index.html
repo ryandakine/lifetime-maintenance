@@ -1,21 +1,25 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Cimco Equipment Tracker</title>
-    <!-- We'll add Tailwind later via a link or Trunk's asset pipeline -->
-    <link rel="stylesheet" href="./style-595e99dae2246c64.css" integrity="sha384-alWDcdhUAFhV3NN/U07iJ+VncbzVLqnSzGZ5BKMhKErWaXVw76dOkJPbh/jPWuFD"/>
-    <!-- Copy public assets -->
-    
-  <link rel="modulepreload" href="./cimco-ui-bb4bba422166cca3.js" crossorigin="anonymous" integrity="sha384-IB9HiVVbvUbhbsQ2UpSbmCQZojbd4yjD7NrDX+Sce9sHdhxqufaHnoO1Fi0lJqCD"><link rel="preload" href="./cimco-ui-bb4bba422166cca3_bg.wasm" crossorigin="anonymous" integrity="sha384-+V12PuoH5tVxub65+t6dWz+5dEG/DxWuM4S/n7UMcIJsDQHZUuPt4IRQ3LJ4tvQE" as="fetch" type="application/wasm"></head>
-  <body>
-    <!-- Force Tailwind Generation -->
-    <div class="hidden text-cyan-400 text-fuchsia-400 text-green-400 text-red-500 bg-red-600 bg-yellow-500 bg-red-900 bg-opacity-10 text-emerald-400 text-purple-400 text-blue-400 text-red-300 text-yellow-300 text-yellow-400 border-red-500 border-yellow-500 border-emerald-500 text-purple-300 text-blue-300 text-emerald-300"></div>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cimco Equipment Tracker</title>
+  <!-- We'll add Tailwind later via a link or Trunk's asset pipeline -->
+  <link rel="stylesheet" href="./style-3aa62bee12a72383.css" integrity="sha384-6fVqfmiWlYpMdQU536PhlUi8838rnLKB/R2PW//LAoPLmjQs4EzWoeEsOEE42JtY"/>
+  <!-- Copy public assets -->
   
+<link rel="modulepreload" href="./cimco-ui-14da186b39034da4.js" crossorigin="anonymous" integrity="sha384-Szum8RvZoPnNw2gpc31lSCBNzpKeLpARhS6rTJO9WT8kmhMhJnc9eiaFnVN8//Ei"><link rel="preload" href="./cimco-ui-14da186b39034da4_bg.wasm" crossorigin="anonymous" integrity="sha384-bJCyG+gVywq/5wLZgaua13m2LtFjoqaR/gXNWNi6xJU7rkSsAMc1eygR2s5wY/kL" as="fetch" type="application/wasm"></head>
+
+<body>
+  <!-- Force Tailwind Generation -->
+  <div
+    class="hidden text-cyan-400 text-fuchsia-400 text-green-400 text-red-500 bg-red-600 bg-yellow-500 bg-red-900 bg-opacity-10 text-emerald-400 text-purple-400 text-blue-400 text-red-300 text-yellow-300 text-yellow-400 border-red-500 border-yellow-500 border-emerald-500 text-purple-300 text-blue-300 text-emerald-300">
+  </div>
+
 <script type="module">
-import init, * as bindings from './cimco-ui-bb4bba422166cca3.js';
-const wasm = await init({ module_or_path: './cimco-ui-bb4bba422166cca3_bg.wasm' });
+import init, * as bindings from './cimco-ui-14da186b39034da4.js';
+const wasm = await init({ module_or_path: './cimco-ui-14da186b39034da4_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -153,4 +157,5 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 
 })()
 </script></body>
+
 </html>

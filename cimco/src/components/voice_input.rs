@@ -1,6 +1,6 @@
 use leptos::*;
 use wasm_bindgen::prelude::*;
-use crate::api::{update_part_quantity, Part};
+use crate::api::Part;
 
 // JavaScript bindings for Speech Recognition
 #[wasm_bindgen]
@@ -9,46 +9,64 @@ extern "C" {
     fn log(s: &str);
 }
 
-/// Parse voice command like "used 4 hammers" or "received 10 seals"
-pub fn parse_voice_command(text: &str) -> Option<(String, i32, String)> {
-    let text = text.to_lowercase();
-    let words: Vec<&str> = text.split_whitespace().collect();
+// Enum for Omni-box result
+#[derive(Clone, Debug, PartialEq)]
+pub enum OmniResult {
+    Command(String, i32, String), // Action (used/added), quantity, part_name
+    Search(String),               // Just a search query
+    None
+}
+
+/// Parse input as either a command or a search query
+pub fn parse_omni_input(text: &str) -> OmniResult {
+    let text_lower = text.to_lowercase();
+    let words: Vec<&str> = text_lower.split_whitespace().collect();
     
-    // Look for action words
-    let action = if text.contains("used") || text.contains("use") || text.contains("took") {
-        "used"
-    } else if text.contains("added") || text.contains("add") || text.contains("received") || text.contains("got") {
-        "added"
+    // 1. Check for Command Pattern (Action + Number)
+    let action = if text_lower.contains("used") || text_lower.contains("use") || text_lower.contains("took") {
+        Some("used")
+    } else if text_lower.contains("added") || text_lower.contains("add") || text_lower.contains("received") || text_lower.contains("got") {
+        Some("added")
     } else {
-        return None;
+        None
     };
-    
-    // Find number in the text
-    let mut quantity: i32 = 1;
-    for word in &words {
-        if let Ok(num) = word.parse::<i32>() {
-            quantity = num;
-            break;
+
+    if let Some(act) = action {
+        // Look for a number
+        let mut quantity: Option<i32> = None;
+        for word in &words {
+            if let Ok(num) = word.parse::<i32>() {
+                quantity = Some(num);
+                break;
+            }
+        }
+
+        if let Some(qty) = quantity {
+             // Extract part keywords (filter out action words and numbers)
+            let part_keywords: Vec<&str> = words
+                .iter()
+                .filter(|w| {
+                    !["used", "use", "took", "added", "add", "received", "got", "today", "the", "a", "an", "some", "of", "for", "we"]
+                        .contains(*w) && w.parse::<i32>().is_err()
+                })
+                .copied()
+                .collect();
+            
+            let final_qty = if act == "used" { -qty.abs() } else { qty.abs() };
+            return OmniResult::Command(act.to_string(), final_qty, part_keywords.join(" "));
         }
     }
-    
-    // Extract part keywords (filter out action words and numbers)
-    let part_keywords: Vec<&str> = words
-        .iter()
-        .filter(|w| {
-            !["used", "use", "took", "added", "add", "received", "got", "today", "the", "a", "an", "some", "of", "for", "we"]
-                .contains(*w) && w.parse::<i32>().is_err()
-        })
-        .copied()
-        .collect();
-    
-    let quantity_change = if action == "used" { -quantity.abs() } else { quantity.abs() };
-    
-    Some((action.to_string(), quantity_change, part_keywords.join(" ")))
+
+    // 2. Default to Search
+    if text.trim().is_empty() {
+        OmniResult::None
+    } else {
+        OmniResult::Search(text.to_string())
+    }
 }
 
 /// Find the best matching part from the parts list
-pub fn find_matching_part(parts: &[Part], query: &str) -> Option<Part> {
+pub fn find_matching_part(parts: &[crate::api::Part], query: &str) -> Option<crate::api::Part> {
     let query = query.to_lowercase();
     
     // First try exact name match
@@ -78,68 +96,78 @@ pub fn find_matching_part(parts: &[Part], query: &str) -> Option<Part> {
 
 #[component]
 pub fn VoiceInput(
-    on_voice_update: Callback<(i32, i32)>, // (part_id, quantity_change)
+    on_voice_update: Callback<(i32, i32)>, // (part_id, quantity_change) for commands
+    on_search_update: Callback<String>,    // For search queries
     parts: Signal<Vec<Part>>,
 ) -> impl IntoView {
     let (is_listening, set_is_listening) = create_signal(false);
-    let (status_text, set_status_text) = create_signal("🎤 Tap to speak".to_string());
-    let (result_text, set_result_text) = create_signal(String::new());
-    
-    // Manual input fallback
     let (manual_input, set_manual_input) = create_signal(String::new());
+    let (feedback, set_feedback) = create_signal(Option::<String>::None);
 
-    // Process the transcribed text
-    let process_command = move |text: String| {
+    // Process input (text or voice)
+    let process_input = move |text: String| {
         let parts_list = parts.get();
-        
-        if let Some((action, qty_change, part_query)) = parse_voice_command(&text) {
-            if let Some(part) = find_matching_part(&parts_list, &part_query) {
-                on_voice_update.call((part.id, qty_change));
-                set_result_text.set(format!("✅ {} {} ({})", action, part.name, if qty_change > 0 { format!("+{}", qty_change) } else { qty_change.to_string() }));
-                set_status_text.set("Command executed!".to_string());
-            } else {
-                set_result_text.set(format!("❌ Part not found: '{}'", part_query));
-                set_status_text.set("Part not in inventory".to_string());
+        let result = parse_omni_input(&text);
+
+        match result {
+            OmniResult::Command(action, qty, part_query) => {
+                 if let Some(part) = find_matching_part(&parts_list, &part_query) {
+                    on_voice_update.call((part.id, qty));
+                     let msg = format!("✅ {} {} {} ({})", if qty > 0 { "Added" } else { "Used" }, qty.abs(), part.name, if qty > 0 { "+" } else { "-" });
+                    set_feedback.set(Some(msg));
+                    // Clear input on successful command
+                    set_manual_input.set(String::new());
+                    on_search_update.call(String::new()); // Clear search
+                } else {
+                    set_feedback.set(Some(format!("❌ Part not found: '{}'", part_query)));
+                }
+            },
+            OmniResult::Search(query) => {
+                // Just update the search filter
+                on_search_update.call(query);
+                set_feedback.set(None);
+            },
+            OmniResult::None => {
+                on_search_update.call(String::new());
+                 set_feedback.set(None);
             }
-        } else {
-            set_result_text.set(format!("❓ Didn't understand: '{}'", text));
-            set_status_text.set("Try: 'used 4 hammers'".to_string());
         }
     };
 
-    // Manual submit handler - process the command
-    let process_input = move || {
-        let text = manual_input.get();
-        if !text.is_empty() {
-            process_command(text.clone());
-            set_manual_input.set(String::new());
+    // Trigger processing when input changes (live search) or Enter pressed (command)
+    let on_input_change = move |ev| {
+        let val = event_target_value(&ev);
+        set_manual_input.set(val.clone());
+        
+        // If it looks like a command or question, don't execute automatically
+        match parse_omni_input(&val) {
+             OmniResult::Command(_, _, _) => { /* Wait for enter */ },
+             OmniResult::Search(q) => on_search_update.call(q),
+             OmniResult::None => on_search_update.call(String::new())
         }
     };
 
-    // Start voice recognition
     let start_listening = move |_| {
         set_is_listening.set(true);
-        set_status_text.set("🔴 Listening...".to_string());
-        set_result_text.set(String::new());
+        set_feedback.set(Some("🎤 Listening...".to_string()));
         
-        // Use JavaScript for Speech Recognition (more reliable in WebView)
         let set_manual = set_manual_input.clone();
         let set_listening = set_is_listening.clone();
-        let set_status = set_status_text.clone();
         
+        // Re-use logic for executing the command immediately after voice works
+        let processor = process_input.clone();
+
         spawn_local(async move {
             use wasm_bindgen::JsCast;
             use js_sys::Reflect;
-            
             let window = web_sys::window().unwrap();
             
-            // Check if SpeechRecognition is available
+             // Check if SpeechRecognition is available
             let speech_recognition = Reflect::get(&window, &"webkitSpeechRecognition".into())
                 .or_else(|_| Reflect::get(&window, &"SpeechRecognition".into()));
             
             match speech_recognition {
                 Ok(sr_constructor) if !sr_constructor.is_undefined() => {
-                    // Create recognition instance via JavaScript
                     let js_code = r#"
                         (function() {
                             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -147,114 +175,79 @@ pub fn VoiceInput(
                             recognition.lang = 'en-US';
                             recognition.continuous = false;
                             recognition.interimResults = false;
-                            
                             return new Promise((resolve, reject) => {
-                                recognition.onresult = (event) => {
-                                    const transcript = event.results[0][0].transcript;
-                                    resolve(transcript);
-                                };
-                                recognition.onerror = (event) => {
-                                    reject(event.error);
-                                };
-                                recognition.onend = () => {
-                                    // If no result, resolve with empty
-                                };
+                                recognition.onresult = (event) => resolve(event.results[0][0].transcript);
+                                recognition.onerror = (event) => reject(event.error);
                                 recognition.start();
                             });
                         })()
                     "#;
                     
-                    let promise = js_sys::eval(js_code);
-                    match promise {
-                        Ok(p) => {
-                            let promise: js_sys::Promise = p.unchecked_into();
-                            match wasm_bindgen_futures::JsFuture::from(promise).await {
-                                Ok(result) => {
-                                    if let Some(text) = result.as_string() {
-                                        set_manual.set(text);
-                                        set_status.set("✅ Heard you! Click Execute.".to_string());
-                                    }
-                                }
-                                Err(e) => {
-                                    log(&format!("Speech error: {:?}", e));
-                                    set_status.set("❌ Speech error. Type instead.".to_string());
-                                }
+                    if let Ok(promise) = js_sys::eval(js_code) {
+                        let promise: js_sys::Promise = promise.unchecked_into();
+                        if let Ok(result) = wasm_bindgen_futures::JsFuture::from(promise).await {
+                             if let Some(text) = result.as_string() {
+                                set_manual.set(text.clone());
+                                set_listening.set(false);
+                                // Auto-execute voice result
+                                processor(text);
                             }
-                        }
-                        Err(_) => {
-                            set_status.set("❌ Speech not available".to_string());
                         }
                     }
                 }
-                _ => {
-                    set_status.set("❌ Speech recognition not supported".to_string());
-                }
+                _ => set_feedback.set(Some("❌ Mic not supported".to_string()))
             }
-            
             set_listening.set(false);
         });
     };
 
-
     view! {
-        <div class="bg-gradient-to-r from-purple-900/40 to-blue-900/40 p-5 rounded-xl border border-purple-500/30 mb-6">
-            <div class="flex items-center gap-4 mb-4">
-                <div class="w-14 h-14 rounded-full bg-purple-600 flex items-center justify-center text-2xl">
-                    "🎤"
+        <div class="relative w-full mb-6 group">
+            // Feedback Overlay / Tooltip
+            {move || feedback.get().map(|msg| view! {
+                <div class="absolute -top-8 left-0 text-xs font-bold px-2 py-1 rounded bg-slate-800 border border-slate-600 shadow-xl text-cyan-400 animate-fade-in z-20">
+                    {msg}
                 </div>
-                <div class="flex-1">
-                    <h3 class="font-bold text-lg">"Voice Commands"</h3>
-                    <p class="text-sm text-gray-400">"Say or type: \"used 4 hammers today\""</p>
+            })}
+
+            <div class="relative flex items-center">
+                <div class="absolute left-4 text-slate-400 group-focus-within:text-cyan-400 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
                 </div>
-            </div>
-            
-            // Manual text input (always works, voice is bonus)
-            <div class="flex gap-2">
+                
                 <input 
                     type="text"
-                    class="flex-1 bg-slate-800 border border-slate-600 p-3 rounded-lg"
-                    placeholder="Type command: 'used 4 hammers' or 'received 10 seals'"
+                    class="w-full bg-slate-800/80 backdrop-blur border border-slate-600 rounded-xl py-4 pl-12 pr-14 text-lg text-white placeholder-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition shadow-lg"
+                    placeholder="Search parts OR say 'Used 4 hammers'..."
                     prop:value=manual_input
-                    on:input=move |ev| set_manual_input.set(event_target_value(&ev))
-                    on:keydown=move |ev| if ev.key() == "Enter" { process_input() }
+                    on:input=on_input_change
+                    on:keydown=move |ev| if ev.key() == "Enter" { process_input(manual_input.get()) }
                 />
+
                 <button 
                     class={move || if is_listening.get() { 
-                        "px-4 py-3 bg-red-500 animate-pulse rounded-lg font-bold transition text-xl" 
+                        "p-2 text-red-500 animate-pulse hover:bg-slate-700/50 rounded-full transition" 
                     } else { 
-                        "px-4 py-3 bg-red-600 hover:bg-red-500 rounded-lg font-bold transition text-xl" 
+                        "p-2 text-gray-400 hover:text-white hover:bg-slate-700/50 rounded-full transition" 
                     }}
+                    style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%);"
                     on:click=start_listening
-                    title="Click to speak"
+                    title="Voice Command / Search"
                 >
-                    "🎤"
-                </button>
-                <button 
-                    class="px-6 py-3 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold transition"
-                    on:click=move |_| process_input()
-                >
-                    "Execute"
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
                 </button>
             </div>
             
-            // Status display
-            <div class="mt-4 mb-2 text-sm text-cyan-400 font-medium min-h-[20px]">
-                {move || status_text.get()}
-            </div>
-            
-            // Result display
-            <Show when=move || !result_text.get().is_empty() fallback=|| ()>
-                <div class="mt-3 p-3 bg-slate-800/70 rounded-lg text-sm font-medium">
-                    {move || result_text.get()}
-                </div>
-            </Show>
-            
-            // Example commands
-            <div class="mt-4 text-xs text-gray-500 flex flex-wrap items-center gap-3">
-                <span class="uppercase tracking-wider font-bold text-purple-400">"Examples:"</span>
-                <code class="bg-slate-800 text-purple-300 px-2 py-1 rounded border border-purple-500/20">"used 4 hammers"</code>
-                <code class="bg-slate-800 text-blue-300 px-2 py-1 rounded border border-blue-500/20">"received 10 seals"</code>
-                <code class="bg-slate-800 text-emerald-300 px-2 py-1 rounded border border-emerald-500/20">"added 2 pumps"</code>
+            // Helpful hints under the bar
+            <div class="flex justify-between px-2 mt-2">
+                 <div class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">
+                    "AI Smart Bar"
+                 </div>
+                 <div class="text-[10px] text-slate-600 flex gap-4">
+                    <span>"Try: 'Metso Hammer'"</span>
+                    <span>"Try: 'Used 2 seals'"</span>
+                    <span>"Try: 'Added 5 bolts'"</span>
+                 </div>
             </div>
         </div>
     }

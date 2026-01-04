@@ -9,3 +9,4 @@ pub mod login;
 pub mod inventory;
 pub mod voice_input;
 pub mod system_map;
+pub mod roi_calculator;

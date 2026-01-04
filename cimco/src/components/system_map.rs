@@ -1,6 +1,6 @@
 use leptos::*;
 use crate::api::{get_parts, Part};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 struct SystemNode {

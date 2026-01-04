@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
 use nokhwa::utils::{ApiBackend, CameraIndex};
 use nokhwa::query;
 use tauri::State;
