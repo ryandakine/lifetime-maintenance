@@ -743,25 +743,37 @@ pub async fn find_similar_resolutions(state: &AppState, query: String) -> Result
 // ==========================================
 
 /// Get a user by username for login
-pub fn get_user_by_username(state: &AppState, username: &str) -> Result<Option<User>, String> {
-    // For now, use a simple in-memory admin user
-    // In production, this would query the database
-    if username == "admin" {
-        let admin_hash = crate::auth::hash_password("admin123")
+pub fn get_user_by_username(_state: &AppState, username: &str) -> Result<Option<User>, String> {
+    // NOTE: In production, this should query the PostgreSQL users table
+    // For MVP, using environment variables for admin credentials
+    
+    let admin_user = std::env::var("CIMCO_ADMIN_USER").unwrap_or_else(|_| "admin".to_string());
+    let admin_pass = std::env::var("CIMCO_ADMIN_PASS").unwrap_or_else(|_| {
+        eprintln!("⚠️ WARNING: Using default admin password 'sudo'! Set CIMCO_ADMIN_PASS env var");
+        "sudo".to_string()
+    });
+    
+    let worker_user = std::env::var("CIMCO_WORKER_USER").unwrap_or_else(|_| "worker".to_string());
+    let worker_pass = std::env::var("CIMCO_WORKER_PASS").unwrap_or_else(|_| {
+        "sudo".to_string()
+    });
+    
+    if username == admin_user {
+        let admin_hash = crate::auth::hash_password(&admin_pass)
             .unwrap_or_else(|_| "".to_string());
         Ok(Some(User {
             id: "admin-001".to_string(),
-            username: "admin".to_string(),
+            username: admin_user,
             password_hash: admin_hash,
             role: UserRole::Admin,
             created_at: 0,
         }))
-    } else if username == "worker" {
-        let worker_hash = crate::auth::hash_password("worker123")
+    } else if username == worker_user {
+        let worker_hash = crate::auth::hash_password(&worker_pass)
             .unwrap_or_else(|_| "".to_string());
         Ok(Some(User {
             id: "worker-001".to_string(),
-            username: "worker".to_string(),
+            username: worker_user,
             password_hash: worker_hash,
             role: UserRole::Worker,
             created_at: 0,
