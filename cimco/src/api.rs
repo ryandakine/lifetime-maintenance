@@ -345,8 +345,39 @@ struct PartIdArgs {
     id: i32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaginatedResult<T> {
+    pub items: Vec<T>,
+    pub total: i64,
+    pub page: i32,
+    pub page_size: i32,
+    pub total_pages: i32,
+}
+
+#[derive(Serialize)]
+struct GetPartsPaginatedArgs {
+    page: i32,
+    page_size: i32,
+    category_filter: Option<String>,
+    search_query: Option<String>,
+}
+
 pub async fn get_parts() -> Result<Vec<Part>, String> {
     invoke_command("get_parts", &()).await
+}
+
+pub async fn get_parts_paginated(
+    page: i32,
+    page_size: i32,
+    category_filter: Option<String>,
+    search_query: Option<String>,
+) -> Result<PaginatedResult<Part>, String> {
+    invoke_command("get_parts_paginated", &GetPartsPaginatedArgs {
+        page,
+        page_size,
+        category_filter,
+        search_query,
+    }).await
 }
 
 pub async fn add_part(
