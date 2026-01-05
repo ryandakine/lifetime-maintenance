@@ -93,6 +93,40 @@ pub async fn invoke_command<T: Serialize, R: for<'de> Deserialize<'de>>(command:
                  let json = serde_json::to_value(res).unwrap();
                  serde_json::from_value(json).map_err(|e| e.to_string())
             },
+            "get_parts_paginated" => {
+                 let page = args_val["page"].as_i64().unwrap_or(1) as i32;
+                 let page_size = args_val["page_size"].as_i64().unwrap_or(50) as i32;
+                 let category_filter = args_val["category_filter"].as_str();
+                 let search_query = args_val["search_query"].as_str();
+                 
+                 let db = get_mock_db().lock().unwrap();
+                 
+                 // Filter
+                 let filtered: Vec<Part> = db.iter().filter(|p| {
+                     let matches_cat = category_filter.map_or(true, |c| c.is_empty() || p.category == c);
+                     let matches_search = search_query.map_or(true, |q| q.is_empty() || 
+                        p.name.to_lowercase().contains(&q.to_lowercase()) || 
+                        p.part_number.as_ref().map_or(false, |pn| pn.to_lowercase().contains(&q.to_lowercase()))
+                     );
+                     matches_cat && matches_search
+                 }).cloned().collect();
+
+                 let total = filtered.len() as i64;
+                 let total_pages = (total as f64 / page_size as f64).ceil() as i32;
+                 
+                 let start = ((page - 1) * page_size) as usize;
+                 let items = filtered.into_iter().skip(start).take(page_size as usize).collect::<Vec<_>>();
+
+                 let res = PaginatedResult {
+                     items,
+                     total,
+                     page,
+                     page_size,
+                     total_pages,
+                 };
+                 let json = serde_json::to_value(res).unwrap();
+                 serde_json::from_value(json).map_err(|e| e.to_string())
+            },
             // Fallback for other commands (seed, reset, etc.) returns success
             _ => {
                  let res = "Mock Success".to_string();
