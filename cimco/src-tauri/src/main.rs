@@ -4,6 +4,8 @@
 )]
 
 use std::sync::Mutex;
+use tracing::{info, error};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod auth;
 mod db;
@@ -14,12 +16,25 @@ mod commands;
 use hardware::{ScaleState, ScaleData};
 
 fn main() {
+    // Initialize structured logging
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "info".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    info!("Starting Cimco Equipment Tracker");
+
     // Initialize Database
     let app_state = match db::init() {
-        Ok(state) => state,
+        Ok(state) => {
+            info!("Database initialized successfully");
+            state
+        },
         Err(e) => {
-            eprintln!("Failed to initialize database: {}", e);
-            // Panic here is acceptable as the app cannot function without DB
+            error!("Failed to initialize database: {}", e);
             panic!("Database initialization failed");
         }
     };
