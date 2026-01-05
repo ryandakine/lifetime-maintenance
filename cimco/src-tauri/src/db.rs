@@ -2,9 +2,11 @@ use rusqlite::{params, Connection};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use serde::{Serialize, Deserialize};
+use crate::auth::{User, UserRole};
 
 pub struct AppState {
     pub db: Pool<SqliteConnectionManager>,
+    pub auth: crate::auth::AuthState,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -127,8 +129,44 @@ pub fn init() -> Result<AppState, Box<dyn std::error::Error>> {
         [],
     )?;
 
+    // Create users table for authentication
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )",
+        [],
+    )?;
+
     // Create parts inventory tables
     init_parts_table(&conn)?;
+
+    // Seed default admin user if no users exist
+    let user_count: i32 = conn.query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0))?;
+    if user_count == 0 {
+        // Create default admin: username "admin", password "admin123" (CHANGE IN PRODUCTION!)
+        let admin_hash = crate::auth::hash_password("admin123")
+            .unwrap_or_else(|_| "$argon2id$v=19$m=19456,t=2,p=1$placeholder".to_string());
+
+        conn.execute(
+            "INSERT INTO users (id, username, password_hash, role, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                uuid::Uuid::new_v4().to_string(),
+                "admin",
+                admin_hash,
+                "Admin",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as i64
+            ],
+        )?;
+        println!("🔐 Created default admin user (username: admin, password: admin123)");
+        println!("⚠️  CHANGE DEFAULT PASSWORD IN PRODUCTION!");
+    }
 
     // Seed Data (if empty)
     let count: i32 = conn.query_row("SELECT COUNT(*) FROM equipment", [], |row| row.get(0))?;
@@ -154,7 +192,87 @@ pub fn init() -> Result<AppState, Box<dyn std::error::Error>> {
 
     Ok(AppState {
         db: pool,
+        auth: crate::auth::AuthState::new(),
     })
+}
+
+// User Management Functions
+
+/// Get user by username
+pub fn get_user_by_username(state: &AppState, username: &str) -> Result<Option<User>, String> {
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
+
+    let mut stmt = conn
+        .prepare("SELECT id, username, password_hash, role, created_at FROM users WHERE username = ?1")
+        .map_err(|e| format!("Failed to prepare query: {}", e))?;
+
+    let user = stmt
+        .query_row(params![username], |row| {
+            let role_str: String = row.get(3)?;
+            let role = match role_str.as_str() {
+                "Admin" => UserRole::Admin,
+                "Worker" => UserRole::Worker,
+                _ => UserRole::Worker,
+            };
+
+            Ok(User {
+                id: row.get(0)?,
+                username: row.get(1)?,
+                password_hash: row.get(2)?,
+                role,
+                created_at: row.get(4)?,
+            })
+        })
+        .optional()
+        .map_err(|e| format!("Query failed: {}", e))?;
+
+    Ok(user)
+}
+
+/// Create a new user
+pub fn create_user(
+    state: &AppState,
+    username: String,
+    password: String,
+    role: UserRole,
+) -> Result<String, String> {
+    // Validate input
+    if username.is_empty() || username.len() > 50 {
+        return Err("Username must be 1-50 characters".to_string());
+    }
+    if password.len() < 8 {
+        return Err("Password must be at least 8 characters".to_string());
+    }
+
+    let conn = state.db.get().map_err(|e| format!("Database pool error: {}", e))?;
+
+    // Check if username already exists
+    let exists: i32 = conn
+        .query_row("SELECT COUNT(*) FROM users WHERE username = ?1", params![username], |row| row.get(0))
+        .unwrap_or(0);
+
+    if exists > 0 {
+        return Err("Username already exists".to_string());
+    }
+
+    let id = uuid::Uuid::new_v4().to_string();
+    let password_hash = crate::auth::hash_password(&password)?;
+    let role_str = match role {
+        UserRole::Admin => "Admin",
+        UserRole::Worker => "Worker",
+    };
+    let created_at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+
+    conn.execute(
+        "INSERT INTO users (id, username, password_hash, role, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![id, username, password_hash, role_str, created_at],
+    )
+    .map_err(|e| format!("Failed to insert user: {}", e))?;
+
+    Ok("User created successfully".to_string())
 }
 
 // Equipment CRUD

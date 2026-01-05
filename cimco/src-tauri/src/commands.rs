@@ -1,5 +1,84 @@
 use tauri::State;
 use crate::db::{self, AppState, Equipment, OfflineLog, TaskResolution, EquipmentStats};
+use crate::auth::{Session, UserRole};
+
+// ==========================================
+// Authentication Commands
+// ==========================================
+
+/// Login with username and password
+#[tauri::command]
+pub fn login(state: State<AppState>, username: String, password: String) -> Result<Session, String> {
+    // Get user from database
+    let user = db::get_user_by_username(&state, &username)?
+        .ok_or_else(|| "Invalid username or password".to_string())?;
+
+    // Verify password
+    let is_valid = crate::auth::verify_password(&password, &user.password_hash)?;
+    if !is_valid {
+        return Err("Invalid username or password".to_string());
+    }
+
+    // Create session
+    let session = state.auth.create_session(&user);
+
+    Ok(session)
+}
+
+/// Logout - invalidate session
+#[tauri::command]
+pub fn logout(state: State<AppState>, token: String) -> Result<String, String> {
+    state.auth.logout(&token);
+    Ok("Logged out successfully".to_string())
+}
+
+/// Validate session token
+#[tauri::command]
+pub fn validate_session(state: State<AppState>, token: String) -> Result<Session, String> {
+    state
+        .auth
+        .validate_session(&token)
+        .ok_or_else(|| "Invalid or expired session".to_string())
+}
+
+/// Create a new user (Admin only)
+#[tauri::command]
+pub fn create_user(
+    state: State<AppState>,
+    token: String,
+    username: String,
+    password: String,
+    role: String,
+) -> Result<String, String> {
+    // Verify admin permission
+    if !state.auth.has_role(&token, UserRole::Admin) {
+        return Err("Permission denied: Admin role required".to_string());
+    }
+
+    let user_role = match role.as_str() {
+        "Admin" => UserRole::Admin,
+        "Worker" => UserRole::Worker,
+        _ => return Err("Invalid role".to_string()),
+    };
+
+    db::create_user(&state, username, password, user_role)
+}
+
+// ==========================================
+// Authentication Middleware Helper
+// ==========================================
+
+/// Verify that the user has the required role
+fn require_role(state: &State<AppState>, token: &str, role: UserRole) -> Result<(), String> {
+    if !state.auth.has_role(token, role) {
+        return Err("Permission denied".to_string());
+    }
+    Ok(())
+}
+
+// ==========================================
+// Database Commands (with authentication)
+// ==========================================
 
 #[tauri::command]
 pub fn seed_database(state: State<AppState>) -> Result<String, String> {

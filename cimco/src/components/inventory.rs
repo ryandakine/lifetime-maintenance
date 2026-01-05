@@ -85,25 +85,42 @@ pub fn Inventory() -> impl IntoView {
 
     let export_action = create_action(move |_| async move {
         if let Ok(csv) = export_inventory_csv().await {
-             // Simple JS download trigger
-             // Escaping backticks to be safe in template literal
-             let safe_csv = csv.replace("`", "\\`"); 
-             let script = format!("
-                const data = `
-{}
-`;
-                const blob = new Blob([data], {{ type: 'text/csv' }});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'cimco_inventory.csv';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-             ", safe_csv);
-             
-             let _ = js_sys::eval(&script);
+            // SECURITY FIX: Use direct Blob API instead of eval()
+            // This prevents XSS attacks via CSV injection
+
+            use wasm_bindgen::JsCast;
+            use web_sys::{Blob, BlobPropertyBag, HtmlAnchorElement, Url};
+
+            if let Some(window) = web_sys::window() {
+                if let Some(document) = window.document() {
+                    // Create blob from CSV data
+                    let mut blob_parts = js_sys::Array::new();
+                    blob_parts.push(&csv.into());
+
+                    let mut options = BlobPropertyBag::new();
+                    options.type_("text/csv");
+
+                    if let Ok(blob) = Blob::new_with_str_sequence_and_options(&blob_parts, &options) {
+                        if let Ok(url) = Url::create_object_url_with_blob(&blob) {
+                            // Create download link
+                            if let Ok(Some(link)) = document.create_element("a")
+                                .and_then(|el| el.dyn_into::<HtmlAnchorElement>().ok().map(Some))
+                            {
+                                link.set_href(&url);
+                                link.set_download("cimco_inventory.csv");
+
+                                if let Some(body) = document.body() {
+                                    let _ = body.append_child(&link);
+                                    link.click();
+                                    let _ = body.remove_child(&link);
+                                }
+
+                                Url::revoke_object_url(&url).ok();
+                            }
+                        }
+                    }
+                }
+            }
         }
     });
     

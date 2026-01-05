@@ -5,6 +5,7 @@
 
 use std::sync::Mutex;
 
+mod auth;
 mod db;
 mod db_seeds;
 mod hardware;
@@ -31,8 +32,13 @@ fn main() {
             is_stable: false 
         })))
         .invoke_handler(tauri::generate_handler![
+            // Authentication
+            commands::login,
+            commands::logout,
+            commands::validate_session,
+            commands::create_user,
             // Equipment
-            commands::get_equipment_stats, 
+            commands::get_equipment_stats,
             commands::get_equipment_list,
             commands::add_equipment,
             commands::update_equipment_status,
