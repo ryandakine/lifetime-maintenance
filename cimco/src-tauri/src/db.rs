@@ -82,6 +82,15 @@ pub struct IncomingOrder {
     pub expected_delivery: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PaginatedResult<T> {
+    pub items: Vec<T>,
+    pub total: i64,
+    pub page: i32,
+    pub page_size: i32,
+    pub total_pages: i32,
+}
+
 pub async fn init() -> Result<AppState, Box<dyn std::error::Error>> {
     // Get database URL from environment or use default
     let db_url = env::var("DATABASE_URL")
@@ -308,6 +317,7 @@ pub async fn delete_task(state: &AppState, id: i32) -> Result<String, String> {
 // Parts Inventory CRUD (Async)
 // ==========================================
 
+/// Get all parts without pagination (legacy - use get_parts_paginated for new code)
 pub async fn get_all_parts(state: &AppState) -> Result<Vec<Part>, String> {
     let client = state.db.get().await.map_err(|e| format!("Pool error: {}", e))?;
 
@@ -342,6 +352,151 @@ pub async fn get_all_parts(state: &AppState) -> Result<Vec<Part>, String> {
         .collect();
 
     Ok(parts)
+}
+
+/// Get parts with pagination (recommended for production use)
+pub async fn get_parts_paginated(
+    state: &AppState,
+    page: i32,
+    page_size: i32,
+    category_filter: Option<String>,
+    search_query: Option<String>,
+) -> Result<PaginatedResult<Part>, String> {
+    let client = state.db.get().await.map_err(|e| format!("Pool error: {}", e))?;
+
+    // Calculate pagination
+    let offset = (page - 1) * page_size;
+
+    // Build query based on filters (simplified - using separate queries for simplicity)
+    let (count_query, data_query, total, rows) = match (&category_filter, &search_query) {
+        (Some(cat), Some(search)) if cat != "All" && !search.is_empty() => {
+            let search_pattern = format!("%{}%", search.to_lowercase());
+
+            let count_row = client
+                .query_one(
+                    "SELECT COUNT(*) FROM parts WHERE category = $1 AND LOWER(name) LIKE $2",
+                    &[cat, &search_pattern],
+                )
+                .await
+                .map_err(|e| format!("Count query error: {}", e))?;
+            let total: i64 = count_row.get(0);
+
+            let rows = client
+                .query(
+                    "SELECT id, name, description, category, part_type, manufacturer, part_number,
+                            quantity, min_quantity, lead_time_days, wear_rating, location, unit_cost, supplier
+                     FROM parts WHERE category = $1 AND LOWER(name) LIKE $2
+                     ORDER BY category, name
+                     LIMIT $3 OFFSET $4",
+                    &[cat, &search_pattern, &page_size, &offset],
+                )
+                .await
+                .map_err(|e| format!("Data query error: {}", e))?;
+
+            ("", "", total, rows)
+        },
+        (Some(cat), _) if cat != "All" => {
+            let count_row = client
+                .query_one(
+                    "SELECT COUNT(*) FROM parts WHERE category = $1",
+                    &[cat],
+                )
+                .await
+                .map_err(|e| format!("Count query error: {}", e))?;
+            let total: i64 = count_row.get(0);
+
+            let rows = client
+                .query(
+                    "SELECT id, name, description, category, part_type, manufacturer, part_number,
+                            quantity, min_quantity, lead_time_days, wear_rating, location, unit_cost, supplier
+                     FROM parts WHERE category = $1
+                     ORDER BY category, name
+                     LIMIT $2 OFFSET $3",
+                    &[cat, &page_size, &offset],
+                )
+                .await
+                .map_err(|e| format!("Data query error: {}", e))?;
+
+            ("", "", total, rows)
+        },
+        (_, Some(search)) if !search.is_empty() => {
+            let search_pattern = format!("%{}%", search.to_lowercase());
+
+            let count_row = client
+                .query_one(
+                    "SELECT COUNT(*) FROM parts WHERE LOWER(name) LIKE $1",
+                    &[&search_pattern],
+                )
+                .await
+                .map_err(|e| format!("Count query error: {}", e))?;
+            let total: i64 = count_row.get(0);
+
+            let rows = client
+                .query(
+                    "SELECT id, name, description, category, part_type, manufacturer, part_number,
+                            quantity, min_quantity, lead_time_days, wear_rating, location, unit_cost, supplier
+                     FROM parts WHERE LOWER(name) LIKE $1
+                     ORDER BY category, name
+                     LIMIT $2 OFFSET $3",
+                    &[&search_pattern, &page_size, &offset],
+                )
+                .await
+                .map_err(|e| format!("Data query error: {}", e))?;
+
+            ("", "", total, rows)
+        },
+        _ => {
+            let count_row = client
+                .query_one("SELECT COUNT(*) FROM parts", &[])
+                .await
+                .map_err(|e| format!("Count query error: {}", e))?;
+            let total: i64 = count_row.get(0);
+
+            let rows = client
+                .query(
+                    "SELECT id, name, description, category, part_type, manufacturer, part_number,
+                            quantity, min_quantity, lead_time_days, wear_rating, location, unit_cost, supplier
+                     FROM parts
+                     ORDER BY category, name
+                     LIMIT $1 OFFSET $2",
+                    &[&page_size, &offset],
+                )
+                .await
+                .map_err(|e| format!("Data query error: {}", e))?;
+
+            ("", "", total, rows)
+        }
+    };
+
+    let total_pages = ((total as f64) / (page_size as f64)).ceil() as i32;
+
+    let parts: Vec<Part> = rows
+        .iter()
+        .map(|row| Part {
+            id: row.get(0),
+            name: row.get(1),
+            description: row.get(2),
+            category: row.get(3),
+            part_type: row.get(4),
+            manufacturer: row.get(5),
+            part_number: row.get(6),
+            quantity: row.get(7),
+            min_quantity: row.get(8),
+            lead_time_days: row.get(9),
+            wear_rating: row.get(10),
+            location: row.get(11),
+            unit_cost: row.get(12),
+            supplier: row.get(13),
+        })
+        .collect();
+
+    Ok(PaginatedResult {
+        items: parts,
+        total,
+        page,
+        page_size,
+        total_pages,
+    })
 }
 
 pub async fn create_part(

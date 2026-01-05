@@ -54,6 +54,7 @@ async fn main() {
             commands::find_similar_fixes,
             // Parts Inventory
             commands::get_parts,
+            commands::get_parts_paginated,
             commands::add_part,
             commands::update_part_quantity,
             commands::update_part_location,

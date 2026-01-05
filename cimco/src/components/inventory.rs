@@ -1,5 +1,5 @@
 use leptos::*;
-use crate::api::{get_parts, add_part, update_part_quantity, update_part_location, delete_part, get_incoming_orders, receive_order, export_inventory_csv};
+use crate::api::{get_parts_paginated, add_part, update_part_quantity, update_part_location, delete_part, get_incoming_orders, receive_order, export_inventory_csv};
 use crate::components::voice_input::VoiceInput;
 
 #[component]
@@ -10,11 +10,26 @@ pub fn Inventory() -> impl IntoView {
     let (search_query, set_search_query) = create_signal(String::new());
     let (sort_by, set_sort_by) = create_signal("stock".to_string());
     let (sort_desc, set_sort_desc) = create_signal(false); // false = ascending (low stock first)
-    
-    // Fetch Parts
+
+    // Pagination state
+    let (current_page, set_current_page) = create_signal(1_i32);
+    let (page_size, _set_page_size) = create_signal(50_i32); // 50 items per page
+
+    // Reset to page 1 when search or filter changes
+    create_effect(move |_| {
+        search_query.track();
+        filter_category.track();
+        set_current_page.set(1);
+    });
+
+    // Fetch Parts with Pagination
     let parts = create_resource(
-        move || refresh.get(),
-        |_| async move { get_parts().await }
+        move || (refresh.get(), current_page.get(), page_size.get(), filter_category.get(), search_query.get()),
+        |(_, page, size, cat_filter, search)| async move {
+            let category = if cat_filter == "All" { None } else { Some(cat_filter) };
+            let query = if search.is_empty() { None } else { Some(search) };
+            get_parts_paginated(page, size, category, query).await
+        }
     );
     
     // Fetch Incoming Orders
@@ -152,9 +167,12 @@ pub fn Inventory() -> impl IntoView {
         });
     });
 
-    // Signal for parts list to pass to VoiceInput
+    // Signal for parts list to pass to VoiceInput (extract items from paginated result)
     let parts_signal = create_memo(move |_| {
-        parts.get().map(|r| r.unwrap_or_default()).unwrap_or_default()
+        parts.get()
+            .and_then(|r| r.ok())
+            .map(|paginated| paginated.items)
+            .unwrap_or_default()
     });
 
     view! {
@@ -346,52 +364,10 @@ pub fn Inventory() -> impl IntoView {
                         <tbody class="divide-y divide-slate-800/50">
                             <Suspense fallback=|| view! { <tr><td colspan="5" class="p-8 text-center text-slate-500 animate-pulse">"Loading inventory..."</td></tr> }>
                                 {move || parts.get().map(|result| match result {
-                                    Ok(data) => {
-                                        let search = search_query.get().to_lowercase();
-                                        let cat_filter = filter_category.get();
-                                        
-                                        // 1. Filter
-                                        let mut filtered: Vec<_> = data.into_iter()
-                                            .filter(|p| {
-                                                let matches_search = search.is_empty() || p.name.to_lowercase().contains(&search);
-                                                
-                                                // Enhanced Category Filter Logic
-                                                let matches_cat = if cat_filter == "All" {
-                                                    true
-                                                } else if cat_filter == "High Wear Parts" {
-                                                    // Check wear rating OR part type string
-                                                    let rating = p.wear_rating.unwrap_or(0);
-                                                    let p_type = p.part_type.clone().unwrap_or_default();
-                                                    
-                                                    rating >= 7 || 
-                                                    p_type.contains("Hammer") || 
-                                                    p_type.contains("Cap") || 
-                                                    p_type.contains("Liner") || 
-                                                    p_type.contains("Blade") ||
-                                                    p_type.contains("Hose") ||
-                                                    p.name.contains("Hose") ||
-                                                    p.name.contains("Hydraulic")
-                                                } else {
-                                                    p.category == cat_filter
-                                                };
-                                                
-                                                matches_search && matches_cat
-                                            })
-                                            .collect();
-
-                                        // 2. Sort
-                                        filtered.sort_by(|a, b| {
-                                            let cmp = match sort_by.get().as_str() {
-                                                "name" => a.name.cmp(&b.name),
-                                                "category" => a.category.cmp(&b.category),
-                                                "location" => a.location.cmp(&b.location),
-                                                _ => a.quantity.cmp(&b.quantity),
-                                            };
-                                            if sort_desc.get() { cmp.reverse() } else { cmp }
-                                        });
-
-                                        // 3. Render
-                                        filtered.into_iter().map(|item| {
+                                    Ok(paginated) => {
+                                        // Server handles filtering and pagination
+                                        // Just render the items directly
+                                        paginated.items.into_iter().map(|item| {
                                             let qty = item.quantity;
                                             let min = item.min_quantity;
                                             let is_order = qty <= min;
@@ -481,6 +457,72 @@ pub fn Inventory() -> impl IntoView {
                             </Suspense>
                         </tbody>
                     </table>
+                </div>
+
+                // Pagination Controls
+                <div class="mt-4 flex items-center justify-between px-6 py-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                    <div class="text-sm text-gray-400">
+                        {move || {
+                            parts.get().and_then(|r| r.ok()).map(|paginated| {
+                                let start = if paginated.total == 0 { 0 } else { (paginated.page - 1) * paginated.page_size + 1 };
+                                let end = std::cmp::min(paginated.page * paginated.page_size, paginated.total as i32);
+                                view! {
+                                    <span>
+                                        "Showing " <span class="font-bold text-cyan-400">{start}</span>
+                                        " to " <span class="font-bold text-cyan-400">{end}</span>
+                                        " of " <span class="font-bold text-cyan-400">{paginated.total}</span>
+                                        " parts"
+                                    </span>
+                                }
+                            })
+                        }}
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        {move || {
+                            parts.get().and_then(|r| r.ok()).map(|paginated| {
+                                let current = paginated.page;
+                                let total_pages = paginated.total_pages;
+
+                                view! {
+                                    <div class="flex items-center gap-2">
+                                        // Previous button
+                                        <button
+                                            on:click=move |_| {
+                                                if current > 1 {
+                                                    set_current_page.set(current - 1);
+                                                }
+                                            }
+                                            disabled={current <= 1}
+                                            class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-gray-600 disabled:cursor-not-allowed rounded-lg text-sm font-bold transition"
+                                        >
+                                            "← Prev"
+                                        </button>
+
+                                        // Page indicator
+                                        <span class="px-4 py-1.5 bg-slate-900 rounded-lg text-sm font-mono">
+                                            <span class="text-cyan-400">{current}</span>
+                                            <span class="text-gray-500">" / "</span>
+                                            <span class="text-gray-400">{total_pages}</span>
+                                        </span>
+
+                                        // Next button
+                                        <button
+                                            on:click=move |_| {
+                                                if current < total_pages {
+                                                    set_current_page.set(current + 1);
+                                                }
+                                            }
+                                            disabled={current >= total_pages}
+                                            class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-gray-600 disabled:cursor-not-allowed rounded-lg text-sm font-bold transition"
+                                        >
+                                            "Next →"
+                                        </button>
+                                    </div>
+                                }
+                            })
+                        }}
+                    </div>
                 </div>
             </div>
         </div>

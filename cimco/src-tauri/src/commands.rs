@@ -92,6 +92,17 @@ pub async fn get_parts(state: State<'_, AppState>) -> Result<Vec<db::Part>, Stri
 }
 
 #[tauri::command]
+pub async fn get_parts_paginated(
+    state: State<'_, AppState>,
+    page: i32,
+    page_size: i32,
+    category_filter: Option<String>,
+    search_query: Option<String>,
+) -> Result<db::PaginatedResult<db::Part>, String> {
+    db::get_parts_paginated(&state, page, page_size, category_filter, search_query).await
+}
+
+#[tauri::command]
 pub async fn add_part(
     state: State<'_, AppState>,
     name: String,
