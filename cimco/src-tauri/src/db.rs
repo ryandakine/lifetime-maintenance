@@ -127,7 +127,7 @@ async fn init_schema(pool: &Pool) -> Result<(), Box<dyn std::error::Error>> {
     let client = pool.get().await?;
 
     // Read and execute schema file
-    let schema_sql = include_str!("../../../database/schema.sql");
+    let schema_sql = include_str!("../../../database/cimco_schema.sql");
     client.batch_execute(schema_sql).await?;
 
     println!("✅ Database schema initialized");
@@ -151,6 +151,18 @@ async fn init_schema(pool: &Pool) -> Result<(), Box<dyn std::error::Error>> {
             &[],
         ).await?;
         println!("✅ Sample equipment data seeded");
+    }
+
+    // Seed Parts if empty
+    let row = client.query_one("SELECT COUNT(*) FROM parts", &[]).await?;
+    let count: i64 = row.get(0);
+
+    if count == 0 {
+        println!("🌱 Seeding Parts from SQL...");
+        // Path relative to src-tauri/src/db.rs -> cimco/database/cimco_seed.sql
+        let parts_sql = include_str!("../../database/cimco_seed.sql");
+        client.batch_execute(parts_sql).await?;
+        println!("✅ Parts seeded");
     }
 
     Ok(())
@@ -370,10 +382,11 @@ pub async fn get_parts_paginated(
     let client = state.db.get().await.map_err(|e| format!("Pool error: {}", e))?;
 
     // Calculate pagination
-    let offset = (page - 1) * page_size;
+    let limit = page_size as i64;
+    let offset = ((page as i64) - 1) * limit;
 
     // Build query based on filters (simplified - using separate queries for simplicity)
-    let (count_query, data_query, total, rows) = match (&category_filter, &search_query) {
+    let (total, rows) = match (&category_filter, &search_query) {
         (Some(cat), Some(search)) if cat != "All" && !search.is_empty() => {
             let search_pattern = format!("%{}%", search.to_lowercase());
 
@@ -393,12 +406,12 @@ pub async fn get_parts_paginated(
                      FROM parts WHERE category = $1 AND LOWER(name) LIKE $2
                      ORDER BY category, name
                      LIMIT $3 OFFSET $4",
-                    &[cat, &search_pattern, &page_size, &offset],
+                    &[cat, &search_pattern, &limit, &offset],
                 )
                 .await
                 .map_err(|e| format!("Data query error: {}", e))?;
 
-            ("", "", total, rows)
+            (total, rows)
         },
         (Some(cat), _) if cat != "All" => {
             let count_row = client
@@ -417,12 +430,12 @@ pub async fn get_parts_paginated(
                      FROM parts WHERE category = $1
                      ORDER BY category, name
                      LIMIT $2 OFFSET $3",
-                    &[cat, &page_size, &offset],
+                    &[cat, &limit, &offset],
                 )
                 .await
                 .map_err(|e| format!("Data query error: {}", e))?;
 
-            ("", "", total, rows)
+            (total, rows)
         },
         (_, Some(search)) if !search.is_empty() => {
             let search_pattern = format!("%{}%", search.to_lowercase());
@@ -443,12 +456,12 @@ pub async fn get_parts_paginated(
                      FROM parts WHERE LOWER(name) LIKE $1
                      ORDER BY category, name
                      LIMIT $2 OFFSET $3",
-                    &[&search_pattern, &page_size, &offset],
+                    &[&search_pattern, &limit, &offset],
                 )
                 .await
                 .map_err(|e| format!("Data query error: {}", e))?;
 
-            ("", "", total, rows)
+            (total, rows)
         },
         _ => {
             let count_row = client
@@ -464,12 +477,12 @@ pub async fn get_parts_paginated(
                      FROM parts
                      ORDER BY category, name
                      LIMIT $1 OFFSET $2",
-                    &[&page_size, &offset],
+                    &[&limit, &offset],
                 )
                 .await
                 .map_err(|e| format!("Data query error: {}", e))?;
 
-            ("", "", total, rows)
+            (total, rows)
         }
     };
 

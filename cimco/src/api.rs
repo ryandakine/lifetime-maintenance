@@ -33,107 +33,38 @@ pub async fn invoke_command<T: Serialize, R: for<'de> Deserialize<'de>>(command:
             Err(err) => Err(format!("Tauri invoke error: {:?}", err)),
         }
     } else {
-        // MOCK MODE for Browser Development
-        leptos::logging::log!("⚠️ Mocking command: {}", command);
-        
-        // Parse args for mock updates
-        let args_val = serde_json::to_value(args).unwrap_or(serde_json::Value::Null);
-
-        match command {
-            "get_parts" => {
-                 let db = get_mock_db().lock().unwrap();
-                 let json = serde_json::to_value(&*db).unwrap();
-                 serde_json::from_value(json).map_err(|e| e.to_string())
-            },
-            "update_part_quantity" => {
-                let id = args_val["id"].as_i64().unwrap_or(0) as i32;
-                let change = args_val["quantity_change"].as_i64().unwrap_or(0) as i32;
-                
-                let mut db = get_mock_db().lock().unwrap();
-                if let Some(part) = db.iter_mut().find(|p| p.id == id) {
-                    part.quantity += change; // Modify the persisted quantity
-                    if part.quantity < 0 { part.quantity = 0; }
-                    leptos::logging::log!("MOCK: Updated part {} quantity by {}. New: {}", id, change, part.quantity);
-                }
-                
-                let res = "Mock Success".to_string();
-                let json = serde_json::to_value(res).unwrap();
-                serde_json::from_value(json).map_err(|e| e.to_string())
-            },
-            "update_part_location" => {
-                 let id = args_val["id"].as_i64().unwrap_or(0) as i32;
-                 let location = args_val["location"].as_str().unwrap_or("").to_string();
-
-                 let mut db = get_mock_db().lock().unwrap();
-                 if let Some(part) = db.iter_mut().find(|p| p.id == id) {
-                    part.location = Some(location.clone());
-                    leptos::logging::log!("MOCK: Updated part {} location to '{}'", id, location);
-                 }
-
-                 let res = "Mock Success".to_string();
-                 let json = serde_json::to_value(res).unwrap();
-                 serde_json::from_value(json).map_err(|e| e.to_string())
-            },
-            "get_incoming_orders" => {
-                let orders = vec![
-                    IncomingOrder { id: 1, part_name: Some("Main Bearing".to_string()), order_number: Some("PO-999".to_string()), tracking_number: Some("1Z999".to_string()), supplier: Some("Metso".to_string()), quantity: 1, status: "shipped".to_string(), order_date: None, expected_delivery: None }
-                ];
-                let json = serde_json::to_value(orders).unwrap();
-                 serde_json::from_value(json).map_err(|e| e.to_string())
-            },
-            "switch_demo_mode" => {
-                 let enable = args_val["enable"].as_bool().unwrap_or(false);
-                 let mut db = get_mock_db().lock().unwrap();
-                 *db = if enable {
-                     get_demo_data()
-                 } else {
-                     get_live_data()
-                 };
-                 let res = if enable { "Switched to DEMO mode" } else { "Switched to LIVE mode" }.to_string();
-                 let json = serde_json::to_value(res).unwrap();
-                 serde_json::from_value(json).map_err(|e| e.to_string())
-            },
-            "get_parts_paginated" => {
-                 let page = args_val["page"].as_i64().unwrap_or(1) as i32;
-                 let page_size = args_val["page_size"].as_i64().unwrap_or(50) as i32;
-                 let category_filter = args_val["category_filter"].as_str();
-                 let search_query = args_val["search_query"].as_str();
-                 
-                 let db = get_mock_db().lock().unwrap();
-                 
-                 // Filter
-                 let filtered: Vec<Part> = db.iter().filter(|p| {
-                     let matches_cat = category_filter.map_or(true, |c| c.is_empty() || p.category == c);
-                     let matches_search = search_query.map_or(true, |q| q.is_empty() || 
-                        p.name.to_lowercase().contains(&q.to_lowercase()) || 
-                        p.part_number.as_ref().map_or(false, |pn| pn.to_lowercase().contains(&q.to_lowercase()))
-                     );
-                     matches_cat && matches_search
-                 }).cloned().collect();
-
-                 let total = filtered.len() as i64;
-                 let total_pages = (total as f64 / page_size as f64).ceil() as i32;
-                 
-                 let start = ((page - 1) * page_size) as usize;
-                 let items = filtered.into_iter().skip(start).take(page_size as usize).collect::<Vec<_>>();
-
-                 let res = PaginatedResult {
-                     items,
-                     total,
-                     page,
-                     page_size,
-                     total_pages,
-                 };
-                 let json = serde_json::to_value(res).unwrap();
-                 serde_json::from_value(json).map_err(|e| e.to_string())
-            },
-            // Fallback for other commands (seed, reset, etc.) returns success
-            _ => {
-                 let res = "Mock Success".to_string();
-                 let json = serde_json::to_value(res).unwrap();
-                 serde_json::from_value(json).map_err(|e| e.to_string())
-            }
+        // WEB SERVER MODE: Fetch from /api/
+        // This enables "Full Experience" by calling the Rust backend server
+        let json_args = serde_json::to_string(args).map_err(|e| e.to_string())?;
+       
+        let mut opts = web_sys::RequestInit::new();
+        opts.method("POST");
+        opts.mode(web_sys::RequestMode::SameOrigin);
+        opts.body(Some(&JsValue::from_str(&json_args)));
+       
+        // Require headers
+        let headers = web_sys::Headers::new().map_err(|_| "Header error".to_string())?;
+        headers.set("Content-Type", "application/json").map_err(|_| "Header error".to_string())?;
+        opts.headers(&headers);
+       
+        let url = format!("/api/{}", command);
+        let request = web_sys::Request::new_with_str_and_init(&url, &opts)
+             .map_err(|_| "Failed to create request".to_string())?;
+             
+        let resp_val = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+             .await
+             .map_err(|e| "Network error (Server unreachable)".to_string())?;
+             
+        let resp: web_sys::Response = resp_val.dyn_into().map_err(|_| "Cast error".to_string())?;
+        if !resp.ok() {
+            return Err(format!("Server error: {}", resp.status()));
         }
+        
+        let json_val = wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|_| "Json err".to_string())?)
+             .await
+             .map_err(|e| "Failed to parse JSON response".to_string())?;
+             
+        serde_wasm_bindgen::from_value(json_val).map_err(|e| e.to_string())
     }
 }
 

@@ -599,6 +599,7 @@ name = "cimco-app"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "axum",
  "csv",
  "deadpool-postgres",
  "nokhwa",
@@ -610,6 +611,8 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-postgres",
+ "tower 0.4.13",
+ "tower-http 0.5.2",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
