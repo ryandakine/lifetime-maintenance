@@ -747,15 +747,15 @@ pub fn get_user_by_username(_state: &AppState, username: &str) -> Result<Option<
     // NOTE: In production, this should query the PostgreSQL users table
     // For MVP, using environment variables for admin credentials
     
-    let admin_user = std::env::var("CIMCO_ADMIN_USER").unwrap_or_else(|_| "admin".to_string());
+    let admin_user = std::env::var("CIMCO_ADMIN_USER").unwrap_or_else(|_| "Ron".to_string());
     let admin_pass = std::env::var("CIMCO_ADMIN_PASS").unwrap_or_else(|_| {
-        eprintln!("⚠️ WARNING: Using default admin password 'sudo'! Set CIMCO_ADMIN_PASS env var");
-        "sudo".to_string()
+        eprintln!("⚠️ WARNING: Using default admin password 'Brenny'! Set CIMCO_ADMIN_PASS env var");
+        "Brenny".to_string()
     });
     
     let worker_user = std::env::var("CIMCO_WORKER_USER").unwrap_or_else(|_| "worker".to_string());
     let worker_pass = std::env::var("CIMCO_WORKER_PASS").unwrap_or_else(|_| {
-        "sudo".to_string()
+        "Brenny".to_string()
     });
     
     if username == admin_user {

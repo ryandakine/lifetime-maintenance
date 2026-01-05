@@ -29,7 +29,7 @@ We have successfully implemented a robust security layer for the CIMCO applicati
 
 4.  **Infrastructure Security**
     *   **Environment Variables:** ALL credentials moved to `.env` (DATABASE_URL, Admin/Worker credentials).
-    *   **Defaults:** Secure "sudo" fallback for development ease (per request), but clear warnings emitted.
+    *   **Defaults:** Fallback to project-specific credentials (Ron/Brenny) with warnings emitted.
     *   **Tracing:** Structured logging removes sensitive data from logs.
 
 ### 🚧 Known Limitations (Pilot Phase)
