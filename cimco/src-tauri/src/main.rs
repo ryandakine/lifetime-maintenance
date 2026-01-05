@@ -4,7 +4,10 @@
 )]
 
 use std::sync::Mutex;
+use tracing::{info, error};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod auth;
 mod db;
 mod db_seeds;
 mod hardware;
@@ -14,18 +17,32 @@ use hardware::{ScaleState, ScaleData};
 
 #[tokio::main]
 async fn main() {
+    // Initialize structured logging
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "info".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    info!("🚀 Starting Cimco Equipment Tracker");
+
     // Initialize PostgreSQL Database
     let app_state = match db::init().await {
-        Ok(state) => state,
+        Ok(state) => {
+            info!("✅ PostgreSQL database initialized successfully");
+            state
+        },
         Err(e) => {
-            eprintln!("❌ Failed to initialize PostgreSQL database: {}", e);
+            error!("❌ Failed to initialize PostgreSQL database: {}", e);
             eprintln!("💡 Make sure PostgreSQL is running and DATABASE_URL is set");
             eprintln!("   Example: DATABASE_URL=postgres://cimco:cimco@localhost/cimco_inventory");
             panic!("Database initialization failed");
         }
     };
 
-    println!("🚀 Starting Tauri application with PostgreSQL backend...");
+    info!("🚀 Starting Tauri application with PostgreSQL backend...");
 
     tauri::Builder::default()
         .manage(app_state)
@@ -35,8 +52,13 @@ async fn main() {
             is_stable: false 
         })))
         .invoke_handler(tauri::generate_handler![
+            // Authentication
+            commands::login,
+            commands::logout,
+            commands::validate_session,
+            commands::create_user,
             // Equipment
-            commands::get_equipment_stats, 
+            commands::get_equipment_stats,
             commands::get_equipment_list,
             commands::add_equipment,
             commands::update_equipment_status,
@@ -66,11 +88,13 @@ async fn main() {
             // Hardware
             hardware::get_connected_cameras,
             hardware::read_scale_weight,
-            // Demo Tools
+            // Demo Tools (Admin Only)
             commands::seed_database,
             commands::seed_production_database,
             commands::reset_database,
-            commands::switch_demo_mode
+            commands::switch_demo_mode,
+            // Audit
+            commands::get_audit_logs
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

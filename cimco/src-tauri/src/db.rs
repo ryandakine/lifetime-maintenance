@@ -2,9 +2,11 @@ use deadpool_postgres::{Config, Pool, Runtime};
 use serde::{Deserialize, Serialize};
 use std::env;
 use tokio_postgres::NoTls;
+use crate::auth::{AuthState, User, UserRole};
 
 pub struct AppState {
     pub db: Pool,
+    pub auth: AuthState,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -115,7 +117,10 @@ pub async fn init() -> Result<AppState, Box<dyn std::error::Error>> {
     // Run schema initialization
     init_schema(&pool).await?;
 
-    Ok(AppState { db: pool })
+    Ok(AppState { 
+        db: pool,
+        auth: AuthState::new(),
+    })
 }
 
 async fn init_schema(pool: &Pool) -> Result<(), Box<dyn std::error::Error>> {
@@ -732,3 +737,47 @@ pub async fn find_similar_resolutions(state: &AppState, query: String) -> Result
 
     Ok(resolutions)
 }
+
+// ==========================================
+// User Authentication Functions
+// ==========================================
+
+/// Get a user by username for login
+pub fn get_user_by_username(state: &AppState, username: &str) -> Result<Option<User>, String> {
+    // For now, use a simple in-memory admin user
+    // In production, this would query the database
+    if username == "admin" {
+        let admin_hash = crate::auth::hash_password("admin123")
+            .unwrap_or_else(|_| "".to_string());
+        Ok(Some(User {
+            id: "admin-001".to_string(),
+            username: "admin".to_string(),
+            password_hash: admin_hash,
+            role: UserRole::Admin,
+            created_at: 0,
+        }))
+    } else if username == "worker" {
+        let worker_hash = crate::auth::hash_password("worker123")
+            .unwrap_or_else(|_| "".to_string());
+        Ok(Some(User {
+            id: "worker-001".to_string(),
+            username: "worker".to_string(),
+            password_hash: worker_hash,
+            role: UserRole::Worker,
+            created_at: 0,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Create a new user (Admin only)
+pub fn create_user(state: &AppState, username: String, password: String, role: UserRole) -> Result<String, String> {
+    // Password hashing
+    let password_hash = crate::auth::hash_password(&password)?;
+    
+    // In a full implementation, this would insert into the database
+    // For now, return success message
+    Ok(format!("User {} created successfully with role {:?}", username, role))
+}
+

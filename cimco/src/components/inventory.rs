@@ -100,25 +100,33 @@ pub fn Inventory() -> impl IntoView {
 
     let export_action = create_action(move |_| async move {
         if let Ok(csv) = export_inventory_csv().await {
-             // Simple JS download trigger
-             // Escaping backticks to be safe in template literal
-             let safe_csv = csv.replace("`", "\\`"); 
-             let script = format!("
-                const data = `
-{}
-`;
-                const blob = new Blob([data], {{ type: 'text/csv' }});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'cimco_inventory.csv';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-             ", safe_csv);
-             
-             let _ = js_sys::eval(&script);
+            // SECURITY FIX: Use data URI approach instead of eval()
+            // This prevents XSS attacks via CSV injection
+            
+            use wasm_bindgen::JsCast;
+            use web_sys::HtmlAnchorElement;
+
+            if let Some(window) = web_sys::window() {
+                if let Some(document) = window.document() {
+                    // Encode CSV data as base64 for data URI
+                    let encoded = js_sys::encode_uri_component(&csv);
+                    let data_uri = format!("data:text/csv;charset=utf-8,{}", encoded.as_string().unwrap_or_default());
+                    
+                    // Create download link
+                    if let Ok(el) = document.create_element("a") {
+                        if let Ok(link) = el.dyn_into::<HtmlAnchorElement>() {
+                            link.set_href(&data_uri);
+                            link.set_download("cimco_inventory.csv");
+
+                            if let Some(body) = document.body() {
+                                let _ = body.append_child(&link);
+                                link.click();
+                                let _ = body.remove_child(&link);
+                            }
+                        }
+                    }
+                }
+            }
         }
     });
     
